@@ -7,14 +7,14 @@ module ICache(
 	output reg rd_wait,
 	output reg [31:0] rd_data);
 	
-	/* [31 tag 11] [10 cache index 7] [5 data index 0]
+	/* [31 tag 10] [9 cache index 6] [5 data index 0]
 	 * so the data index is 6 bits long
 	 * so the cache index is 4 bits long
-	 * so the tag is 21 bits long. c.c
+	 * so the tag is 22 bits long. c.c
 	 */
 	
 	reg cache_valid [15:0];
-	reg [20:0] cache_tags [15:0];
+	reg [21:0] cache_tags [15:0];
 	reg [31:0] cache_data [15:0] [7:0];
 	
 	initial
@@ -23,8 +23,8 @@ module ICache(
 	
 	wire [5:0] rd_didx = rd_addr[5:0];
 	wire [3:0] rd_didx_word = rd_didx[5:2];
-	wire [3:0] rd_idx = rd_addr[10:7];
-	wire [20:0] rd_tag = rd_addr[31:11];
+	wire [3:0] rd_idx = rd_addr[9:6];
+	wire [21:0] rd_tag = rd_addr[31:10];
 	
 	always @(*) begin	/* XXX does this work nowadays? */
 		rd_wait = !(cache_valid[rd_idx] && (cache_tags[rd_idx] == rd_tag));
