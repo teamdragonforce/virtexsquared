@@ -42,18 +42,33 @@ module ICache(
 	wire cache_hit = cache_valid[rd_idx] && (cache_tags[rd_idx] == rd_tag);
 	
 	always @(*) begin	/* XXX does this work nowadays? */
-		rd_wait = !cache_hit;
+		rd_wait = rd_req && !cache_hit;
 		rd_data = cache_data[rd_idx][rd_didx_word];
 	end
 	
 	reg [3:0] cache_fill_pos = 0;
-	reg cache_filling = 0;
 	always @(*) begin
-		if (!cache_hit) begin
+		if (rd_req && !cache_hit) begin
 			bus_req = 1;
 			if (bus_ack) begin
 				bus_addr = {rd_addr[31:6], cache_fill_pos[3:0], 2'b00 /* reads are 32-bits */};
 				bus_rd = 1;
+			end
+		end else begin
+			bus_req = 0;
+			bus_addr = 0;
+			bus_rd = 0;
+		end
+	
+	always @(posedge clk)
+		if (rd_req && !cache_hit) begin
+			if (bus_ready) begin	/* Started the fill, and we have data. */
+				cache_data[rd_idx][cache_fill_pos] = bus_data;
+				cache_fill_pos <= cache_fill_pos + 1;
+				if ((cache_fill_pos + 1) == 0) begin	/* Done? */
+					cache_tags[rd_idx] = rd_tag;
+					cache_valid[rd_idx] = 1;
+				end
 			end
 		end
 endmodule
