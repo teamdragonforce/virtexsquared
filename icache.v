@@ -13,7 +13,7 @@ module ICache(
 	output reg bus_req,
 	input bus_ack,
 	output reg [31:0] bus_addr,
-	input [31:0] bus_data
+	input [31:0] bus_data,
 	output reg bus_rd,
 	output wire bus_wr,
 	input bus_ready);
@@ -28,11 +28,12 @@ module ICache(
 	
 	reg cache_valid [15:0];
 	reg [21:0] cache_tags [15:0];
-	reg [31:0] cache_data [15:0] [7:0];
+	reg [31:0] cache_data [15:0 /* line */] [15:0 /* word */];
 	
+	reg [3:0] i;
 	initial
-		for (i = 0; i < 16; i = i + 1)
-			cache_valid[i] <= 0;
+		for (i = 0; i <= 15; i = i + 1)
+			cache_valid[i] = 0;
 	
 	wire [5:0] rd_didx = rd_addr[5:0];
 	wire [3:0] rd_didx_word = rd_didx[5:2];
@@ -47,7 +48,7 @@ module ICache(
 	end
 	
 	reg [3:0] cache_fill_pos = 0;
-	always @(*) begin
+	always @(*)
 		if (rd_req && !cache_hit) begin
 			bus_req = 1;
 			if (bus_ack) begin
