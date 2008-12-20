@@ -13,12 +13,14 @@ module ICache(
 	output reg bus_req,
 	input bus_ack,
 	output reg [31:0] bus_addr,
-	input [31:0] bus_data,
+	input [31:0] bus_rdata,
+	output wire [31:0] bus_wdata,
 	output reg bus_rd,
 	output wire bus_wr,
 	input bus_ready);
 	
 	assign bus_wr = 0;
+	assign bus_wdata = 0;
 	
 	/* [31 tag 10] [9 cache index 6] [5 data index 0]
 	 * so the data index is 6 bits long
@@ -30,10 +32,10 @@ module ICache(
 	reg [21:0] cache_tags [15:0];
 	reg [31:0] cache_data [15:0 /* line */] [15:0 /* word */];
 	
-	reg [3:0] i;
+	reg [4:0] i;
 	initial
-		for (i = 0; i <= 15; i = i + 1)
-			cache_valid[i] = 0;
+		for (i = 0; i < 16; i = i + 1)
+			cache_valid[i[3:0]] = 0;
 	
 	wire [5:0] rd_didx = rd_addr[5:0];
 	wire [3:0] rd_didx_word = rd_didx[5:2];
@@ -66,7 +68,7 @@ module ICache(
 			if (bus_ready) begin	/* Started the fill, and we have data. */
 				cache_data[rd_idx][cache_fill_pos] = bus_data;
 				cache_fill_pos <= cache_fill_pos + 1;
-				if ((cache_fill_pos + 1) == 0) begin	/* Done? */
+				if (cache_fill_pos == 15) begin	/* Done? */
 					cache_tags[rd_idx] = rd_tag;
 					cache_valid[rd_idx] = 1;
 				end
