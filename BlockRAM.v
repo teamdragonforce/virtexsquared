@@ -12,9 +12,11 @@ module BlockRAM(
 	 * 0x00004000.  rdata and ready must be driven to zero if the
 	 * address is not within the range of this module.
 	 */
-	wire decode = (addr & ~32'h00003FFF) == 32'h00004000;
-	wire [13:2] ramaddr = addr & 14'h3FFC;	/* mask off lower two bits
-						 * for word alignment */
+	wire decode = (bus_addr & ~32'h00003FFF) == 32'h00000000;
+	/* verilator lint_off WIDTH */
+	wire [13:2] ramaddr = bus_addr & 32'h3FFC;	/* mask off lower two bits
+							 * for word alignment */
+	/* verilator lint_on WIDTH */
 	
 	reg [31:0] data [0:(16384 / 4 - 1)];
 	

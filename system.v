@@ -8,9 +8,11 @@ module System(input clk, output wire bubbleshield, output wire [31:0] insn, outp
 	wire [31:0] bus_wdata;
 	wire bus_rd, bus_wr;
 	wire bus_ready;
-	
-	wire bus_req_icache = bus_req[`BUS_ICACHE];
+
+	wire bus_req_icache;	
+	assign bus_req = {7'b0, bus_req_icache};
 	wire bus_ack_icache = bus_ack[`BUS_ICACHE];
+	
 	wire [31:0] bus_addr_icache;
 	wire [31:0] bus_wdata_icache;
 	wire bus_rd_icache;
@@ -42,7 +44,7 @@ module System(input clk, output wire bubbleshield, output wire [31:0] insn, outp
 		.bus_addr(bus_addr_icache), .bus_rdata(bus_rdata),
 		.bus_wdata(bus_wdata_icache), .bus_rd(bus_rd_icache),
 		.bus_wr(bus_wr_icache), .bus_ready(bus_ready));
-
+	
 	BlockRAM blockram(
 		.clk(clk),
 		.bus_addr(bus_addr), .bus_rdata(bus_rdata_blockram),

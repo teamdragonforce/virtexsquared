@@ -9,26 +9,26 @@ module Fetch(
 	
 	input stall,
 	input jmp,
-	input [31:0] jmppc;
+	input [31:0] jmppc,
 	output wire bubble,
 	output wire [31:0] insn,
 	output reg [31:0] pc);
 
 	reg [31:0] prevpc;
 	initial
-		prevpc <= 32'h0;
+		prevpc = 32'hFFFFFFFC;	/* ugh... the first pc we request will be this +4 */
 	always @(negedge Nrst)
-		prevpc <= 32'h0;
+		prevpc <= 32'hFFFFFFFC;
 	
 	always @(*)
 		if (!Nrst)
-			pc <= 32'h0;
+			pc = 32'hFFFFFFFC;
 		else if (stall)	/* don't change any internal state */
-			pc <= prevpc;
+			pc = prevpc;
 		else if (jmp)
-			pc <= jmppc;
+			pc = jmppc;
 		else
-			pc <= prevpc + 32'h4;
+			pc = prevpc + 32'h4;
 	
 	assign bubble = stall | rd_wait;
 	assign rd_addr = pc;
@@ -36,5 +36,6 @@ module Fetch(
 	assign insn = rd_data;
 			
 	always @(posedge clk)
-		prevpc <= pc;
+		if (!rd_wait || !Nrst)
+			prevpc <= pc;
 endmodule

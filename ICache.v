@@ -50,15 +50,12 @@ module ICache(
 	end
 	
 	reg [3:0] cache_fill_pos = 0;
+	assign bus_req = rd_req && !cache_hit; /* xxx, needed for Verilator */
 	always @(*)
-		if (rd_req && !cache_hit) begin
-			bus_req = 1;
-			if (bus_ack) begin
-				bus_addr = {rd_addr[31:6], cache_fill_pos[3:0], 2'b00 /* reads are 32-bits */};
-				bus_rd = 1;
-			end
+		if (rd_req && !cache_hit && bus_ack) begin
+			bus_addr = {rd_addr[31:6], cache_fill_pos[3:0], 2'b00 /* reads are 32-bits */};
+			bus_rd = 1;
 		end else begin
-			bus_req = 0;
 			bus_addr = 0;
 			bus_rd = 0;
 		end
@@ -66,11 +63,11 @@ module ICache(
 	always @(posedge clk)
 		if (rd_req && !cache_hit) begin
 			if (bus_ready) begin	/* Started the fill, and we have data. */
-				cache_data[rd_idx][cache_fill_pos] = bus_data;
+				cache_data[rd_idx][cache_fill_pos] <= bus_rdata;
 				cache_fill_pos <= cache_fill_pos + 1;
 				if (cache_fill_pos == 15) begin	/* Done? */
-					cache_tags[rd_idx] = rd_tag;
-					cache_valid[rd_idx] = 1;
+					cache_tags[rd_idx] <= rd_tag;
+					cache_valid[rd_idx] <= 1;
 				end
 			end
 		end
