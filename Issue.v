@@ -10,6 +10,7 @@ module Issue(
 	input inbubble,	/* stage inputs */
 	input [31:0] insn,
 	input [31:0] inpc,
+	input [31:0] cpsr,
 	
 	output reg outbubble,	/* stage outputs */
 	output reg [31:0] outpc
@@ -230,4 +231,35 @@ module Issue(
 			def_regs = 16'bxxxxxxxxxxxxxxxx;
 		end
 		endcase
+	
+	/* Condition checking logic */
+	reg condition_met;
+	always @(*)
+		casez(insn[31:28])
+		`COND_EQ:	condition_met = cpsr[`CPSR_Z];
+		`COND_NE:	condition_met = !cpsr[`CPSR_Z];
+		`COND_CS:	condition_met = cpsr[`CPSR_C];
+		`COND_CC:	condition_met = !cpsr[`CPSR_C];
+		`COND_MI:	condition_met = cpsr[`CPSR_N];
+		`COND_PL:	condition_met = !cpsr[`CPSR_N];
+		`COND_VS:	condition_met = cpsr[`CPSR_V];
+		`COND_VC:	condition_met = !cpsr[`CPSR_V];
+		`COND_HI:	condition_met = cpsr[`CPSR_C] && !cpsr[`CPSR_Z];
+		`COND_LS:	condition_met = !cpsr[`CPSR_C] || cpsr[`CPSR_Z];
+		`COND_GE:	condition_met = cpsr[`CPSR_N] == cpsr[`CPSR_V];
+		`COND_LT:	condition_met = cpsr[`CPSR_N] != cpsr[`CPSR_V];
+		`COND_GT:	condition_met = !cpsr[`CPSR_Z] && (cpsr[`CPSR_N] == cpsr[`CPSR_V]);
+		`COND_LE:	condition_met = cpsr[`CPSR_Z] || (cpsr[`CPSR_N] != cpsr[`CPSR_V]);
+		`COND_AL:	condition_met = 1;
+		`COND_NV:	condition_met = 0;
+		default:	condition_met = 1'bx;
+		endcase
+	
+	/* Issue logic */
+	/* reg use_cpsr;
+	 * reg [15:0] use_regs;
+	 * reg def_cpsr;
+	 * reg [15:0] def_regs;
+	 */
+	
 endmodule
