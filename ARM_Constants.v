@@ -8,7 +8,7 @@
 `define COND_VC 4'b0111	/* V clear */
 `define COND_HI 4'b1000	/* C set and Z clear */
 `define COND_LS 4'b1001	/* C clear or Z set */
-`define COND_GT 4'b1010	/* N equal to V */
+`define COND_GE 4'b1010	/* N equal to V */
 `define COND_LT 4'b1011	/* N not equal to V */
 `define COND_GT 4'b1100 /* Z clear AND (N equals V) */
 `define COND_LE 4'b1101	/* Z set OR (N not equals V) */
@@ -33,3 +33,8 @@
 `define ALU_MOV 4'b1101
 `define ALU_BIC 4'b1110
 `define ALU_MVN 4'b1111
+
+`define SHIFT_LSL 2'b00
+`define SHIFT_LSR 2'b01
+`define SHIFT_ASR 2'b10
+`define SHIFT_ROR 2'b11
