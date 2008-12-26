@@ -14,14 +14,14 @@ module BlockRAM(
 	 */
 	wire decode = (bus_addr & ~32'h00003FFF) == 32'h00000000;
 	/* verilator lint_off WIDTH */
-	wire [13:2] ramaddr = bus_addr & 32'h3FFC;	/* mask off lower two bits
+	wire [13:0] ramaddr = bus_addr & 32'h3FFC;	/* mask off lower two bits
 							 * for word alignment */
 	/* verilator lint_on WIDTH */
 	
 	reg [31:0] data [(16384 / 4 - 1):0];
 	
 	reg [31:0] temprdata = 0;
-	reg [13:2] lastread = 0;
+	reg [13:0] lastread = 14'h3FFF;
 	assign bus_rdata = (bus_rd && decode) ? temprdata : 32'h0;
 	
 	assign bus_ready = decode &&
@@ -33,11 +33,11 @@ module BlockRAM(
 	always @(posedge clk)
 	begin
 		if (bus_wr && decode)
-			data[ramaddr] <= bus_wdata;
+			data[ramaddr[13:2]] <= bus_wdata;
 		
 		/* This is not allowed to be conditional -- stupid Xilinx
 		 * blockram. */
-		temprdata <= data[ramaddr];
+		temprdata <= data[ramaddr[13:2]];
 		lastread <= ramaddr;
 	end
 endmodule
