@@ -12,10 +12,10 @@ module Issue(
 	input [31:0] inpc,
 	input [31:0] cpsr,
 	
-	output reg outstall,	/* stage outputs */
-	output reg outbubble,
-	output reg [31:0] outpc,
-	output reg [31:0] outinsn
+	output reg outstall = 0,	/* stage outputs */
+	output reg outbubble = 1,
+	output reg [31:0] outpc = 0,
+	output reg [31:0] outinsn = 0
 	/* XXX other? */
 	);
 	
@@ -276,19 +276,20 @@ module Issue(
 	begin
 		waiting_cpsr = use_cpsr & (cpsr_inflight[0] | cpsr_inflight[1]);
 		waiting_regs = |(use_regs & (regs_inflight[0] | regs_inflight[1]));
+		
+		outstall = waiting && !inbubble;	/* Happens in an always @*, because it is an exception. */
 	end
 	
 	/* Actually do the issue. */
 	always @(posedge clk)
 	begin
 		cpsr_inflight[0] <= cpsr_inflight[1];	/* I'm not sure how well selects work with arrays, and that seems like a dumb thing to get anusulated by. */
-		cpsr_inflight[1] <= ((waiting | inbubble) && condition_met) ? 0 : def_cpsr;
+		cpsr_inflight[1] <= (waiting || inbubble || !condition_met) ? 0 : def_cpsr;
 		regs_inflight[0] <= regs_inflight[1];
-		regs_inflight[1] <= ((waiting | inbubble) && condition_met) ? 0 : def_regs;
+		regs_inflight[1] <= (waiting || inbubble || !condition_met) ? 0 : def_regs;
 
 		outbubble <= inbubble | waiting | !condition_met;
 		outpc <= inpc;
 		outinsn <= insn;
-		outstall <= waiting && !inbubble;
 	end
 endmodule

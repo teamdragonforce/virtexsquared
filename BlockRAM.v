@@ -18,14 +18,17 @@ module BlockRAM(
 							 * for word alignment */
 	/* verilator lint_on WIDTH */
 	
-	reg [31:0] data [0:(16384 / 4 - 1)];
+	reg [31:0] data [(16384 / 4 - 1):0];
 	
-	reg [31:0] temprdata;
-	reg [13:2] lastread;
+	reg [31:0] temprdata = 0;
+	reg [13:2] lastread = 0;
 	assign bus_rdata = (bus_rd && decode) ? temprdata : 32'h0;
 	
 	assign bus_ready = decode &&
 		(bus_wr || (bus_rd && (lastread == ramaddr)));
+	
+	initial
+		$readmemh("ram.hex", data);
 	
 	always @(posedge clk)
 	begin

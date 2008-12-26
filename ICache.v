@@ -10,7 +10,7 @@ module ICache(
 	output reg [31:0] rd_data,
 	
 	/* bus interface */
-	output reg bus_req,
+	output wire bus_req,
 	input bus_ack,
 	output reg [31:0] bus_addr,
 	input [31:0] bus_rdata,
@@ -35,7 +35,10 @@ module ICache(
 	reg [4:0] i;
 	initial
 		for (i = 0; i < 16; i = i + 1)
+		begin
 			cache_valid[i[3:0]] = 0;
+			cache_tags[i[3:0]] = 0;
+		end
 	
 	wire [5:0] rd_didx = rd_addr[5:0];
 	wire [3:0] rd_didx_word = rd_didx[5:2];
