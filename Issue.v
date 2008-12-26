@@ -12,16 +12,14 @@ module Issue(
 	input [31:0] inpc,
 	input [31:0] cpsr,
 	
-	output reg outbubble,	/* stage outputs */
-	output reg [31:0] outpc
-	/* other */
+	output reg outstall,	/* stage outputs */
+	output reg outbubble,
+	output reg [31:0] outpc,
+	output reg [31:0] outinsn
+	/* XXX other? */
 	);
 	
-	always @(posedge clk)
-	begin
-		outbubble <= inbubble;
-		outpc <= inpc;
-	end
+
 
 `ifdef COPY_PASTA_FODDER
 	/* from page 2 of ARM7TDMIvE2.pdf */
@@ -256,10 +254,36 @@ module Issue(
 		endcase
 	
 	/* Issue logic */
-	/* reg use_cpsr;
-	 * reg [15:0] use_regs;
-	 * reg def_cpsr;
-	 * reg [15:0] def_regs;
-	 */
+`define STAGE_EXECUTE   0
+`define STAGE_MEMORY    1
+/* Once it's hit writeback, it's essentially hit the regfile so you're done. */
+	reg cpsr_inflight [1:0];
+	reg [15:0] regs_inflight [1:0];
+	
+	reg waiting_cpsr;
+	reg waiting_regs;
+	wire waiting = waiting_cpsr | waiting_regs;
+	
+	always @(*)
+	begin
+		waiting_cpsr = use_cpsr & (cpsr_inflight[0] | cpsr_inflight[1]);
+		waiting_regs = |(use_regs & (regs_inflight[0] | regs_inflight[1]));
+	end
+	
+	/* Actually do the issue. */
+	always @(*)
+		outstall = waiting;
+	
+	always @(posedge clk)
+	begin
+		cpsr_inflight[0] <= cpsr_inflight[1];	/* I'm not sure how well selects work with arrays, and that seems like a dumb thing to get anusulated by. */
+		cpsr_inflight[1] <= (waiting | inbubble) ? 0 : def_cpsr;
+		regs_inflight[0] <= regs_inflight[1];
+		regs_inflight[1] <= (waiting | inbubble) ? 0 : def_regs;
+
+		outbubble <= inbubble | waiting | !condition_met;
+		outpc <= inpc;
+		outinsn <= insn;
+	end
 	
 endmodule
