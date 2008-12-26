@@ -32,6 +32,22 @@ module System(input clk, output wire bubbleshield, output wire [31:0] insn, outp
 	wire icache_rd_req;
 	wire icache_rd_wait;
 	wire [31:0] icache_rd_data;
+	
+	wire stall_cause_issue;
+	
+	wire stall_in_fetch = stall_cause_issue;
+	wire stall_in_issue = 0;
+	
+	wire bubble_out_fetch;
+	wire bubble_out_issue;
+	wire [31:0] insn_out_fetch;
+	wire [31:0] insn_out_issue;
+	wire [31:0] pc_out_fetch;
+	wire [31:0] pc_out_issue;
+	
+	assign bubbleshield = bubble_out_issue;
+	assign insn = insn_out_issue;
+	assign pc = pc_out_issue;
 
 	BusArbiter busarbiter(.bus_req(bus_req), .bus_ack(bus_ack));
 
@@ -56,7 +72,16 @@ module System(input clk, output wire bubbleshield, output wire [31:0] insn, outp
 		.Nrst(1 /* XXX */),
 		.rd_addr(icache_rd_addr), .rd_req(icache_rd_req),
 		.rd_wait(icache_rd_wait), .rd_data(icache_rd_data),
-		.stall(0 /* XXX */), .jmp(0 /* XXX */), .jmppc(0 /* XXX */),
-		.bubble(bubbleshield), .insn(insn), .pc(pc));
-
+		.stall(stall_in_fetch), .jmp(0 /* XXX */), .jmppc(0 /* XXX */),
+		.bubble(bubble_out_fetch), .insn(insn_out_fetch),
+		.pc(pc_out_fetch));
+	
+	Issue issue(
+		.clk(clk),
+		.Nrst(1 /* XXX */),
+		.stall(stall_in_issue), .flush(0 /* XXX */),
+		.inbubble(bubble_out_fetch), .insn(insn_out_fetch),
+		.inpc(pc_out_fetch), .cpsr(0 /* XXX */),
+		.outstall(stall_cause_issue), .outbubble(bubble_out_issue),
+		.outpc(pc_out_issue), .outinsn(insn_out_issue));
 endmodule
