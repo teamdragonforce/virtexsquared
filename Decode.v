@@ -4,36 +4,36 @@ module Decode(
 	input clk,
 	input [31:0] insn,
 	input [31:0] inpc,
-	input [31:0] cps_in,
+	input [31:0] incpsr,
 	output reg [31:0] op0,
 	output reg [31:0] op1,
 	output reg [31:0] op2,
-	output reg [31:0] cps_out,
+	output reg [31:0] outcpsr,
 
-	output [3:0] regsel0,
-	output [3:0] regsel1,
-	output [3:0] regsel2,
-	input [31:0] iregs0,
-	input [31:0] iregs1,
-	input [31:0] iregs2
+	output [3:0] read_0,
+	output [3:0] read_1,
+	output [3:0] read_2,
+	input [31:0] rdata_0,
+	input [31:0] rdata_1,
+	input [31:0] rdata_2
 	);
 
 	wire [31:0] regs0, regs1, regs2, rpc;
-	wire [31:0] op1_res, new_cps;
+	wire [31:0] op1_res, cpsr;
 
 	/* shifter stuff */
 	wire [31:0] shift_oper;
 	wire [31:0] shift_res;
 	wire shift_cflag_out;
 
-	assign regs0 = (regsel0 == 4'b1111) ? rpc : iregs0;
-	assign regs1 = (regsel1 == 4'b1111) ? rpc : iregs1;
-	assign regs2 = iregs2; /* use regs2 for things that cannot be r15 */
+	assign regs0 = (read_0 == 4'b1111) ? rpc : rdata_0;
+	assign regs1 = (read_1 == 4'b1111) ? rpc : rdata_1;
+	assign regs2 = rdata_2; /* use regs2 for things that cannot be r15 */
 
 	IHATEARMSHIFT blowme(.insn(insn),
 	                     .operand(regs1),
 	                     .reg_amt(regs2),
-	                     .cflag_in(cps_in[`CPSR_C]),
+	                     .cflag_in(incpsr[`CPSR_C]),
 	                     .res(shift_res),
 	                     .cflag_out(shift_cflag_out));
 	
@@ -66,100 +66,100 @@ module Decode(
 	always @ (*) begin
 		casez (insn)
 		32'b????000000??????????????1001????: begin /* Multiply */
-			regsel0 = insn[15:12]; /* Rn */
-			regsel1 = insn[3:0];   /* Rm */
-			regsel2 = insn[11:8];  /* Rs */
+			read_0 = insn[15:12]; /* Rn */
+			read_1 = insn[3:0];   /* Rm */
+			read_2 = insn[11:8];  /* Rs */
 			op1_res = regs1;
-			new_cps = cps_in;
+			cpsr = incpsr;
 		end
 /*
 		32'b????00001???????????????1001????: begin * Multiply long *
-			regsel0 = insn[11:8]; * Rn *
-			regsel1 = insn[3:0];  * Rm *
-			regsel2 = 4'b0;       * anyus *
+			read_0 = insn[11:8]; * Rn *
+			read_1 = insn[3:0];  * Rm *
+			read_2 = 4'b0;       * anyus *
 			op1_res = regs1;
 		end
 */
 		32'b????00010?001111????000000000000: begin /* MRS (Transfer PSR to register) */
-			new_cps = cps_in;
+			cpsr = incpsr;
 		end
         	32'b????00010?101001111100000000????: begin /* MSR (Transfer register to PSR) */
-			new_cps = cps_in;
+			cpsr = incpsr;
         	end
                 32'b????00?10?1010001111????????????: begin /* MSR (Transfer register or immediate to PSR, flag bits onry) */
-			new_cps = cps_in;
+			cpsr = incpsr;
                 end
 		32'b????00??????????????????????????: begin /* ALU */
-			regsel0 = insn[19:16]; /* Rn */
-			regsel1 = insn[3:0];   /* Rm */
-			regsel2 = insn[11:8];  /* Rs for shift */
+			read_0 = insn[19:16]; /* Rn */
+			read_1 = insn[3:0];   /* Rm */
+			read_2 = insn[11:8];  /* Rs for shift */
 			if(insn[25]) begin     /* the constant case */
-				new_cps = cps_in;
+				cpsr = incpsr;
 				op1_res = ({24'b0, insn[7:0]} >> {insn[11:8], 1'b0}) | ({24'b0, insn[7:0]} << (5'b0 - {insn[11:8], 1'b0}));
 			end else begin
-				new_cps = {cps_in[31:30], shift_cflag_out, cps_in[28:0]};
+				cpsr = {incpsr[31:30], shift_cflag_out, incpsr[28:0]};
 				op1_res = shift_res;
 			end
 		end
 		32'b????00010?00????????00001001????: begin /* Atomic swap */
-			regsel0 = insn[19:16]; /* Rn */
-			regsel1 = insn[3:0];   /* Rm */
-			regsel2 = 4'b0;        /* anyus */
+			read_0 = insn[19:16]; /* Rn */
+			read_1 = insn[3:0];   /* Rm */
+			read_2 = 4'b0;        /* anyus */
 			op1_res = regs1;
 		end
 		32'b????000100101111111111110001????: begin /* Branch and exchange */
-			regsel0 = insn[3:0];   /* Rn */
-			new_cps = cps_in;
+			read_0 = insn[3:0];   /* Rn */
+			cpsr = incpsr;
 		end
 		32'b????000??0??????????00001??1????: begin /* Halfword transfer - register offset */
-			regsel0 = insn[19:16];
-			regsel1 = insn[3:0];
-			regsel2 = 4'b0;
+			read_0 = insn[19:16];
+			read_1 = insn[3:0];
+			read_2 = 4'b0;
 			op1_res = regs1;
-			new_cps = cps_in;
+			cpsr = incpsr;
 		end
 		32'b????000??1??????????00001??1????: begin /* Halfword transfer - immediate offset */
-			regsel0 = insn[19:16];
-			regsel1 = insn[3:0];
+			read_0 = insn[19:16];
+			read_1 = insn[3:0];
 			op1_res = {24'b0, insn[11:8], insn[3:0]};
-			new_cps = cps_in;
+			cpsr = incpsr;
 		end
 		32'b????011????????????????????1????: begin /* Undefined. I hate ARM */
 			/* eat shit */
 		end
 		32'b????01??????????????????????????: begin /* Single data transfer */
-			regsel0 = insn[19:16]; /* Rn */
-			regsel1 = insn[3:0];   /* Rm */
+			read_0 = insn[19:16]; /* Rn */
+			read_1 = insn[3:0];   /* Rm */
 			if(insn[25]) begin
 				op1_res = {20'b0, insn[11:0]};
-				new_cps = cps_in;
+				cpsr = incpsr;
 			end else begin
 				op1_res = shift_res;
-				new_cps = {cps_in[31:30], shift_cflag_out, cps_in[28:0]};
+				cpsr = {incpsr[31:30], shift_cflag_out, incpsr[28:0]};
 			end
 		end
 		32'b????100?????????????????????????: begin /* Block data transfer */
-			regsel0 = insn[19:16];
+			read_0 = insn[19:16];
 			op1_res = {16'b0, insn[15:0]};
-			new_cps = cps_in;
+			cpsr = incpsr;
 		end
 		32'b????101?????????????????????????: begin /* Branch */
 			op1_res = {{6{insn[23]}}, insn[23:0], 2'b0};
-			new_cps = cps_in;
+			cpsr = incpsr;
 		end
 		32'b????110?????????????????????????: begin /* Coprocessor data transfer */
-			regsel0 = insn[19:16];
+			read_0 = insn[19:16];
 			op1_res = {24'b0, insn[7:0]};
-			new_cps = cps_in;
+			cpsr = incpsr;
 		end
 		32'b????1110???????????????????0????: begin /* Coprocessor data op */
-			new_cps = cps_in;
+			cpsr = incpsr;
 		end
 		32'b????1110???????????????????1????: begin /* Coprocessor register transfer */
-			new_cps = cps_in;
+			cpsr = incpsr;
 		end
 		32'b????1111????????????????????????: begin /* SWI */
-			new_cps = cps_in;
+			cpsr = incpsr;
 		end
 		default: begin end
 		endcase
@@ -169,7 +169,7 @@ module Decode(
 		op0 <= regs0;   /* Rn - always */
 		op1 <= op1_res; /* 'operand 2' - Rm */
 		op2 <= regs2;   /* thirdedge - Rs */
-		cps_out <= new_cps;
+		outcpsr <= cpsr;
 	end
 
 endmodule
@@ -187,7 +187,7 @@ module IHATEARMSHIFT(
 
 
 	/* might want to write our own damn shifter that does arithmetic/logical efficiently and stuff */
-	always @ (*) begin
+	always @(*)
 		if(insn[4]) begin
 			shift_amt = {|reg_amt[7:5], reg_amt[4:0]};
 			elanus = 1'b1;
@@ -195,7 +195,8 @@ module IHATEARMSHIFT(
 			shift_amt = {insn[11:7] == 5'b0, insn[11:7]};
 			elanus = 1'b0;
 		end
-
+	
+	always @(*)
 		case (insn[6:5]) /* shift type */
 		`SHIFT_LSL: begin
 			{cflag_out, res} = {cflag_in, operand} << {elanus & shift_amt[5], shift_amt[4:0]};
@@ -219,5 +220,4 @@ module IHATEARMSHIFT(
 			end
 		end
 		endcase
-	end
 endmodule
