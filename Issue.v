@@ -289,6 +289,6 @@ module Issue(
 		outbubble <= inbubble | waiting | !condition_met;
 		outpc <= inpc;
 		outinsn <= insn;
-		outstall <= waiting;
+		outstall <= waiting && !inbubble;
 	end
 endmodule
