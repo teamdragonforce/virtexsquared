@@ -45,3 +45,8 @@
 `define CPSR_V	28
 `define CPSR_I	7
 `define CPSR_F	6
+
+`define SHIFT_LSL 2'b00
+`define SHIFT_LSR 2'b01
+`define SHIFT_ASR 2'b10
+`define SHIFT_ROR 2'b11

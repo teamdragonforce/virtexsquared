@@ -1,3 +1,5 @@
+`include "ARM_Constants.v"
+
 module Decode(
 	input clk,
 	input [31:0] ansn,
@@ -28,12 +30,12 @@ module Decode(
 	assign regs1 = (regsel1 == 4'b1111) ? rpc : iregs1;
 	assign regs2 = iregs2; /* use regs2 for things that cannot be r15 */
 
-	IHATEARMSHIFT(.insn(ansn),
-	              .operand(regs1),
-	              .reg_amt(regs2),
-	              .cflag_in(cps_in[`COND_CBIT]),
-	              .res(shift_res),
-	              .cflag_out(shift_cflag));
+	IHATEARMSHIFT blowme(.insn(ansn),
+	                     .operand(regs1),
+	                     .reg_amt(regs2),
+	                     .cflag_in(cps_in[`CPSR_C]),
+	                     .res(shift_res),
+	                     .cflag_out(shift_cflag_out));
 
 	always @ (*) begin
 		casez (ansn)
@@ -74,7 +76,7 @@ module Decode(
 				new_cps = cps_in;
 				op1_res = ({24'b0, ansn[7:0]} >> {ansn[11:8], 1'b0}) | ({24'b0, ansn[7:0]} << (5'b0 - {ansn[11:8], 1'b0}));
 			end else begin
-				new_cps = {shift_cflag_out, cps_in[30:0]};
+				new_cps = {cps_in[31:30], shift_cflag_out, cps_in[28:0]};
 				op1_res = shift_res;
 			end
 		end
@@ -117,7 +119,7 @@ module Decode(
 				new_cps = cps_in;
 			end else begin
 				op1_res = shift_res;
-				new_cps = shift_cflag_out;
+				new_cps = {cps_in[31:30], shift_cflag_out, cps_in[28:0]};
 			end
 		end
 		32'b????100?????????????????????????: begin /* Block data transfer */
@@ -128,7 +130,7 @@ module Decode(
 		end
 		32'b????101?????????????????????????: begin /* Branch */
 			rpc = inpc - 8;
-			op1_res = {6{ansn[23]}, ansn[23:0], 2'b0};
+			op1_res = {{6{ansn[23]}}, ansn[23:0], 2'b0};
 			new_cps = cps_in;
 		end
 		32'b????110?????????????????????????: begin /* Coprocessor data transfer */
@@ -149,7 +151,7 @@ module Decode(
 			rpc = inpc - 8;
 			new_cps = cps_in;
 		end
-		default:
+		default: begin end
 		endcase
 	end
 
@@ -170,22 +172,21 @@ module IHATEARMSHIFT(
 	output [31:0] res,
 	output cflag_out
 );
-	wire [1:0] shift_type;
 	wire [5:0] shift_amt;
 	wire elanus;
 
-	shift_type = insn[6:5];
-	if(insn[4]) begin
-		shift_amt = {|reg_amt[7:5], reg_amt[4:0]};
-		elanus = 1'b1;
-	end else begin
-		shift_amt = {insn[11:7] == 5'b0, insn[11:7]};
-		elanus = 1'b0;
-	end
 
 	/* might want to write our own damn shifter that does arithmetic/logical efficiently and stuff */
 	always @ (*) begin
-		case (shift_type)
+		if(insn[4]) begin
+			shift_amt = {|reg_amt[7:5], reg_amt[4:0]};
+			elanus = 1'b1;
+		end else begin
+			shift_amt = {insn[11:7] == 5'b0, insn[11:7]};
+			elanus = 1'b0;
+		end
+
+		case (insn[6:5]) /* shift type */
 		`SHIFT_LSL: begin
 			{cflag_out, res} = {cflag_in, operand} << {elanus & shift_amt[5], shift_amt[4:0]};
 		end
@@ -199,7 +200,7 @@ module IHATEARMSHIFT(
 			if(!elanus && shift_amt[4:0] == 5'b0) begin /* RRX x.x */
 				res = {cflag_in, operand[31:1]};
 				cflag_out = operand[0];
-			end else if(!shift_amt) begin
+			end else if(shift_amt == 6'b0) begin
 				res = operand;
 				cflag_out = cflag_in;
 			end else begin
@@ -207,5 +208,6 @@ module IHATEARMSHIFT(
 				cflag_out = operand[shift_amt[4:0] - 5'b1];
 			end
 		end
+		endcase
 	end
 endmodule
