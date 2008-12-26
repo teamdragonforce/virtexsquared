@@ -264,6 +264,14 @@ module Issue(
 	reg waiting_regs;
 	wire waiting = waiting_cpsr | waiting_regs;
 	
+	initial
+	begin
+		cpsr_inflight[0] = 0;
+		cpsr_inflight[1] = 0;
+		regs_inflight[0] = 0;
+		regs_inflight[1] = 0;
+	end
+		
 	always @(*)
 	begin
 		waiting_cpsr = use_cpsr & (cpsr_inflight[0] | cpsr_inflight[1]);
