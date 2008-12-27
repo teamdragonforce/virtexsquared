@@ -38,6 +38,10 @@ module System(input clk, output wire bubbleshield, output wire [31:0] insn, outp
 	wire stall_in_fetch = stall_cause_issue;
 	wire stall_in_issue = 0;
 	
+	wire [31:0] decode_out_op0, decode_out_op1, decode_out_op2, decode_out_cpsr;
+	wire [3:0] regfile_read_0, regfile_read_1, regfile_read_2;
+	wire [31:0] regfile_rdata_0, regfile_rdata_1, regfile_rdata_2;
+	
 	wire bubble_out_fetch;
 	wire bubble_out_issue;
 	wire [31:0] insn_out_fetch;
@@ -85,12 +89,27 @@ module System(input clk, output wire bubbleshield, output wire [31:0] insn, outp
 		.outstall(stall_cause_issue), .outbubble(bubble_out_issue),
 		.outpc(pc_out_issue), .outinsn(insn_out_issue));
 	
+	RegFile regfile(
+		.clk(clk),
+		.read_0(regfile_read_0), .read_1(regfile_read_1), .read_2(regfile_read_2),
+		.rdata_0(regfile_rdata_0), .rdata_1(regfile_rdata_1), .rdata_2(regfile_rdata_2),
+		.write(0), .write_req(0), .write_data(0 /* XXX */));
+	
+	Decode decode(
+		.clk(clk),
+		.insn(insn_out_fetch), .inpc(pc_out_fetch), .incpsr(0 /* XXX */),
+		.op0(decode_out_op0), .op1(decode_out_op1), .op2(decode_out_op2),
+		.outcpsr(decode_out_cpsr),
+		.read_0(regfile_read_0), .read_1(regfile_read_1), .read_2(regfile_read_2), 
+		.rdata_0(regfile_rdata_0), .rdata_1(regfile_rdata_1), .rdata_2(regfile_rdata_2));
+	
 	reg [31:0] clockno = 0;
 	always @(posedge clk)
 	begin
 		clockno <= clockno + 1;
 		$display("------------------------------------------------------------------------------");
-		$display("%3d: FETCH:           Bubble: %d, Instruction: %08x, PC: %08x", clockno, bubble_out_fetch, insn_out_fetch, pc_out_fetch);
-		$display("%3d: ISSUE: Stall: %d, Bubble: %d, Instruction: %08x, PC: %08x", clockno, stall_cause_issue, bubble_out_issue, insn_out_issue, pc_out_issue);
+		$display("%3d: FETCH:            Bubble: %d, Instruction: %08x, PC: %08x", clockno, bubble_out_fetch, insn_out_fetch, pc_out_fetch);
+		$display("%3d: ISSUE:  Stall: %d, Bubble: %d, Instruction: %08x, PC: %08x", clockno, stall_cause_issue, bubble_out_issue, insn_out_issue, pc_out_issue);
+		$display("%3d: DECODE:                      op1 %08x, op2 %08x, op3 %08x, cpsr %08x", clockno, decode_out_op0, decode_out_op1, decode_out_op2, decode_out_cpsr);
 	end
 endmodule
