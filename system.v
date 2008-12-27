@@ -85,10 +85,12 @@ module System(input clk, output wire bubbleshield, output wire [31:0] insn, outp
 		.outstall(stall_cause_issue), .outbubble(bubble_out_issue),
 		.outpc(pc_out_issue), .outinsn(insn_out_issue));
 	
+	reg [31:0] clockno = 0;
 	always @(posedge clk)
 	begin
-		$display("Clock-time dump:");
-		$display("Fetch stage: Bubble output: %d, Instruction: %08x, PC: %08x", bubble_out_fetch, insn_out_fetch, pc_out_fetch);
-		$display("Issue stage: Stall output: %d, Bubble output: %d, Instruction: %08x, PC: %08x", stall_cause_issue, bubble_out_issue, insn_out_issue, pc_out_issue);
+		clockno <= clockno + 1;
+		$display("------------------------------------------------------------------------------");
+		$display("%3d: FETCH:           Bubble: %d, Instruction: %08x, PC: %08x", clockno, bubble_out_fetch, insn_out_fetch, pc_out_fetch);
+		$display("%3d: ISSUE: Stall: %d, Bubble: %d, Instruction: %08x, PC: %08x", clockno, stall_cause_issue, bubble_out_issue, insn_out_issue, pc_out_issue);
 	end
 endmodule
