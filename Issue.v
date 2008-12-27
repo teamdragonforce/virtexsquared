@@ -287,6 +287,11 @@ module Issue(
 		cpsr_inflight[1] <= (waiting || inbubble || !condition_met) ? 0 : def_cpsr;
 		regs_inflight[0] <= regs_inflight[1];
 		regs_inflight[1] <= (waiting || inbubble || !condition_met) ? 0 : def_regs;
+		
+		if (waiting)
+		begin
+			$display("ISSUE: Stalling instruction %08x because %d/%d", insn, waiting_cpsr, waiting_regs);
+		end
 
 		outbubble <= inbubble | waiting | !condition_met;
 		outpc <= inpc;
