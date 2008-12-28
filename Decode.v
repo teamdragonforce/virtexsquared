@@ -252,6 +252,7 @@ module IREALLYHATEARMSHIFT(
 	always @(*)
 		case (insn[6:5])
 		`SHIFT_LSL: begin
+			/* meaningless */
 			is_rot = 1'b0;
 			is_arith = 1'b0;
 		end
@@ -285,7 +286,7 @@ module IREALLYHATEARMSHIFT(
 			if(!insn[4] && shift_amt[4:0] == 5'b0) begin /* RRX x.x */
 				res = {cflag_in, operand[31:1]};
 				cflag_out = operand[0];
-			else
+			end else begin
 				res = rshift_res;
 				cflag_out = rshift_cout;
 			end
@@ -305,7 +306,7 @@ module SuckLessShifter(
 
 	wire [32:0] stage1, stage2, stage3, stage4, stage5;
 
-	wire pushbits = is_arith & operand[31];
+	wire pushbits = is_arith & oper[31];
 
 	/* do a barrel shift */
 	assign stage1 = amt[5] ? {is_rot ? oper : {32{pushbits}}, oper[31]} : {oper, carryin};
