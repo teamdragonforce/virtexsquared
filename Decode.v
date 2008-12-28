@@ -31,13 +31,13 @@ module Decode(
 	assign regs1 = (read_1 == 4'b1111) ? rpc : rdata_1;
 	assign regs2 = rdata_2; /* use regs2 for things that cannot be r15 */
 
-	IHATEARMSHIFT blowme(.insn(insn),
-	                     .operand(regs1),
-	                     .reg_amt(regs2),
-	                     .cflag_in(incpsr[`CPSR_C]),
-	                     .res(shift_res),
-	                     .cflag_out(shift_cflag_out));
-	
+	IREALLYHATEARMSHIFT blowme(.insn(insn),
+	                           .operand(regs1),
+	                           .reg_amt(regs2),
+	                           .cflag_in(incpsr[`CPSR_C]),
+	                           .res(shift_res),
+	                           .cflag_out(shift_cflag_out));
+
 	always @(*)
 		casez (insn)
 		32'b????000000??????????????1001????,	/* Multiply -- must come before ALU, because it pattern matches a specific case of ALU */
@@ -226,7 +226,7 @@ module Decode(
 
 endmodule
 
-module IHATEARMSHIFT(
+module IREALLYHATEARMSHIFT(
 	input [31:0] insn,
 	input [31:0] operand,
 	input [31:0] reg_amt,
@@ -235,41 +235,84 @@ module IHATEARMSHIFT(
 	output cflag_out
 );
 	wire [5:0] shift_amt;
-	wire elanus;
+	wire rshift_cout, is_arith, is_rot;
+	wire [31:0] rshift_res;
 
+	assign shift_amt = insn[4] ? {|reg_amt[7:5], reg_amt[4:0]}     /* reg-specified shift */
+	                           : {insn[11:7] == 5'b0, insn[11:7]}; /* immediate shift */
 
-	/* might want to write our own damn shifter that does arithmetic/logical efficiently and stuff */
+	SuckLessShifter biteme(.oper(operand),
+	                       .carryin(cflag_in),
+	                       .amt(shift_amt),
+	                       .is_arith(is_arith),
+	                       .is_rot(is_rot),
+	                       .res(rshift_res),
+	                       .carryout(rshift_cout));
+
 	always @(*)
-		if(insn[4]) begin
-			shift_amt = {|reg_amt[7:5], reg_amt[4:0]};
-			elanus = 1'b1;
-		end else begin
-			shift_amt = {insn[11:7] == 5'b0, insn[11:7]};
-			elanus = 1'b0;
-		end
-	
-	always @(*)
-		case (insn[6:5]) /* shift type */
+		case (insn[6:5])
 		`SHIFT_LSL: begin
-			{cflag_out, res} = {cflag_in, operand} << {elanus & shift_amt[5], shift_amt[4:0]};
+			is_rot = 1'b0;
+			is_arith = 1'b0;
 		end
 		`SHIFT_LSR: begin
-			{res, cflag_out} = {operand, cflag_in} >> shift_amt;
+			is_rot = 1'b0;
+			is_arith = 1'b0;
 		end
 		`SHIFT_ASR: begin
-			{res, cflag_out} = {operand, cflag_in} >> shift_amt | (operand[31] ? ~(33'h1FFFFFFFF >> shift_amt) : 33'b0);
+			is_rot = 1'b0;
+			is_arith = 1'b1;
 		end
 		`SHIFT_ROR: begin
-			if(!elanus && shift_amt[4:0] == 5'b0) begin /* RRX x.x */
+			is_rot = 1'b1;
+			is_arith = 1'b0;
+		end
+		endcase
+
+	always @(*)
+		case (insn[6:5]) /* shift type */
+		`SHIFT_LSL:
+			{cflag_out, res} = {cflag_in, operand} << {insn[4] & shift_amt[5], shift_amt[4:0]};
+		`SHIFT_LSR: begin
+			res = rshift_res;
+			cflag_out = rshift_cout;
+		end
+		`SHIFT_ASR: begin
+			res = rshift_res;
+			cflag_out = rshift_cout;
+		end
+		`SHIFT_ROR: begin
+			if(!insn[4] && shift_amt[4:0] == 5'b0) begin /* RRX x.x */
 				res = {cflag_in, operand[31:1]};
 				cflag_out = operand[0];
-			end else if(shift_amt == 6'b0) begin
-				res = operand;
-				cflag_out = cflag_in;
-			end else begin
-				res = operand >> shift_amt[4:0] | operand << (5'b0 - shift_amt[4:0]);
-				cflag_out = operand[shift_amt[4:0] - 5'b1];
+			else
+				res = rshift_res;
+				cflag_out = rshift_cout;
 			end
 		end
 		endcase
+endmodule
+
+module SuckLessShifter(
+	input [31:0] oper,
+	input carryin,
+	input [5:0] amt,
+	input is_arith,
+	input is_rot,
+	output [31:0] res,
+	output carryout
+);
+
+	wire [32:0] stage1, stage2, stage3, stage4, stage5;
+
+	wire pushbits = is_arith & operand[31];
+
+	/* do a barrel shift */
+	assign stage1 = amt[5] ? {is_rot ? oper : {32{pushbits}}, oper[31]} : {oper, carryin};
+	assign stage2 = amt[4] ? {is_rot ? stage1[15:0] : {16{pushbits}}, stage1[31:16], stage1[16]} : stage1;
+	assign stage3 = amt[3] ? {is_rot ? stage2[7:0] : {8{pushbits}}, stage2[31:8], stage2[8]} : stage2;
+	assign stage4 = amt[2] ? {is_rot ? stage3[3:0] : {4{pushbits}}, stage3[31:4], stage3[4]} : stage3;
+	assign stage5 = amt[1] ? {is_rot ? stage4[1:0] : {2{pushbits}}, stage4[31:2], stage4[2]} : stage4;
+	assign {res, carryout} = amt[0] ? {is_rot ? stage4[0] : pushbits, stage5[31:1], stage5[1]} : stage5;
+
 endmodule
