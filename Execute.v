@@ -15,9 +15,21 @@ module Execute(
 	input carry,
 	
 	output reg outstall = 0,
-	output reg outbubble = 1
+	output reg outbubble = 1,
+	output reg write_reg = 1'bx,
+	output reg [3:0] write_num = 4'bxxxx,
+	output reg [31:0] write_data = 32'hxxxxxxxx
 	);
 	
+	reg mult_start;
+	reg [31:0] mult_acc0, mult_in0, mult_in1;
+	wire mult_done;
+	wire [31:0] mult_result;
+	
+	Multiplier multiplier(
+		.clk(clk), .Nrst(Nrst),
+		.start(mult_start), .acc0(mult_acc0), .in0(mult_in0),
+		.in1(mult_in1), .done(mult_done), .result(mult_result));
 endmodule
 
 module Multiplier(

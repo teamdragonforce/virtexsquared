@@ -34,14 +34,16 @@ module System(input clk, output wire bubbleshield, output wire [31:0] insn, outp
 	wire [31:0] icache_rd_data;
 	
 	wire stall_cause_issue;
-	
-	wire stall_in_fetch = stall_cause_issue;
-	wire stall_in_issue = 0;
+	wire stall_cause_execute;
 	
 	wire [31:0] decode_out_op0, decode_out_op1, decode_out_op2;
 	wire decode_out_carry;
 	wire [3:0] regfile_read_0, regfile_read_1, regfile_read_2;
 	wire [31:0] regfile_rdata_0, regfile_rdata_1, regfile_rdata_2;
+	wire execute_out_stall, execute_out_bubble;
+	wire execute_out_write_reg;
+	wire [3:0] execute_out_write_num;
+	wire [31:0] execute_out_write_data;
 	
 	wire bubble_out_fetch;
 	wire bubble_out_issue;
@@ -77,14 +79,14 @@ module System(input clk, output wire bubbleshield, output wire [31:0] insn, outp
 		.Nrst(1 /* XXX */),
 		.rd_addr(icache_rd_addr), .rd_req(icache_rd_req),
 		.rd_wait(icache_rd_wait), .rd_data(icache_rd_data),
-		.stall(stall_in_fetch), .jmp(0 /* XXX */), .jmppc(0 /* XXX */),
+		.stall(stall_cause_issue), .jmp(0 /* XXX */), .jmppc(0 /* XXX */),
 		.bubble(bubble_out_fetch), .insn(insn_out_fetch),
 		.pc(pc_out_fetch));
 	
 	Issue issue(
 		.clk(clk),
 		.Nrst(1 /* XXX */),
-		.stall(stall_in_issue), .flush(0 /* XXX */),
+		.stall(stall_cause_execute), .flush(0 /* XXX */),
 		.inbubble(bubble_out_fetch), .insn(insn_out_fetch),
 		.inpc(pc_out_fetch), .cpsr(0 /* XXX */),
 		.outstall(stall_cause_issue), .outbubble(bubble_out_issue),
@@ -103,6 +105,16 @@ module System(input clk, output wire bubbleshield, output wire [31:0] insn, outp
 		.carry(decode_out_carry),
 		.read_0(regfile_read_0), .read_1(regfile_read_1), .read_2(regfile_read_2), 
 		.rdata_0(regfile_rdata_0), .rdata_1(regfile_rdata_1), .rdata_2(regfile_rdata_2));
+	
+	Execute execute(
+		.clk(clk), .Nrst(0),
+		.stall(0 /* XXX */), .flush(0 /* XXX */),
+		.inbubble(bubble_out_issue), .pc(pc_out_issue), .insn(insn_out_issue),
+		.cpsr(0 /* XXX */), .op0(decode_out_op0), .op1(decode_out_op1),
+		.op2(decode_out_op2), .carry(decode_out_carry),
+		.outstall(stall_cause_execute), .outbubble(execute_out_bubble),
+		.write_reg(execute_out_write_reg), .write_num(execute_out_write_num),
+		.write_data(execute_out_write_data));
 	
 	reg [31:0] clockno = 0;
 	always @(posedge clk)
