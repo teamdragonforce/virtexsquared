@@ -1,6 +1,6 @@
 `define BUS_ICACHE 0
 
-module System(input clk, output wire bubbleshield, output wire [31:0] insn, output wire [31:0] pc);
+module System(input clk);
 	wire [7:0] bus_req;
 	wire [7:0] bus_ack;
 	wire [31:0] bus_addr;
@@ -52,10 +52,6 @@ module System(input clk, output wire bubbleshield, output wire [31:0] insn, outp
 	wire [31:0] pc_out_fetch;
 	wire [31:0] pc_out_issue;
 	
-	assign bubbleshield = bubble_out_issue;
-	assign insn = insn_out_issue;
-	assign pc = pc_out_issue;
-
 	BusArbiter busarbiter(.bus_req(bus_req), .bus_ack(bus_ack));
 
 	ICache icache(
@@ -76,19 +72,19 @@ module System(input clk, output wire bubbleshield, output wire [31:0] insn, outp
 
 	Fetch fetch(
 		.clk(clk),
-		.Nrst(1 /* XXX */),
+		.Nrst(1'b1 /* XXX */),
 		.rd_addr(icache_rd_addr), .rd_req(icache_rd_req),
 		.rd_wait(icache_rd_wait), .rd_data(icache_rd_data),
-		.stall(stall_cause_issue), .jmp(0 /* XXX */), .jmppc(0 /* XXX */),
+		.stall(stall_cause_issue), .jmp(1'b0 /* XXX */), .jmppc(32'b0 /* XXX */),
 		.bubble(bubble_out_fetch), .insn(insn_out_fetch),
 		.pc(pc_out_fetch));
 	
 	Issue issue(
 		.clk(clk),
-		.Nrst(1 /* XXX */),
-		.stall(stall_cause_execute), .flush(0 /* XXX */),
+		.Nrst(1'b1 /* XXX */),
+		.stall(stall_cause_execute), .flush(1'b0 /* XXX */),
 		.inbubble(bubble_out_fetch), .insn(insn_out_fetch),
-		.inpc(pc_out_fetch), .cpsr(0 /* XXX */),
+		.inpc(pc_out_fetch), .cpsr(32'b0 /* XXX */),
 		.outstall(stall_cause_issue), .outbubble(bubble_out_issue),
 		.outpc(pc_out_issue), .outinsn(insn_out_issue));
 	
@@ -96,21 +92,21 @@ module System(input clk, output wire bubbleshield, output wire [31:0] insn, outp
 		.clk(clk),
 		.read_0(regfile_read_0), .read_1(regfile_read_1), .read_2(regfile_read_2),
 		.rdata_0(regfile_rdata_0), .rdata_1(regfile_rdata_1), .rdata_2(regfile_rdata_2),
-		.write(0), .write_req(0), .write_data(0 /* XXX */));
+		.write(4'b0), .write_req(1'b0), .write_data(10 /* XXX */));
 	
 	Decode decode(
 		.clk(clk),
-		.insn(insn_out_fetch), .inpc(pc_out_fetch), .incpsr(0 /* XXX */),
+		.insn(insn_out_fetch), .inpc(pc_out_fetch), .incpsr(32'b0 /* XXX */),
 		.op0(decode_out_op0), .op1(decode_out_op1), .op2(decode_out_op2),
 		.carry(decode_out_carry),
 		.read_0(regfile_read_0), .read_1(regfile_read_1), .read_2(regfile_read_2), 
 		.rdata_0(regfile_rdata_0), .rdata_1(regfile_rdata_1), .rdata_2(regfile_rdata_2));
 	
 	Execute execute(
-		.clk(clk), .Nrst(0),
-		.stall(0 /* XXX */), .flush(0 /* XXX */),
+		.clk(clk), .Nrst(1'b0),
+		.stall(1'b0 /* XXX */), .flush(1'b0 /* XXX */),
 		.inbubble(bubble_out_issue), .pc(pc_out_issue), .insn(insn_out_issue),
-		.cpsr(0 /* XXX */), .op0(decode_out_op0), .op1(decode_out_op1),
+		.cpsr(32'b0 /* XXX */), .op0(decode_out_op0), .op1(decode_out_op1),
 		.op2(decode_out_op2), .carry(decode_out_carry),
 		.outstall(stall_cause_execute), .outbubble(execute_out_bubble),
 		.write_reg(execute_out_write_reg), .write_num(execute_out_write_num),

@@ -241,8 +241,9 @@ module IREALLYHATEARMSHIFT(
 	output reg cflag_out
 );
 	wire [5:0] shift_amt;
-	reg rshift_cout, is_arith, is_rot;
-	reg [31:0] rshift_res;
+	reg is_arith, is_rot;
+	wire rshift_cout;
+	wire [31:0] rshift_res;
 
 	assign shift_amt = insn[4] ? {|reg_amt[7:5], reg_amt[4:0]}     /* reg-specified shift */
 	                           : {insn[11:7] == 5'b0, insn[11:7]}; /* immediate shift */
@@ -306,8 +307,8 @@ module SuckLessShifter(
 	input [5:0] amt,
 	input is_arith,
 	input is_rot,
-	output [31:0] res,
-	output carryout
+	output wire [31:0] res,
+	output wire carryout
 );
 
 	wire [32:0] stage1, stage2, stage3, stage4, stage5;
@@ -327,7 +328,7 @@ endmodule
 module SuckLessRotator(
 	input [31:0] oper,
 	input [3:0] amt,
-	output [31:0] res
+	output wire [31:0] res
 );
 
 	wire [31:0] stage1, stage2, stage3;
