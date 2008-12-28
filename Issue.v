@@ -5,7 +5,7 @@ module Issue(
 	input Nrst,	/* XXX not used yet */
 	
 	input stall,	/* pipeline control */
-	input flush,
+	input flush,	/* XXX not used yet */
 	
 	input inbubble,	/* stage inputs */
 	input [31:0] insn,
