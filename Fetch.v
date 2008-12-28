@@ -31,7 +31,7 @@ module Fetch(
 		else
 			nextpc = prevpc + 32'h4;
 	
-	assign rd_addr = pc;
+	assign rd_addr = nextpc;
 	assign rd_req = !stall;
 			
 	always @(posedge clk)
