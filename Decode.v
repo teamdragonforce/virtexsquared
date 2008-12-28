@@ -10,17 +10,18 @@ module Decode(
 	output reg [31:0] op2,
 	output reg carry,
 
-	output [3:0] read_0,
-	output [3:0] read_1,
-	output [3:0] read_2,
+	output reg [3:0] read_0,
+	output reg [3:0] read_1,
+	output reg [3:0] read_2,
 	input [31:0] rdata_0,
 	input [31:0] rdata_1,
 	input [31:0] rdata_2
 	);
 
-	wire [31:0] regs0, regs1, regs2, rpc;
-	wire [31:0] op0_out, op1_out, op2_out;
-	wire carry_out;
+	wire [31:0] regs0, regs1, regs2;
+	reg [31:0] rpc;
+	reg [31:0] op0_out, op1_out, op2_out;
+	reg carry_out;
 
 	/* shifter stuff */
 	wire [31:0] shift_oper;
@@ -236,12 +237,12 @@ module IREALLYHATEARMSHIFT(
 	input [31:0] operand,
 	input [31:0] reg_amt,
 	input cflag_in,
-	output [31:0] res,
-	output cflag_out
+	output reg [31:0] res,
+	output reg cflag_out
 );
 	wire [5:0] shift_amt;
-	wire rshift_cout, is_arith, is_rot;
-	wire [31:0] rshift_res;
+	reg rshift_cout, is_arith, is_rot;
+	reg [31:0] rshift_res;
 
 	assign shift_amt = insn[4] ? {|reg_amt[7:5], reg_amt[4:0]}     /* reg-specified shift */
 	                           : {insn[11:7] == 5'b0, insn[11:7]}; /* immediate shift */
