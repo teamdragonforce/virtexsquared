@@ -315,11 +315,11 @@ module SuckLessShifter(
 
 	/* do a barrel shift */
 	assign stage1 = amt[5] ? {is_rot ? oper : {32{pushbits}}, oper[31]} : {oper, carryin};
-	assign stage2 = amt[4] ? {is_rot ? stage1[15:0] : {16{pushbits}}, stage1[31:16], stage1[15]} : stage1;
-	assign stage3 = amt[3] ? {is_rot ? stage2[7:0] : {8{pushbits}}, stage2[31:8], stage2[7]} : stage2;
-	assign stage4 = amt[2] ? {is_rot ? stage3[3:0] : {4{pushbits}}, stage3[31:4], stage3[3]} : stage3;
-	assign stage5 = amt[1] ? {is_rot ? stage4[1:0] : {2{pushbits}}, stage4[31:2], stage4[1]} : stage4;
-	assign {res, carryout} = amt[0] ? {is_rot ? stage5[0] : pushbits, stage5[31:1], stage5[0]} : stage5;
+	assign stage2 = amt[4] ? {is_rot ? stage1[16:1] : {16{pushbits}}, stage1[32:17], stage1[16]} : stage1;
+	assign stage3 = amt[3] ? {is_rot ? stage2[8:1] : {8{pushbits}}, stage2[32:9], stage2[8]} : stage2;
+	assign stage4 = amt[2] ? {is_rot ? stage3[4:1] : {4{pushbits}}, stage3[32:5], stage3[4]} : stage3;
+	assign stage5 = amt[1] ? {is_rot ? stage4[2:1] : {2{pushbits}}, stage4[32:3], stage4[2]} : stage4;
+	assign {res, carryout} = amt[0] ? {is_rot ? stage5[1] : pushbits, stage5[32:2], stage5[1]} : stage5;
 
 endmodule
 

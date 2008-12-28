@@ -22,14 +22,14 @@ module RegFile(
 		regfile[4'h5] = 32'h00500000;
 		regfile[4'h6] = 32'h05000000;
 		regfile[4'h7] = 32'h50000000;
-		regfile[4'h8] = 32'h0000000A;
-		regfile[4'h9] = 32'h000000A0;
-		regfile[4'hA] = 32'h00000A00;
-		regfile[4'hB] = 32'h0000A000;
-		regfile[4'hC] = 32'h000A0000;
-		regfile[4'hD] = 32'h00A00000;
-		regfile[4'hE] = 32'h0A000000;
-		regfile[4'hF] = 32'hA0000000;
+		regfile[4'h8] = 32'hA0000000;
+		regfile[4'h9] = 32'h0A000000;
+		regfile[4'hA] = 32'h00A00000;
+		regfile[4'hB] = 32'h000A0000;
+		regfile[4'hC] = 32'h0000A000;
+		regfile[4'hD] = 32'h00000A00;
+		regfile[4'hE] = 32'h000000A0;
+		regfile[4'hF] = 32'h0000000A;
 	end
 	
 	always @(*)
