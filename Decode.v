@@ -26,6 +26,7 @@ module Decode(
 	wire [31:0] shift_oper;
 	wire [31:0] shift_res;
 	wire shift_cflag_out;
+	wire [31:0] rotate_res;
 
 	assign regs0 = (read_0 == 4'b1111) ? rpc : rdata_0;
 	assign regs1 = (read_1 == 4'b1111) ? rpc : rdata_1;
@@ -37,6 +38,10 @@ module Decode(
 	                           .cflag_in(incpsr[`CPSR_C]),
 	                           .res(shift_res),
 	                           .cflag_out(shift_cflag_out));
+
+	SuckLessRotator whirr(.oper({24'b0, insn[7:0]}),
+	                      .amt(insn[11:8]),
+	                      .res(rotate_res));
 
 	always @(*)
 		casez (insn)
@@ -152,7 +157,7 @@ module Decode(
         	end
                 32'b????00?10?1010001111????????????: begin /* MSR (Transfer register or immediate to PSR, flag bits only) */
                 	if(insn[25]) begin     /* the constant case */
-				op0_out = ({24'b0, insn[7:0]} >> {insn[11:8], 1'b0}) | ({24'b0, insn[7:0]} << (5'b0 - {insn[11:8], 1'b0}));
+				op0_out = rotate_res;
 			end else begin
 				op0_out = regs0;
 			end
@@ -161,7 +166,7 @@ module Decode(
 			op0_out = regs0;
 			if(insn[25]) begin     /* the constant case */
 				carry_out = incpsr[`CPSR_C];
-				op1_out = ({24'b0, insn[7:0]} >> {insn[11:8], 1'b0}) | ({24'b0, insn[7:0]} << (5'b0 - {insn[11:8], 1'b0}));
+				op1_out = rotate_res;
 			end else begin
 				carry_out = shift_cflag_out;
 				op1_out = shift_res;
@@ -315,5 +320,19 @@ module SuckLessShifter(
 	assign stage4 = amt[2] ? {is_rot ? stage3[3:0] : {4{pushbits}}, stage3[31:4], stage3[3]} : stage3;
 	assign stage5 = amt[1] ? {is_rot ? stage4[1:0] : {2{pushbits}}, stage4[31:2], stage4[1]} : stage4;
 	assign {res, carryout} = amt[0] ? {is_rot ? stage5[0] : pushbits, stage5[31:1], stage5[0]} : stage5;
+
+endmodule
+
+module SuckLessRotator(
+	input [31:0] oper,
+	input [3:0] amt,
+	output [31:0] res
+);
+
+	wire [31:0] stage1, stage2, stage3;
+	assign stage1 = amt[3] ? {oper[15:0], oper[31:16]} : oper;
+	assign stage2 = amt[2] ? {stage1[7:0], stage1[31:8]} : stage1;
+	assign stage3 = amt[1] ? {stage2[3:0], stage2[31:4]} : stage2;
+	assign res    = amt[0] ? {stage3[1:0], stage3[31:2]} : stage3;
 
 endmodule
