@@ -68,3 +68,122 @@ module Multiplier(
 		end
 	end
 endmodule
+
+/* XXX is the interface correct? */
+module ALU(
+	input clk,
+	input Nrst,	/* XXX not used yet */
+
+	input [31:0] in0,
+	input [31:0] in1,
+	input [31:0] cpsr,
+	input [3:0] op,
+	input setflags,
+	input shifter_carry,
+
+	output reg [31:0] result,
+	output reg [31:0] cpsr_out,
+	output reg set
+);
+	wire [31:0] res;
+	wire flag_n, flag_z, flag_c, flag_v, setres;
+	wire [32:0] sum, diff, rdiff;
+
+	assign sum = {1'b0, in0} + {1'b0, in1};
+	assign diff = {1'b0, in0} - {1'b0, in1};
+	assign rdiff = {1'b0, in1} + {1'b0, in0};
+
+	/* TODO XXX flag_v not set correctly */
+	always @(*) begin
+		res = 32'hxxxxxxxx;
+		setres = 1'bx;
+		flag_c = cpsr[`CPSR_C];
+		flag_v = cpsr[`CPSR_V];
+		case(op)
+		`ALU_AND: begin
+			res = in0 & in1;
+			flag_c = shifter_carry;
+			setres = 1'b1;
+		end
+		`ALU_EOR: begin
+			res = in0 ^ in1;
+			flag_c = shifter_carry;
+			setres = 1'b1;
+		end
+		`ALU_SUB: begin
+			{flag_c, res} = diff;
+			setres = 1'b1;
+		end
+		`ALU_RSB: begin
+			{flag_c, res} = rdiff;
+			setres = 1'b1;
+		end
+		`ALU_ADD: begin
+			{flag_c, res} = sum;
+			setres = 1'b1;
+		end
+		`ALU_ADC: begin
+			{flag_c, res} = sum + cpsr[`CPSR_C];
+			setres = 1'b1;
+		end
+		`ALU_SBC: begin
+			{flag_c, res} = diff - (~cpsr[`CPSR_C]);
+			setres = 1'b1;
+		end
+		`ALU_RSC: begin
+			{flag_c, res} = rdiff - (~cpsr[`CPSR_C]);
+			setres = 1'b1;
+		end
+		`ALU_TST: begin
+			res = in0 & in1;
+			flag_c = shifter_carry;
+			setres = 1'b0;
+		end
+		`ALU_TEQ: begin
+			res = in0 ^ in1;
+			flag_c = shifter_carry;
+			setres = 1'b0;
+		end
+		`ALU_CMP: begin
+			{flag_c, res} = diff;
+			setres = 1'b0;
+		end
+		`ALU_CMN: begin
+			{flag_c, res} = sum;
+			setres = 1'b0;
+		end
+		`ALU_ORR: begin
+			res = in0 | in1;
+			flag_c = shifter_carry;
+			setres = 1'b1;
+		end
+		`ALU_MOV: begin
+			res = in1;
+			flag_c = shifter_carry;
+			setres = 1'b1;
+		end
+		`ALU_BIC: begin
+			res = in0 & (~in1);
+			flag_c = shifter_carry;
+			setres = 1'b1;
+		end
+		`ALU_MVN: begin
+			res = ~in1;
+			flag_c = shifter_carry;
+			setres = 1'b1;
+		end
+		endcase
+	end
+
+	always @(*) begin
+		flag_z = (res == 0);
+		flag_n = res[31];
+	end
+
+	always @(posedge clk) begin
+		result <= res;
+		cpsr_out <= setflags ? {flag_n, flag_z, flag_c, flag_v, cpsr[27:0]} : cpsr;
+		set <= setres;
+	end
+
+endmodule

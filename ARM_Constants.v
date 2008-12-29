@@ -24,7 +24,7 @@
 `define ALU_ADD 4'b0100
 `define ALU_ADC 4'b0101
 `define ALU_SBC 4'b0110
-`define ALU_RBC 4'b0111
+`define ALU_RSC 4'b0111
 `define ALU_TST 4'b1000
 `define ALU_TEQ 4'b1001
 `define ALU_CMP 4'b1010
