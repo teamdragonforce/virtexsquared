@@ -16,6 +16,7 @@ module Execute(
 	
 	output reg outstall = 0,
 	output reg outbubble = 1,
+	output reg [31:0] outcpsr = 0,
 	output reg write_reg = 1'bx,
 	output reg [3:0] write_num = 4'bxxxx,
 	output reg [31:0] write_data = 32'hxxxxxxxx
@@ -26,10 +27,21 @@ module Execute(
 	wire mult_done;
 	wire [31:0] mult_result;
 	
+	wire [31:0] alu_in0, alu_in1;
+	wire [3:0] alu_op;
+	wire alu_setflags, alu_set;
+	wire [31:0] alu_result, alu_outcpsr;
+	
 	Multiplier multiplier(
 		.clk(clk), .Nrst(Nrst),
 		.start(mult_start), .acc0(mult_acc0), .in0(mult_in0),
 		.in1(mult_in1), .done(mult_done), .result(mult_result));
+	
+	ALU alu(
+		.clk(clk), .Nrst(Nrst),
+		.in0(alu_in0), .in1(alu_in1), .cpsr(cpsr), .op(alu_op),
+		.setflags(alu_setflags), .shifter_carry(carry),
+		.result(alu_result), .cpsr_out(alu_outcpsr), .set(alu_set));
 endmodule
 
 module Multiplier(
@@ -123,15 +135,15 @@ module ALU(
 			setres = 1'b1;
 		end
 		`ALU_ADC: begin
-			{flag_c, res} = sum + cpsr[`CPSR_C];
+			{flag_c, res} = sum + {32'b0, cpsr[`CPSR_C]};
 			setres = 1'b1;
 		end
 		`ALU_SBC: begin
-			{flag_c, res} = diff - (~cpsr[`CPSR_C]);
+			{flag_c, res} = diff - {32'b0, (~cpsr[`CPSR_C])};
 			setres = 1'b1;
 		end
 		`ALU_RSC: begin
-			{flag_c, res} = rdiff - (~cpsr[`CPSR_C]);
+			{flag_c, res} = rdiff - {32'b0, (~cpsr[`CPSR_C])};
 			setres = 1'b1;
 		end
 		`ALU_TST: begin
