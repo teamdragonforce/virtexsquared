@@ -130,18 +130,6 @@ module Issue(
 			def_cpsr = 1;
 			def_regs = 0;
 		end
-		`DECODE_ALU:	/* ALU */
-		begin
-			use_cpsr = `COND_MATTERS(cond) | (!insn[25] /* I */ && shift_requires_carry(insn[11:4]));
-			use_regs =
-				(insn[25] /* I */ ? 0 :
-					(insn[4] /* shift by reg */ ?
-						(idxbit(rs) | idxbit(rm)) :
-						(idxbit(rm)))) |
-				(((alu_opc != `ALU_MOV) && (alu_opc != `ALU_MVN)) ? idxbit(rn) : 0);
-			def_cpsr = insn[20] /* S */ | alu_is_logical(alu_opc);
-			def_regs = alu_flags_only(alu_opc) ? 0 : idxbit(rd);
-		end
 		`DECODE_ALU_SWP:	/* Atomic swap */
 		begin
 			use_cpsr = `COND_MATTERS(cond);
@@ -169,6 +157,18 @@ module Issue(
 			use_regs = idxbit(rn) | (insn[20] /* L */ ? 0 : idxbit(rd));
 			def_cpsr = 0;
 			def_regs = insn[20] /* L */ ? idxbit(rd) : 0;
+		end
+		`DECODE_ALU:	/* ALU */
+		begin
+			use_cpsr = `COND_MATTERS(cond) | (!insn[25] /* I */ && shift_requires_carry(insn[11:4]));
+			use_regs =
+				(insn[25] /* I */ ? 0 :
+					(insn[4] /* shift by reg */ ?
+						(idxbit(rs) | idxbit(rm)) :
+						(idxbit(rm)))) |
+				(((alu_opc != `ALU_MOV) && (alu_opc != `ALU_MVN)) ? idxbit(rn) : 0);
+			def_cpsr = insn[20] /* S */ | alu_is_logical(alu_opc);
+			def_regs = alu_flags_only(alu_opc) ? 0 : idxbit(rd);
 		end
 		`DECODE_LDRSTR_UNDEFINED:	/* Undefined. I hate ARM */
 		begin	
