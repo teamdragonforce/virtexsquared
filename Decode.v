@@ -33,12 +33,12 @@ module Decode(
 	assign regs1 = (read_1 == 4'b1111) ? rpc : rdata_1;
 	assign regs2 = rdata_2; /* use regs2 for things that cannot be r15 */
 
-	IREALLYHATEARMSHIFT blowme(.insn(insn),
-	                           .operand(regs1),
-	                           .reg_amt(regs2),
-	                           .cflag_in(incpsr[`CPSR_C]),
-	                           .res(shift_res),
-	                           .cflag_out(shift_cflag_out));
+	IREALLYHATEARMSHIFT shift(.insn(insn),
+	                          .operand(regs1),
+	                          .reg_amt(regs2),
+	                          .cflag_in(incpsr[`CPSR_C]),
+	                          .res(shift_res),
+	                          .cflag_out(shift_cflag_out));
 
 	SuckLessRotator whirr(.oper({24'b0, insn[7:0]}),
 	                      .amt(insn[11:8]),
@@ -69,11 +69,16 @@ module Decode(
 		default:			/* X everything else out */
 			rpc = 32'hxxxxxxxx;
 		endcase
-
+	
 	always @(*) begin
 		read_0 = 4'hx;
 		read_1 = 4'hx;
 		read_2 = 4'hx;
+		
+		op0_out = 32'hxxxxxxxx;
+		op1_out = 32'hxxxxxxxx;
+		op2_out = 32'hxxxxxxxx;
+		carry_out = 1'bx;
 		
 		casez (insn)
 		`DECODE_ALU_MULT:	/* Multiply -- must come before ALU, because it pattern matches a specific case of ALU */
@@ -81,104 +86,72 @@ module Decode(
 			read_0 = insn[15:12]; /* Rn */
 			read_1 = insn[3:0];   /* Rm */
 			read_2 = insn[11:8];  /* Rs */
+			
+			op0_out = regs0;
+			op1_out = regs1;
+			op2_out = regs2;
 		end
 //		`DECODE_ALU_MUL_LONG:	/* Multiply long */
+//		begin
 //			read_0 = insn[11:8]; /* Rn */
 //			read_1 = insn[3:0];   /* Rm */
 //			read_2 = 4'b0;       /* anyus */
+//
+//			op1_res = regs1;
+//		end
 		`DECODE_ALU_MRS:	/* MRS (Transfer PSR to register) */
 		begin end
-		`DECODE_ALU_MSR,	/* MSR (Transfer register to PSR) */
-		`DECODE_ALU_MSR_FLAGS:	/* MSR (Transfer register or immediate to PSR, flag bits only) */
+		`DECODE_ALU_MSR:	/* MSR (Transfer register to PSR) */
+		begin
 			read_0 = insn[3:0];	/* Rm */
+			
+			op0_out = regs0;
+		end
+		`DECODE_ALU_MSR_FLAGS:	/* MSR (Transfer register or immediate to PSR, flag bits only) */
+		begin
+			read_0 = insn[3:0];	/* Rm */
+			
+			if(insn[25]) begin     /* the constant case */
+				op0_out = rotate_res;
+			end else begin
+				op0_out = regs0;
+			end
+		end
 		`DECODE_ALU_SWP:	/* Atomic swap */
 		begin
 			read_0 = insn[19:16]; /* Rn */
 			read_1 = insn[3:0];   /* Rm */
+			
+			op0_out = regs0;
+			op1_out = regs1;
 		end
 		`DECODE_ALU_BX:		/* Branch and exchange */
+		begin
 			read_0 = insn[3:0];   /* Rn */
+			
+			op0_out = regs0;
+		end
 		`DECODE_ALU_HDATA_REG:	/* Halfword transfer - register offset */
 		begin
 			read_0 = insn[19:16];
 			read_1 = insn[3:0];
+			
+			op0_out = regs0;
+			op1_out = regs1;
 		end
 		`DECODE_ALU_HDATA_IMM:	/* Halfword transfer - immediate offset */
 		begin
 			read_0 = insn[19:16];
+			
+			op0_out = regs0;
+			op1_out = {24'b0, insn[11:8], insn[3:0]};
 		end
 		`DECODE_ALU:		/* ALU */
 		begin
 			read_0 = insn[19:16]; /* Rn */
 			read_1 = insn[3:0];   /* Rm */
 			read_2 = insn[11:8];  /* Rs for shift */
-		end
-		`DECODE_LDRSTR_UNDEFINED:	/* Undefined. I hate ARM */
-		begin end
-		`DECODE_LDRSTR:		/* Single data transfer */
-		begin
-			read_0 = insn[19:16]; /* Rn */
-			read_1 = insn[3:0];   /* Rm */
-		end
-		`DECODE_LDMSTM:		/* Block data transfer */
-			read_0 = insn[19:16];
-		`DECODE_BRANCH:		/* Branch */
-		begin end
-		`DECODE_LDCSTC:		/* Coprocessor data transfer */
-			read_0 = insn[19:16];
-		`DECODE_CDP:		/* Coprocessor data op */
-		begin end
-		`DECODE_MRCMCR:		/* Coprocessor register transfer */
-			read_0 = insn[15:12];
-		`DECODE_SWI:		/* SWI */
-		begin end
-		default:
-			$display("Undecoded instruction");
-		endcase
-	end
-	
-	always @(*) begin
-		op0_out = 32'hxxxxxxxx;
-		op1_out = 32'hxxxxxxxx;
-		op2_out = 32'hxxxxxxxx;
-		carry_out = 1'bx;
-		casez (insn)
-		`DECODE_ALU_MULT: begin		/* Multiply */
-			op0_out = regs0;
-			op1_out = regs1;
-			op2_out = regs2;
-		end
-//		`DECODE_ALU_MULT_LONG: begin	/* Multiply long */
-//			op1_res = regs1;
-//		end
-		`DECODE_ALU_MRS: begin		/* MRS (Transfer PSR to register) */
-		end
-        	`DECODE_ALU_MSR: begin		/* MSR (Transfer register to PSR) */
-        		op0_out = regs0;
-        	end
-                `DECODE_ALU_MSR_FLAGS: begin	/* MSR (Transfer register or immediate to PSR, flag bits only) */
-                	if(insn[25]) begin     /* the constant case */
-				op0_out = rotate_res;
-			end else begin
-				op0_out = regs0;
-			end
-                end
-		`DECODE_ALU_SWP: begin		/* Atomic swap */
-			op0_out = regs0;
-			op1_out = regs1;
-		end
-		`DECODE_ALU_BX: begin		/* Branch and exchange */
-			op0_out = regs0;
-		end
-		`DECODE_ALU_HDATA_REG: begin	/* Halfword transfer - register offset */
-			op0_out = regs0;
-			op1_out = regs1;
-		end
-		`DECODE_ALU_HDATA_IMM: begin	/* Halfword transfer - immediate offset */
-			op0_out = regs0;
-			op1_out = {24'b0, insn[11:8], insn[3:0]};
-		end
-		`DECODE_ALU: begin		/* ALU */
+			
 			op0_out = regs0;
 			if(insn[25]) begin     /* the constant case */
 				carry_out = incpsr[`CPSR_C];
@@ -188,10 +161,15 @@ module Decode(
 				op1_out = shift_res;
 			end
 		end
-		`DECODE_LDRSTR_UNDEFINED: begin	/* Undefined. I hate ARM */
+		`DECODE_LDRSTR_UNDEFINED:	/* Undefined. I hate ARM */
+		begin
 			/* eat shit */
 		end
-		`DECODE_LDRSTR: begin		/* Single data transfer */
+		`DECODE_LDRSTR:		/* Single data transfer */
+		begin
+			read_0 = insn[19:16]; /* Rn */
+			read_1 = insn[3:0];   /* Rm */
+			
 			op0_out = regs0;
 			if(insn[25]) begin
 				op1_out = {20'b0, insn[11:0]};
@@ -201,28 +179,42 @@ module Decode(
 				carry_out = shift_cflag_out;
 			end
 		end
-		`DECODE_LDMSTM: begin		/* Block data transfer */
+		`DECODE_LDMSTM:		/* Block data transfer */
+		begin
+			read_0 = insn[19:16];
+			
 			op0_out = regs0;
 			op1_out = {16'b0, insn[15:0]};
 		end
-		`DECODE_BRANCH: begin		/* Branch */
+		`DECODE_BRANCH:		/* Branch */
+		begin
 			op0_out = {{6{insn[23]}}, insn[23:0], 2'b0};
 		end
-		`DECODE_LDCSTC: begin		/* Coprocessor data transfer */
+		`DECODE_LDCSTC:		/* Coprocessor data transfer */
+		begin
+			read_0 = insn[19:16];
+			
 			op0_out = regs0;
 			op1_out = {24'b0, insn[7:0]};
 		end
-		`DECODE_CDP: begin		/* Coprocessor data op */
+		`DECODE_CDP:		/* Coprocessor data op */
+		begin
 		end
-		`DECODE_MRCMCR: begin		/* Coprocessor register transfer */
+		`DECODE_MRCMCR:		/* Coprocessor register transfer */
+		begin
+			read_0 = insn[15:12];
+			
 			op0_out = regs0;
 		end
-		`DECODE_SWI: begin		/* SWI */
+		`DECODE_SWI:		/* SWI */
+		begin
 		end
-		default: begin end
+		default:
+			$display("Undecoded instruction");
 		endcase
 	end
 
+	
 	always @ (posedge clk) begin
 		op0 <= op0_out;   /* Rn - always */
 		op1 <= op1_out; /* 'operand 2' - Rm */
@@ -248,7 +240,7 @@ module IREALLYHATEARMSHIFT(
 	assign shift_amt = insn[4] ? {|reg_amt[7:5], reg_amt[4:0]}     /* reg-specified shift */
 	                           : {insn[11:7] == 5'b0, insn[11:7]}; /* immediate shift */
 
-	SuckLessShifter biteme(.oper(operand),
+	SuckLessShifter barrel(.oper(operand),
 	                       .carryin(cflag_in),
 	                       .amt(shift_amt),
 	                       .is_arith(is_arith),
@@ -338,3 +330,4 @@ module SuckLessRotator(
 	assign res    = amt[0] ? {stage3[1:0], stage3[31:2]} : stage3;
 
 endmodule
+
