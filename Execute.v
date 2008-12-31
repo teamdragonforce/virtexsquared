@@ -31,7 +31,13 @@ module Execute(
 	reg [3:0] alu_op;
 	reg alu_setflags;
 	wire [31:0] alu_result, alu_outcpsr;
-	wire alu_set;
+	wire alu_setres;
+	
+	reg next_outbubble;
+	reg [31:0] next_outcpsr;
+	reg next_write_reg;
+	reg [3:0] next_write_num;
+	reg [31:0] next_write_data;
 	
 	Multiplier multiplier(
 		.clk(clk), .Nrst(Nrst),
@@ -42,9 +48,34 @@ module Execute(
 		.clk(clk), .Nrst(Nrst),
 		.in0(alu_in0), .in1(alu_in1), .cpsr(cpsr), .op(alu_op),
 		.setflags(alu_setflags), .shifter_carry(carry),
-		.result(alu_result), .cpsr_out(alu_outcpsr), .set(alu_set));
+		.result(alu_result), .cpsr_out(alu_outcpsr), .setres(alu_setres));
+	
+	always @(posedge clk)
+	begin
+		if (!stall)
+		begin
+			outbubble <= next_outbubble;
+			outcpsr <= next_outcpsr;
+			write_reg <= next_write_reg;
+			write_num <= next_write_num;
+			write_data <= next_write_data;
+		end
+	end
 
 	always @(*)
+	begin
+		outstall = stall;
+		next_outbubble = inbubble;
+		next_outcpsr = cpsr;
+		next_write_reg = 0;
+		next_write_num = 4'hx;
+		next_write_data = 32'hxxxxxxxx;
+	
+		alu_in0 = 32'hxxxxxxxx;
+		alu_in1 = 32'hxxxxxxxx;
+		alu_op = 4'hx;	/* hax! */
+		alu_setflags = 1'bx;
+		
 		casez (insn)
 		`DECODE_ALU_MULT,	/* Multiply -- must come before ALU, because it pattern matches a specific case of ALU */
 //		`DECODE_ALU_MUL_LONG,	/* Multiply long */
@@ -54,8 +85,23 @@ module Execute(
 		`DECODE_ALU_SWP,	/* Atomic swap */
 		`DECODE_ALU_BX,		/* Branch */
 		`DECODE_ALU_HDATA_REG,	/* Halfword transfer - register offset */
-		`DECODE_ALU_HDATA_IMM,	/* Halfword transfer - immediate offset */
-		`DECODE_ALU,		/* ALU */
+		`DECODE_ALU_HDATA_IMM:	/* Halfword transfer - immediate offset */
+		begin end
+		`DECODE_ALU:		/* ALU */
+		begin
+			alu_in0 = op0;
+			alu_in1 = op1;
+			alu_op = insn[24:21];
+			alu_setflags = insn[20] /* I */;
+			
+			if (alu_setres) begin
+				next_write_reg = 1;
+				next_write_num = insn[15:12] /* Rd */;
+				next_write_data = alu_result;
+			end
+			
+			next_outcpsr = alu_outcpsr;
+		end
 		`DECODE_LDRSTR_UNDEFINED,	/* Undefined. I hate ARM */
 		`DECODE_LDRSTR,		/* Single data transfer */
 		`DECODE_LDMSTM,		/* Block data transfer */
@@ -68,6 +114,7 @@ module Execute(
 		default:		/* X everything else out */
 		begin end
 		endcase
+	end
 endmodule
 
 module Multiplier(
@@ -121,7 +168,7 @@ module ALU(
 
 	output reg [31:0] result,
 	output reg [31:0] cpsr_out,
-	output reg set
+	output reg setres
 );
 	wire [31:0] res;
 	wire flag_n, flag_z, flag_c, flag_v, setres;
@@ -139,89 +186,82 @@ module ALU(
 		flag_v = cpsr[`CPSR_V];
 		case(op)
 		`ALU_AND: begin
-			res = in0 & in1;
+			result = in0 & in1;
 			flag_c = shifter_carry;
 			setres = 1'b1;
 		end
 		`ALU_EOR: begin
-			res = in0 ^ in1;
+			result = in0 ^ in1;
 			flag_c = shifter_carry;
 			setres = 1'b1;
 		end
 		`ALU_SUB: begin
-			{flag_c, res} = diff;
+			{flag_c, result} = diff;
 			setres = 1'b1;
 		end
 		`ALU_RSB: begin
-			{flag_c, res} = rdiff;
+			{flag_c, result} = rdiff;
 			setres = 1'b1;
 		end
 		`ALU_ADD: begin
-			{flag_c, res} = sum;
+			{flag_c, result} = sum;
 			setres = 1'b1;
 		end
 		`ALU_ADC: begin
-			{flag_c, res} = sum + {32'b0, cpsr[`CPSR_C]};
+			{flag_c, result} = sum + {32'b0, cpsr[`CPSR_C]};
 			setres = 1'b1;
 		end
 		`ALU_SBC: begin
-			{flag_c, res} = diff - {32'b0, (~cpsr[`CPSR_C])};
+			{flag_c, result} = diff - {32'b0, (~cpsr[`CPSR_C])};
 			setres = 1'b1;
 		end
 		`ALU_RSC: begin
-			{flag_c, res} = rdiff - {32'b0, (~cpsr[`CPSR_C])};
+			{flag_c, result} = rdiff - {32'b0, (~cpsr[`CPSR_C])};
 			setres = 1'b1;
 		end
 		`ALU_TST: begin
-			res = in0 & in1;
+			result = in0 & in1;
 			flag_c = shifter_carry;
 			setres = 1'b0;
 		end
 		`ALU_TEQ: begin
-			res = in0 ^ in1;
+			result = in0 ^ in1;
 			flag_c = shifter_carry;
 			setres = 1'b0;
 		end
 		`ALU_CMP: begin
-			{flag_c, res} = diff;
+			{flag_c, result} = diff;
 			setres = 1'b0;
 		end
 		`ALU_CMN: begin
-			{flag_c, res} = sum;
+			{flag_c, result} = sum;
 			setres = 1'b0;
 		end
 		`ALU_ORR: begin
-			res = in0 | in1;
+			result = in0 | in1;
 			flag_c = shifter_carry;
 			setres = 1'b1;
 		end
 		`ALU_MOV: begin
-			res = in1;
+			result = in1;
 			flag_c = shifter_carry;
 			setres = 1'b1;
 		end
 		`ALU_BIC: begin
-			res = in0 & (~in1);
+			result = in0 & (~in1);
 			flag_c = shifter_carry;
 			setres = 1'b1;
 		end
 		`ALU_MVN: begin
-			res = ~in1;
+			result = ~in1;
 			flag_c = shifter_carry;
 			setres = 1'b1;
 		end
 		endcase
+		
+		flag_z = (result == 0);
+		flag_n = result[31];
+		
+		cpsr_out = setflags ? {flag_n, flag_z, flag_c, flag_v, cpsr[27:0]} : cpsr;
 	end
-
-	always @(*) begin
-		flag_z = (res == 0);
-		flag_n = res[31];
-	end
-
-	always @(posedge clk) begin
-		result <= res;
-		cpsr_out <= setflags ? {flag_n, flag_z, flag_c, flag_v, cpsr[27:0]} : cpsr;
-		set <= setres;
-	end
-
 endmodule
