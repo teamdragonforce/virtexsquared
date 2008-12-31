@@ -1,3 +1,4 @@
+E1800001  // orr r0, r0, r1
 // test some lol
 E0012011  // and r2, r1, r1, lsl r0
 E0013038  // and r3, r1, r8, lsr r0
