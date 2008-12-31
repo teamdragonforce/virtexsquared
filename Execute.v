@@ -27,10 +27,11 @@ module Execute(
 	wire mult_done;
 	wire [31:0] mult_result;
 	
-	wire [31:0] alu_in0, alu_in1;
-	wire [3:0] alu_op;
-	wire alu_setflags, alu_set;
+	reg [31:0] alu_in0, alu_in1;
+	reg [3:0] alu_op;
+	reg alu_setflags;
 	wire [31:0] alu_result, alu_outcpsr;
+	wire alu_set;
 	
 	Multiplier multiplier(
 		.clk(clk), .Nrst(Nrst),
@@ -42,6 +43,31 @@ module Execute(
 		.in0(alu_in0), .in1(alu_in1), .cpsr(cpsr), .op(alu_op),
 		.setflags(alu_setflags), .shifter_carry(carry),
 		.result(alu_result), .cpsr_out(alu_outcpsr), .set(alu_set));
+
+	always @(*)
+		casez (insn)
+		`DECODE_ALU_MULT,	/* Multiply -- must come before ALU, because it pattern matches a specific case of ALU */
+//		`DECODE_ALU_MUL_LONG,	/* Multiply long */
+		`DECODE_ALU_MRS,	/* MRS (Transfer PSR to register) */
+		`DECODE_ALU_MSR,	/* MSR (Transfer register to PSR) */
+		`DECODE_ALU_MSR_FLAGS,	/* MSR (Transfer register or immediate to PSR, flag bits only) */
+		`DECODE_ALU_SWP,	/* Atomic swap */
+		`DECODE_ALU_BX,		/* Branch */
+		`DECODE_ALU_HDATA_REG,	/* Halfword transfer - register offset */
+		`DECODE_ALU_HDATA_IMM,	/* Halfword transfer - immediate offset */
+		`DECODE_ALU,		/* ALU */
+		`DECODE_LDRSTR_UNDEFINED,	/* Undefined. I hate ARM */
+		`DECODE_LDRSTR,		/* Single data transfer */
+		`DECODE_LDMSTM,		/* Block data transfer */
+		`DECODE_BRANCH,		/* Branch */
+		`DECODE_LDCSTC,		/* Coprocessor data transfer */
+		`DECODE_CDP,		/* Coprocessor data op */
+		`DECODE_MRCMCR,		/* Coprocessor register transfer */
+		`DECODE_SWI:		/* SWI */
+		begin end
+		default:		/* X everything else out */
+		begin end
+		endcase
 endmodule
 
 module Multiplier(
