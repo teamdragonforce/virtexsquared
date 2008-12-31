@@ -62,6 +62,10 @@ module Execute(
 		end
 	end
 
+	reg prevstall = 0;
+	always @(posedge clk)
+		prevstall <= outstall;
+
 	always @(*)
 	begin
 		outstall = stall;
@@ -71,13 +75,34 @@ module Execute(
 		next_write_num = 4'hx;
 		next_write_data = 32'hxxxxxxxx;
 	
+		mult_start = 0;
+		mult_acc0 = 32'hxxxxxxxx;
+		mult_in0 = 32'hxxxxxxxx;
+		mult_in1 = 32'hxxxxxxxx;
+	
 		alu_in0 = 32'hxxxxxxxx;
 		alu_in1 = 32'hxxxxxxxx;
 		alu_op = 4'hx;	/* hax! */
 		alu_setflags = 1'bx;
 		
 		casez (insn)
-		`DECODE_ALU_MULT,	/* Multiply -- must come before ALU, because it pattern matches a specific case of ALU */
+		`DECODE_ALU_MULT:	/* Multiply -- must come before ALU, because it pattern matches a specific case of ALU */
+		begin
+			if (!prevstall && !inbubble)
+			begin
+				mult_start = 1;
+				mult_acc0 = insn[21] /* A */ ? op0 /* Rn */ : 32'h0;
+				mult_in0 = op1 /* Rm */;
+				mult_in1 = op2 /* Rs */;
+				$display("New MUL instruction");
+			end
+			outstall = stall | ((!prevstall | !mult_done) && !inbubble);
+			next_outbubble = inbubble | !mult_done | !prevstall;
+			next_outcpsr = insn[20] /* S */ ? {mult_result[31] /* N */, mult_result == 0 /* Z */, 1'b0 /* C */, cpsr[28] /* V */, cpsr[27:0]} : cpsr;
+			next_write_reg = 1;
+			next_write_num = insn[19:16] /* Rd -- why the fuck isn't this the same place as ALU */;
+			next_write_data = mult_result;
+		end
 //		`DECODE_ALU_MUL_LONG,	/* Multiply long */
 		`DECODE_ALU_MRS,	/* MRS (Transfer PSR to register) */
 		`DECODE_ALU_MSR,	/* MSR (Transfer register to PSR) */
