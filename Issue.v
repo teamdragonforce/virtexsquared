@@ -282,24 +282,25 @@ module Issue(
 		waiting_cpsr = use_cpsr & (cpsr_inflight[0] | cpsr_inflight[1]);
 		waiting_regs = |(use_regs & (regs_inflight[0] | regs_inflight[1]));
 		
-		outstall = waiting && !inbubble;	/* Happens in an always @*, because it is an exception. */
+		outstall = (waiting && !inbubble) || stall;	/* Happens in an always @*, because it is an exception. */
 	end
 	
 	/* Actually do the issue. */
 	always @(posedge clk)
 	begin
-		cpsr_inflight[0] <= cpsr_inflight[1];	/* I'm not sure how well selects work with arrays, and that seems like a dumb thing to get anusulated by. */
-		cpsr_inflight[1] <= (waiting || inbubble || !condition_met) ? 0 : def_cpsr;
-		regs_inflight[0] <= regs_inflight[1];
-		regs_inflight[1] <= (waiting || inbubble || !condition_met) ? 0 : def_regs;
-		
 		if (waiting)
-		begin
 			$display("ISSUE: Stalling instruction %08x because %d/%d", insn, waiting_cpsr, waiting_regs);
+	
+		if (!stall)
+		begin
+			cpsr_inflight[0] <= cpsr_inflight[1];	/* I'm not sure how well selects work with arrays, and that seems like a dumb thing to get anusulated by. */
+			cpsr_inflight[1] <= (waiting || inbubble || !condition_met) ? 0 : def_cpsr;
+			regs_inflight[0] <= regs_inflight[1];
+			regs_inflight[1] <= (waiting || inbubble || !condition_met) ? 0 : def_regs;
+			
+			outbubble <= inbubble | waiting | !condition_met;
+			outpc <= inpc;
+			outinsn <= insn;
 		end
-
-		outbubble <= inbubble | waiting | !condition_met;
-		outpc <= inpc;
-		outinsn <= insn;
 	end
 endmodule
