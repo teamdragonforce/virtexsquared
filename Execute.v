@@ -9,6 +9,7 @@ module Execute(
 	input [31:0] pc,
 	input [31:0] insn,
 	input [31:0] cpsr,
+	input [31:0] spsr,
 	input [31:0] op0,
 	input [31:0] op1,
 	input [31:0] op2,
@@ -17,6 +18,7 @@ module Execute(
 	output reg outstall = 0,
 	output reg outbubble = 1,
 	output reg [31:0] outcpsr = 0,
+	output reg [31:0] outspsr = 0,
 	output reg write_reg = 1'bx,
 	output reg [3:0] write_num = 4'bxxxx,
 	output reg [31:0] write_data = 32'hxxxxxxxx,
@@ -36,7 +38,7 @@ module Execute(
 	wire alu_setres;
 	
 	reg next_outbubble;
-	reg [31:0] next_outcpsr;
+	reg [31:0] next_outcpsr, next_outspsr;
 	reg next_write_reg;
 	reg [3:0] next_write_num;
 	reg [31:0] next_write_data;
@@ -58,6 +60,7 @@ module Execute(
 		begin
 			outbubble <= next_outbubble;
 			outcpsr <= next_outcpsr;
+			outspsr <= next_outspsr;
 			write_reg <= next_write_reg;
 			write_num <= next_write_num;
 			write_data <= next_write_data;
@@ -73,6 +76,7 @@ module Execute(
 		outstall = stall;
 		next_outbubble = inbubble;
 		next_outcpsr = cpsr;
+		next_outspsr = spsr;
 		next_write_reg = 0;
 		next_write_num = 4'hx;
 		next_write_data = 32'hxxxxxxxx;
@@ -106,9 +110,29 @@ module Execute(
 			next_write_data = mult_result;
 		end
 //		`DECODE_ALU_MUL_LONG,	/* Multiply long */
-		`DECODE_ALU_MRS,	/* MRS (Transfer PSR to register) */
+		`DECODE_ALU_MRS:	/* MRS (Transfer PSR to register) */
+		begin
+			next_write_reg = 1;
+			next_write_num = insn[15:12];
+			if (insn[22] /* Ps */)
+				next_write_data = spsr;
+			else
+				next_write_data = cpsr;
+		end
 		`DECODE_ALU_MSR,	/* MSR (Transfer register to PSR) */
-		`DECODE_ALU_MSR_FLAGS,	/* MSR (Transfer register or immediate to PSR, flag bits only) */
+		`DECODE_ALU_MSR_FLAGS:	/* MSR (Transfer register or immediate to PSR, flag bits only) */
+			if ((cpsr[4:0] == `MODE_USR) || (insn[16] /* that random bit */ == 1'b0))	/* flags only */
+			begin
+				if (insn[22] /* Ps */)
+					next_outspsr = {op0[31:29], spsr[28:0]};
+				else
+					next_outcpsr = {op0[31:29], cpsr[28:0]};
+			end else begin
+				if (insn[22] /* Ps */)
+					next_outspsr = op0;
+				else
+					next_outcpsr = op0;
+			end
 		`DECODE_ALU_SWP,	/* Atomic swap */
 		`DECODE_ALU_BX,		/* Branch */
 		`DECODE_ALU_HDATA_REG,	/* Halfword transfer - register offset */
@@ -119,7 +143,7 @@ module Execute(
 			alu_in0 = op0;
 			alu_in1 = op1;
 			alu_op = insn[24:21];
-			alu_setflags = insn[20] /* I */;
+			alu_setflags = insn[20] /* S */;
 			
 			if (alu_setres) begin
 				next_write_reg = 1;
@@ -127,7 +151,7 @@ module Execute(
 				next_write_data = alu_result;
 			end
 			
-			next_outcpsr = alu_outcpsr;
+			next_outcpsr = ((insn[15:12] == 4'b1111) && insn[20]) ? spsr : alu_outcpsr;
 		end
 		`DECODE_LDRSTR_UNDEFINED,	/* Undefined. I hate ARM */
 		`DECODE_LDRSTR,		/* Single data transfer */

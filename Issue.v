@@ -167,7 +167,7 @@ module Issue(
 						(idxbit(rs) | idxbit(rm)) :
 						(idxbit(rm)))) |
 				(((alu_opc != `ALU_MOV) && (alu_opc != `ALU_MVN)) ? idxbit(rn) : 0);
-			def_cpsr = insn[20] /* S */ | alu_is_logical(alu_opc);
+			def_cpsr = insn[20] /* S */;
 			def_regs = alu_flags_only(alu_opc) ? 0 : idxbit(rd);
 		end
 		`DECODE_LDRSTR_UNDEFINED:	/* Undefined. I hate ARM */

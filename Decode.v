@@ -5,10 +5,12 @@ module Decode(
 	input [31:0] insn,
 	input [31:0] inpc,
 	input [31:0] incpsr,
+	input [31:0] inspsr,
 	output reg [31:0] op0,
 	output reg [31:0] op1,
 	output reg [31:0] op2,
 	output reg carry,
+	output reg [31:0] outspsr,
 
 	output reg [3:0] read_0,
 	output reg [3:0] read_1,
@@ -220,6 +222,7 @@ module Decode(
 		op1 <= op1_out; /* 'operand 2' - Rm */
 		op2 <= op2_out;   /* thirdedge - Rs */
 		carry <= carry_out;
+		outspsr <= inspsr;
 	end
 
 endmodule
