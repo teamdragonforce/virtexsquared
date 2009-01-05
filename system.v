@@ -54,6 +54,10 @@ module System(input clk);
 	wire [31:0] pc_out_fetch;
 	wire [31:0] pc_out_issue;
 
+	wire execute_outflush = jmp;
+	wire issue_flush = execute_outflush;
+	wire execute_flush = 1'b0;
+
 	BusArbiter busarbiter(.bus_req(bus_req), .bus_ack(bus_ack));
 
 	ICache icache(
@@ -84,7 +88,7 @@ module System(input clk);
 	Issue issue(
 		.clk(clk),
 		.Nrst(1'b1 /* XXX */),
-		.stall(stall_cause_execute), .flush(1'b0 /* XXX */),
+		.stall(stall_cause_execute), .flush(issue_flush),
 		.inbubble(bubble_out_fetch), .insn(insn_out_fetch),
 		.inpc(pc_out_fetch), .cpsr(32'b0 /* XXX */),
 		.outstall(stall_cause_issue), .outbubble(bubble_out_issue),
@@ -106,7 +110,7 @@ module System(input clk);
 	
 	Execute execute(
 		.clk(clk), .Nrst(1'b0),
-		.stall(1'b0 /* XXX */), .flush(1'b0 /* XXX */),
+		.stall(1'b0 /* XXX */), .flush(execute_flush),
 		.inbubble(bubble_out_issue), .pc(pc_out_issue), .insn(insn_out_issue),
 		.cpsr(32'b0 /* XXX */), .spsr(decode_out_spsr), .op0(decode_out_op0), .op1(decode_out_op1),
 		.op2(decode_out_op2), .carry(decode_out_carry),
