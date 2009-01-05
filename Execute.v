@@ -19,7 +19,9 @@ module Execute(
 	output reg [31:0] outcpsr = 0,
 	output reg write_reg = 1'bx,
 	output reg [3:0] write_num = 4'bxxxx,
-	output reg [31:0] write_data = 32'hxxxxxxxx
+	output reg [31:0] write_data = 32'hxxxxxxxx,
+	output reg [31:0] outpc
+	output reg outflush
 	);
 	
 	reg mult_start;
@@ -129,8 +131,17 @@ module Execute(
 		end
 		`DECODE_LDRSTR_UNDEFINED,	/* Undefined. I hate ARM */
 		`DECODE_LDRSTR,		/* Single data transfer */
-		`DECODE_LDMSTM,		/* Block data transfer */
-		`DECODE_BRANCH,		/* Branch */
+		`DECODE_LDMSTM:		/* Block data transfer */
+		begin end
+		`DECODE_BRANCH:
+		begin
+			outpc = pc + op0;
+			if(insn[24]) begin
+				next_write_reg = 1;
+				next_write_num = 4'hE; /* link register */
+				next_write_data = pc + 32'h4;
+			end
+		end                     /* Branch */
 		`DECODE_LDCSTC,		/* Coprocessor data transfer */
 		`DECODE_CDP,		/* Coprocessor data op */
 		`DECODE_MRCMCR,		/* Coprocessor register transfer */
