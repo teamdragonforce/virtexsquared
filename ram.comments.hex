@@ -25,6 +25,10 @@ E0017361  // and r7, r1, r1, ror #6
 E180F081
 E180F081
 E180F081
+EA000000 // jump forward
+EBFFFFFF // whirrr, skipped the first time
+E1A00000 // nop
+EBFFFFFD // jump back
 E0000000
 E0000000
 E0000000

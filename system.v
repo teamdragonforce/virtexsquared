@@ -124,6 +124,6 @@ module System(input clk);
 		$display("%3d: FETCH:            Bubble: %d, Instruction: %08x, PC: %08x", clockno, bubble_out_fetch, insn_out_fetch, pc_out_fetch);
 		$display("%3d: ISSUE:  Stall: %d, Bubble: %d, Instruction: %08x, PC: %08x", clockno, stall_cause_issue, bubble_out_issue, insn_out_issue, pc_out_issue);
 		$display("%3d: DECODE:                      op1 %08x, op2 %08x, op3 %08x, carry %d", clockno, decode_out_op0, decode_out_op1, decode_out_op2, decode_out_carry);
-		$display("%3d: EXEC:   Stall: %d, Bubble: %d, Output: %d, [%08x -> %d]", clockno, stall_cause_execute, execute_out_bubble, execute_out_write_reg, execute_out_write_data, execute_out_write_num);
+		$display("%3d: EXEC:   Stall: %d, Bubble: %d, Reg: %d, [%08x -> %d], Jmp: %d [%08x]", clockno, stall_cause_execute, execute_out_bubble, execute_out_write_reg, execute_out_write_data, execute_out_write_num, jmp, jmppc);
 	end
 endmodule
