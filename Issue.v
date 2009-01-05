@@ -297,6 +297,7 @@ module Issue(
 			cpsr_inflight[1] = 1'b0;
 			regs_inflight[0] = 16'b0;
 			regs_inflight[1] = 16'b0;
+			outbubble <= 1'b1;
 		end
 		else if (!stall)
 		begin
@@ -305,7 +306,7 @@ module Issue(
 			regs_inflight[0] <= regs_inflight[1];
 			regs_inflight[1] <= (waiting || inbubble || !condition_met) ? 0 : def_regs;
 			
-			outbubble <= inbubble | waiting | !condition_met | flush;
+			outbubble <= inbubble | waiting | !condition_met;
 			outpc <= inpc;
 			outinsn <= insn;
 		end
