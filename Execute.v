@@ -22,8 +22,8 @@ module Execute(
 	output reg write_reg = 1'bx,
 	output reg [3:0] write_num = 4'bxxxx,
 	output reg [31:0] write_data = 32'hxxxxxxxx,
-	output reg [31:0] outpc,
-	output reg outflush
+	output reg [31:0] jmppc,
+	output reg jmp
 	);
 	
 	reg mult_start;
@@ -41,8 +41,9 @@ module Execute(
 	reg [31:0] next_outcpsr, next_outspsr;
 	reg next_write_reg;
 	reg [3:0] next_write_num;
+
 	reg [31:0] next_write_data;
-	
+
 	Multiplier multiplier(
 		.clk(clk), .Nrst(Nrst),
 		.start(mult_start), .acc0(mult_acc0), .in0(mult_in0),
@@ -74,23 +75,26 @@ module Execute(
 	always @(*)
 	begin
 		outstall = stall;
-		next_outbubble = inbubble;
+		next_outbubble = inbubble | flush;
 		next_outcpsr = cpsr;
 		next_outspsr = spsr;
 		next_write_reg = 0;
 		next_write_num = 4'hx;
 		next_write_data = 32'hxxxxxxxx;
-	
+
 		mult_start = 0;
 		mult_acc0 = 32'hxxxxxxxx;
 		mult_in0 = 32'hxxxxxxxx;
 		mult_in1 = 32'hxxxxxxxx;
-	
+
 		alu_in0 = 32'hxxxxxxxx;
 		alu_in1 = 32'hxxxxxxxx;
 		alu_op = 4'hx;	/* hax! */
 		alu_setflags = 1'bx;
-		
+
+		jmp = 1'b0;
+		jmppc = 32'hxxxxxxxx;
+
 		casez (insn)
 		`DECODE_ALU_MULT:	/* Multiply -- must come before ALU, because it pattern matches a specific case of ALU */
 		begin
@@ -159,12 +163,13 @@ module Execute(
 		begin end
 		`DECODE_BRANCH:
 		begin
-			outpc = pc + op0;
+			jmppc = pc + op0 + 32'h8;
 			if(insn[24]) begin
 				next_write_reg = 1;
 				next_write_num = 4'hE; /* link register */
 				next_write_data = pc + 32'h4;
 			end
+			jmp = 1'b1;
 		end                     /* Branch */
 		`DECODE_LDCSTC,		/* Coprocessor data transfer */
 		`DECODE_CDP,		/* Coprocessor data op */

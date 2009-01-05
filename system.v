@@ -27,7 +27,7 @@ module System(input clk);
 	assign bus_rd = bus_rd_icache;
 	assign bus_wr = bus_wr_icache;
 	assign bus_ready = bus_ready_blockram;
-	
+
 	wire [31:0] icache_rd_addr;
 	wire icache_rd_req;
 	wire icache_rd_wait;
@@ -44,6 +44,8 @@ module System(input clk);
 	wire execute_out_write_reg;
 	wire [3:0] execute_out_write_num;
 	wire [31:0] execute_out_write_data;
+	wire [31:0] jmppc;
+	wire jmp;
 	
 	wire bubble_out_fetch;
 	wire bubble_out_issue;
@@ -51,7 +53,7 @@ module System(input clk);
 	wire [31:0] insn_out_issue;
 	wire [31:0] pc_out_fetch;
 	wire [31:0] pc_out_issue;
-	
+
 	BusArbiter busarbiter(.bus_req(bus_req), .bus_ack(bus_ack));
 
 	ICache icache(
@@ -75,7 +77,7 @@ module System(input clk);
 		.Nrst(1'b1 /* XXX */),
 		.rd_addr(icache_rd_addr), .rd_req(icache_rd_req),
 		.rd_wait(icache_rd_wait), .rd_data(icache_rd_data),
-		.stall(stall_cause_issue), .jmp(1'b0 /* XXX */), .jmppc(32'b0 /* XXX */),
+		.stall(stall_cause_issue), .jmp(jmp), .jmppc(jmppc),
 		.bubble(bubble_out_fetch), .insn(insn_out_fetch),
 		.pc(pc_out_fetch));
 	
@@ -110,8 +112,10 @@ module System(input clk);
 		.op2(decode_out_op2), .carry(decode_out_carry),
 		.outstall(stall_cause_execute), .outbubble(execute_out_bubble),
 		.write_reg(execute_out_write_reg), .write_num(execute_out_write_num),
-		.write_data(execute_out_write_data));
-	
+		.write_data(execute_out_write_data),
+		.jmppc(jmppc),
+		.jmp(jmp));
+
 	reg [31:0] clockno = 0;
 	always @(posedge clk)
 	begin
