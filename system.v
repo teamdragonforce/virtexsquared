@@ -36,10 +36,10 @@ module System(input clk);
 	wire stall_cause_issue;
 	wire stall_cause_execute;
 	
-	wire [31:0] decode_out_op0, decode_out_op1, decode_out_op2;
+	wire [31:0] decode_out_op0, decode_out_op1, decode_out_op2, decode_out_spsr;
 	wire decode_out_carry;
 	wire [3:0] regfile_read_0, regfile_read_1, regfile_read_2;
-	wire [31:0] regfile_rdata_0, regfile_rdata_1, regfile_rdata_2;
+	wire [31:0] regfile_rdata_0, regfile_rdata_1, regfile_rdata_2, regfile_spsr;
 	wire execute_out_stall, execute_out_bubble;
 	wire execute_out_write_reg;
 	wire [3:0] execute_out_write_num;
@@ -92,13 +92,13 @@ module System(input clk);
 		.clk(clk),
 		.read_0(regfile_read_0), .read_1(regfile_read_1), .read_2(regfile_read_2),
 		.rdata_0(regfile_rdata_0), .rdata_1(regfile_rdata_1), .rdata_2(regfile_rdata_2),
-		.write(4'b0), .write_req(1'b0), .write_data(10 /* XXX */));
+		.spsr(regfile_spsr), .write(4'b0), .write_req(1'b0), .write_data(10 /* XXX */));
 	
 	Decode decode(
 		.clk(clk),
-		.insn(insn_out_fetch), .inpc(pc_out_fetch), .incpsr(32'b0 /* XXX */),
+		.insn(insn_out_fetch), .inpc(pc_out_fetch), .incpsr(32'b0 /* XXX */), .inspsr(regfile_spsr),
 		.op0(decode_out_op0), .op1(decode_out_op1), .op2(decode_out_op2),
-		.carry(decode_out_carry),
+		.carry(decode_out_carry), .outspsr(decode_out_spsr),
 		.read_0(regfile_read_0), .read_1(regfile_read_1), .read_2(regfile_read_2), 
 		.rdata_0(regfile_rdata_0), .rdata_1(regfile_rdata_1), .rdata_2(regfile_rdata_2));
 	
@@ -106,7 +106,7 @@ module System(input clk);
 		.clk(clk), .Nrst(1'b0),
 		.stall(1'b0 /* XXX */), .flush(1'b0 /* XXX */),
 		.inbubble(bubble_out_issue), .pc(pc_out_issue), .insn(insn_out_issue),
-		.cpsr(32'b0 /* XXX */), .op0(decode_out_op0), .op1(decode_out_op1),
+		.cpsr(32'b0 /* XXX */), .spsr(decode_out_spsr), .op0(decode_out_op0), .op1(decode_out_op1),
 		.op2(decode_out_op2), .carry(decode_out_carry),
 		.outstall(stall_cause_execute), .outbubble(execute_out_bubble),
 		.write_reg(execute_out_write_reg), .write_num(execute_out_write_num),

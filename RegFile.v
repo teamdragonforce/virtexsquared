@@ -6,6 +6,7 @@ module RegFile(
 	output reg [31:0] rdata_1,
 	input [3:0] read_2,
 	output reg [31:0] rdata_2,
+	output reg [31:0] spsr,
 	input [3:0] write,
 	input write_req,
 	input [31:0] write_data
@@ -29,7 +30,7 @@ module RegFile(
 		regfile[4'hC] = 32'h0000A000;
 		regfile[4'hD] = 32'h00000A00;
 		regfile[4'hE] = 32'h000000A0;
-		regfile[4'hF] = 32'h0000000A;
+		regfile[4'hF] = 32'h00000000;	/* Start off claiming we are in user mode. */
 	end
 	
 	always @(*)
@@ -48,6 +49,8 @@ module RegFile(
 			rdata_2 = write_data;
 		else
 			rdata_2 = regfile[read_2];
+		
+		spsr = regfile[4'hF];
 	end
 	
 	always @(posedge clk)
