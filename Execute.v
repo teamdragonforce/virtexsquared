@@ -20,7 +20,7 @@ module Execute(
 	output reg write_reg = 1'bx,
 	output reg [3:0] write_num = 4'bxxxx,
 	output reg [31:0] write_data = 32'hxxxxxxxx,
-	output reg [31:0] outpc
+	output reg [31:0] outpc,
 	output reg outflush
 	);
 	
