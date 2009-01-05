@@ -179,7 +179,6 @@ module Multiplier(
 	end
 endmodule
 
-/* XXX is the interface correct? */
 module ALU(
 	input clk,
 	input Nrst,	/* XXX not used yet */
@@ -198,12 +197,15 @@ module ALU(
 	wire [31:0] res;
 	wire flag_n, flag_z, flag_c, flag_v, setres;
 	wire [32:0] sum, diff, rdiff;
+	wire sum_v, diff_v, rdiff_v;
 
 	assign sum = {1'b0, in0} + {1'b0, in1};
 	assign diff = {1'b0, in0} - {1'b0, in1};
 	assign rdiff = {1'b0, in1} + {1'b0, in0};
+	assign sum_v = (in0[31] ^~ in1[31]) & (sum[31] ^ in0[31]);
+	assign diff_v = (in0[31] ^ in1[31]) & (diff[31] ^ in0[31]);
+	assign rdiff_v = (in0[31] ^ in1[31]) & (rdiff[31] ^ in1[31]);
 
-	/* TODO XXX flag_v not set correctly */
 	always @(*) begin
 		res = 32'hxxxxxxxx;
 		setres = 1'bx;
@@ -222,26 +224,32 @@ module ALU(
 		end
 		`ALU_SUB: begin
 			{flag_c, result} = diff;
+			flag_v = diff_v;
 			setres = 1'b1;
 		end
 		`ALU_RSB: begin
 			{flag_c, result} = rdiff;
+			flag_v = rdiff_v;
 			setres = 1'b1;
 		end
 		`ALU_ADD: begin
 			{flag_c, result} = sum;
+			flag_v = sum_v;
 			setres = 1'b1;
 		end
 		`ALU_ADC: begin
 			{flag_c, result} = sum + {32'b0, cpsr[`CPSR_C]};
+			flag_v = sum_v | (~sum[31] & result[31]);
 			setres = 1'b1;
 		end
 		`ALU_SBC: begin
 			{flag_c, result} = diff - {32'b0, (~cpsr[`CPSR_C])};
+			flag_v = diff_v | (diff[31] & ~result[31]);
 			setres = 1'b1;
 		end
 		`ALU_RSC: begin
 			{flag_c, result} = rdiff - {32'b0, (~cpsr[`CPSR_C])};
+			flag_v = rdiff_v | (rdiff[31] & ~result[31]);
 			setres = 1'b1;
 		end
 		`ALU_TST: begin
@@ -256,10 +264,12 @@ module ALU(
 		end
 		`ALU_CMP: begin
 			{flag_c, result} = diff;
+			flag_v = diff_v;
 			setres = 1'b0;
 		end
 		`ALU_CMN: begin
 			{flag_c, result} = sum;
+			flag_v = sum_v;
 			setres = 1'b0;
 		end
 		`ALU_ORR: begin
