@@ -26,9 +26,9 @@ E180F081
 E180F081
 E180F081
 EA000000 // jump forward
-EBFFFFFF // whirrr, skipped the first time
+EAFFFFFE // whirrr, skipped the first time
 E1A00000 // nop
-EBFFFFFD // jump back
+EBFFFFFC // jump back
 E0000000
 E0000000
 E0000000

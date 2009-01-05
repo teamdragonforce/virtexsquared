@@ -282,7 +282,7 @@ module Issue(
 		waiting_cpsr = use_cpsr & (cpsr_inflight[0] | cpsr_inflight[1]);
 		waiting_regs = |(use_regs & (regs_inflight[0] | regs_inflight[1]));
 		
-		outstall = (waiting && !inbubble) || stall;	/* Happens in an always @*, because it is an exception. */
+		outstall = ((waiting && !inbubble) || stall) && !flush;	/* Happens in an always @*, because it is an exception. */
 	end
 	
 	/* Actually do the issue. */

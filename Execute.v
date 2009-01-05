@@ -163,12 +163,12 @@ module Execute(
 		begin end
 		`DECODE_BRANCH:
 		begin
-			if(!prevstall && !inbubble) begin
+			if(!inbubble) begin
 				jmppc = pc + op0 + 32'h8;
 				if(insn[24]) begin
 					next_write_reg = 1;
 					next_write_num = 4'hE; /* link register */
-					next_write_data = pc + 32'h4;
+					next_write_data = pc - 32'h4;
 				end
 				jmp = 1'b1;
 			end
@@ -236,8 +236,8 @@ module ALU(
 	output reg [31:0] cpsr_out,
 	output reg setres
 );
-	wire [31:0] res;
-	wire flag_n, flag_z, flag_c, flag_v, setres;
+	reg [31:0] res;
+	reg flag_n, flag_z, flag_c, flag_v;
 	wire [32:0] sum, diff, rdiff;
 	wire sum_v, diff_v, rdiff_v;
 
