@@ -42,6 +42,7 @@ module Memory(
 	reg next_writeback, next_notdone, next_inc_next;
 	reg [31:0] align_s1, align_s2, align_rddata;
 
+	wire next_outbubble;	
 	wire next_write_reg;
 	wire [3:0] next_write_num;
 	wire [31:0] next_write_data;
@@ -56,10 +57,10 @@ module Memory(
 	begin
 		outpc <= pc;
 		outinsn <= insn;
-		outbubble <= rw_wait;
-		out_write_reg <= next_writeback;
-		out_write_num <= next_regsel;
-		out_write_data <= next_regdata;
+		outbubble <= next_outbubble;
+		out_write_reg <= next_write_reg;
+		out_write_num <= next_write_num;
+		out_write_data <= next_write_data;
 		notdone <= next_notdone;
 		inc_next <= next_inc_next;
 		regs <= next_regs;
@@ -81,6 +82,7 @@ module Memory(
 		next_write_num = write_num;
 		next_write_data = write_data;
 		next_inc_next = 1'b0;
+		next_outbubble = inbubble;
 		outstall = 1'b0;
 		next_regs = 16'b0;
 		next_started = started;
@@ -89,6 +91,7 @@ module Memory(
 		`DECODE_LDRSTR_UNDEFINED: begin end
 		`DECODE_LDRSTR: begin
 			if (!inbubble) begin
+				next_outbubble = rw_wait;
 				outstall = rw_wait | notdone;
 			
 				addr = insn[23] ? op0 + op1 : op0 - op1; /* up/down select */

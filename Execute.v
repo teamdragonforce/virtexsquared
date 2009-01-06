@@ -25,7 +25,8 @@ module Execute(
 	output reg [31:0] jmppc,
 	output reg jmp,
 	output reg [31:0] outpc,
-	output reg [31:0] outinsn
+	output reg [31:0] outinsn,
+	output reg [31:0] outop0, outop1, outop2
 	);
 	
 	reg mult_start;
@@ -69,6 +70,9 @@ module Execute(
 			write_data <= next_write_data;
 			outpc <= pc;
 			outinsn <= insn;
+			outop0 <= op0;
+			outop1 <= op1;
+			outop2 <= op2;
 		end
 	end
 

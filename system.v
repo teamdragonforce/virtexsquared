@@ -46,28 +46,38 @@ module System(input clk);
 	wire dcache_rw_wait;
 	wire [31:0] dcache_wr_data, dcache_rd_data;
 	
-	wire stall_cause_issue;
-	wire stall_cause_execute;
-	
 	wire [31:0] decode_out_op0, decode_out_op1, decode_out_op2, decode_out_spsr;
 	wire decode_out_carry;
-	wire [3:0] regfile_read_0, regfile_read_1, regfile_read_2;
-	wire [31:0] regfile_rdata_0, regfile_rdata_1, regfile_rdata_2, regfile_spsr;
+	
+	wire [3:0] regfile_read_0, regfile_read_1, regfile_read_2, regfile_read_3;
+	wire [31:0] regfile_rdata_0, regfile_rdata_1, regfile_rdata_2, regfile_rdata_3, regfile_spsr;
+	
 	wire execute_out_write_reg;
 	wire [3:0] execute_out_write_num;
 	wire [31:0] execute_out_write_data;
+	wire [31:0] execute_out_op0, execute_out_op1, execute_out_op2;
 	wire [31:0] jmppc;
 	wire jmp;
 	
+	wire memory_out_write_reg;
+	wire [3:0] memory_out_write_num;
+	wire [31:0] memory_out_write_data;
+	
+	wire stall_cause_issue;
+	wire stall_cause_execute;
+	wire stall_cause_memory;
 	wire bubble_out_fetch;
 	wire bubble_out_issue;
 	wire bubble_out_execute;
+	wire bubble_out_memory;
 	wire [31:0] insn_out_fetch;
 	wire [31:0] insn_out_issue;
 	wire [31:0] insn_out_execute;
+	wire [31:0] insn_out_memory;
 	wire [31:0] pc_out_fetch;
 	wire [31:0] pc_out_issue;
 	wire [31:0] pc_out_execute;
+	wire [31:0] pc_out_memory;
 
 	wire execute_out_backflush;
 
@@ -118,8 +128,8 @@ module System(input clk);
 	
 	RegFile regfile(
 		.clk(clk),
-		.read_0(regfile_read_0), .read_1(regfile_read_1), .read_2(regfile_read_2),
-		.rdata_0(regfile_rdata_0), .rdata_1(regfile_rdata_1), .rdata_2(regfile_rdata_2),
+		.read_0(regfile_read_0), .read_1(regfile_read_1), .read_2(regfile_read_2), .read_2(regfile_read_3),
+		.rdata_0(regfile_rdata_0), .rdata_1(regfile_rdata_1), .rdata_2(regfile_rdata_2), .rdata_2(regfile_rdata_3),
 		.spsr(regfile_spsr), .write(4'b0), .write_req(1'b0), .write_data(10 /* XXX */));
 	
 	Decode decode(
@@ -132,7 +142,7 @@ module System(input clk);
 	
 	Execute execute(
 		.clk(clk), .Nrst(1'b0),
-		.stall(1'b0 /* XXX */), .flush(1'b0),
+		.stall(stall_cause_memory), .flush(1'b0),
 		.inbubble(bubble_out_issue), .pc(pc_out_issue), .insn(insn_out_issue),
 		.cpsr(32'b0 /* XXX */), .spsr(decode_out_spsr), .op0(decode_out_op0), .op1(decode_out_op1),
 		.op2(decode_out_op2), .carry(decode_out_carry),
@@ -140,8 +150,23 @@ module System(input clk);
 		.write_reg(execute_out_write_reg), .write_num(execute_out_write_num),
 		.write_data(execute_out_write_data),
 		.jmp(jmp), .jmppc(jmppc),
-		.outpc(pc_out_execute), .outinsn(insn_out_execute));
+		.outpc(pc_out_execute), .outinsn(insn_out_execute),
+		.outop0(execute_out_op0), .outop1(execute_out_op1), .outop2(execute_out_op2));
 	assign execute_out_backflush = jmp;
+	
+	Memory memory(
+		.clk(clk), .Nrst(1'b0),
+		/* stall? flush? */
+		.busaddr(dcache_addr), .rd_req(dcache_rd_req), .wr_req(dcache_wr_req),
+		.rw_wait(dcache_rw_wait), .wr_data(dcache_wr_data), .rd_data(dcache_rd_data),
+		.st_read(regfile_read_3), .st_data(regfile_rdata_3),
+		.inbubble(bubble_out_execute), .pc(pc_out_execute), .insn(insn_out_execute),
+		.op0(execute_out_op0), .op1(execute_out_op1), .op2(execute_out_op2),
+		.write_reg(execute_out_write_reg), .write_num(execute_out_write_num), .write_data(execute_out_write_data),
+		.outstall(stall_cause_memory), .outbubble(bubble_out_memory), 
+		.outpc(pc_out_memory), .outinsn(insn_out_memory),
+		.out_write_reg(memory_out_write_reg), .out_write_num(memory_out_write_num), 
+		.out_write_data(memory_out_write_data));
 
 	reg [31:0] clockno = 0;
 	always @(posedge clk)
@@ -152,5 +177,6 @@ module System(input clk);
 		$display("%3d: ISSUE:  Stall: %d, Bubble: %d, Instruction: %08x, PC: %08x", clockno, stall_cause_issue, bubble_out_issue, insn_out_issue, pc_out_issue);
 		$display("%3d: DECODE:                      op1 %08x, op2 %08x, op3 %08x, carry %d", clockno, decode_out_op0, decode_out_op1, decode_out_op2, decode_out_carry);
 		$display("%3d: EXEC:   Stall: %d, Bubble: %d, Instruction: %08x, PC: %08x, Reg: %d, [%08x -> %d], Jmp: %d [%08x]", clockno, stall_cause_execute, bubble_out_execute, insn_out_execute, pc_out_execute, execute_out_write_reg, execute_out_write_data, execute_out_write_num, jmp, jmppc);
+		$display("%3d: MEMORY: Stall: %d, Bubble: %d, Instruction: %08x, PC: %08x, Reg: %d, [%08x -> %d]", clockno, stall_cause_memory, bubble_out_memory, insn_out_memory, pc_out_memory, memory_out_write_reg, memory_out_write_data, memory_out_write_num);
 	end
 endmodule
