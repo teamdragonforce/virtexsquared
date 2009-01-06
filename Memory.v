@@ -22,6 +22,7 @@ module Memory(
 	input [31:0] insn,
 	input [31:0] op0,
 	input [31:0] op1,
+	input [31:0] op2,
 	input write_reg,
 	input [3:0] write_num,
 	input [31:0] write_data,
@@ -99,8 +100,7 @@ module Memory(
 				align_rddata = insn[22] ? {24'b0, align_s2[7:0]} : align_s2;
 				
 				if(!insn[20]) begin
-					st_read = insn[15:12];
-					wr_data = insn[22] ? {4{st_data[7:0]}} : st_data; /* XXX need to actually store just a byte */
+					wr_data = insn[22] ? {4{op2[7:0]}} : op2; /* XXX need to actually store just a byte */
 				end
 				else if(!inc_next) begin
 					next_write_reg = 1'b1;
