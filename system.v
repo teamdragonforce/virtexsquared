@@ -118,7 +118,7 @@ module System(input clk);
 		.write_reg(execute_out_write_reg), .write_num(execute_out_write_num),
 		.write_data(execute_out_write_data),
 		.jmp(jmp), .jmppc(jmppc),
-		.outpc(pc_out_execute), .insn(insn_out_execute));
+		.outpc(pc_out_execute), .outinsn(insn_out_execute));
 	assign execute_out_backflush = jmp;
 
 	reg [31:0] clockno = 0;
