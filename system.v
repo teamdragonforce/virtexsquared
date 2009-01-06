@@ -157,6 +157,8 @@ module System(input clk);
 	Memory memory(
 		.clk(clk), .Nrst(1'b0),
 		/* stall? flush? */
+		.busaddr(dcache_addr), .rd_req(dcache_rd_req), .wr_req(dcache_wr_req),
+		.rw_wait(dcache_rw_wait), .wr_data(dcache_wr_data), .rd_data(dcache_rd_data),
 		.st_read(regfile_read_3), .st_data(regfile_rdata_3),
 		.inbubble(bubble_out_execute), .pc(pc_out_execute), .insn(insn_out_execute),
 		.op0(execute_out_op0), .op1(execute_out_op1), .op2(execute_out_op2),
