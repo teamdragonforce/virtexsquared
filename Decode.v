@@ -65,9 +65,9 @@ module Decode(
 		`DECODE_CDP,			/* Coprocessor data op */
 		`DECODE_MRCMCR,			/* Coprocessor register transfer */
 		`DECODE_SWI:			/* SWI */
-			rpc = inpc - 8;
+			rpc = inpc + 8;
 		`DECODE_ALU:			/* ALU */
-			rpc = inpc - (insn[25] ? 8 : (insn[4] ? 12 : 8));
+			rpc = inpc + (insn[25] ? 8 : (insn[4] ? 12 : 8));
 		default:			/* X everything else out */
 			rpc = 32'hxxxxxxxx;
 		endcase
