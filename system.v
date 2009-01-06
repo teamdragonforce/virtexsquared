@@ -1,4 +1,5 @@
 `define BUS_ICACHE 0
+`define BUS_DCACHE 1
 
 module System(input clk);
 	wire [7:0] bus_req;
@@ -9,29 +10,41 @@ module System(input clk);
 	wire bus_rd, bus_wr;
 	wire bus_ready;
 
-	wire bus_req_icache;	
-	assign bus_req = {7'b0, bus_req_icache};
+	wire bus_req_icache;
+	wire bus_req_dcache;
+	assign bus_req = {6'b0, bus_req_dcache, bus_req_icache};
 	wire bus_ack_icache = bus_ack[`BUS_ICACHE];
+	wire bus_ack_dcache = bus_ack[`BUS_DCACHE];
 	
 	wire [31:0] bus_addr_icache;
 	wire [31:0] bus_wdata_icache;
 	wire bus_rd_icache;
 	wire bus_wr_icache;
 	
+	wire [31:0] bus_addr_dcache;
+	wire [31:0] bus_wdata_dcache;
+	wire bus_rd_dcache;
+	wire bus_wr_dcache;
+	
 	wire [31:0] bus_rdata_blockram;
 	wire bus_ready_blockram;
 	
-	assign bus_addr = bus_addr_icache;
+	assign bus_addr = bus_addr_icache | bus_addr_dcache;
 	assign bus_rdata = bus_rdata_blockram;
-	assign bus_wdata = bus_wdata_icache;
-	assign bus_rd = bus_rd_icache;
-	assign bus_wr = bus_wr_icache;
+	assign bus_wdata = bus_wdata_icache | bus_wdata_dcache;
+	assign bus_rd = bus_rd_icache | bus_rd_dcache;
+	assign bus_wr = bus_wr_icache | bus_wr_dcache;
 	assign bus_ready = bus_ready_blockram;
 
 	wire [31:0] icache_rd_addr;
 	wire icache_rd_req;
 	wire icache_rd_wait;
 	wire [31:0] icache_rd_data;
+	
+	wire [31:0] dcache_addr;
+	wire dcache_rd_req, dcache_wr_req;
+	wire dcache_rw_wait;
+	wire [31:0] dcache_wr_data, dcache_rd_data;
 	
 	wire stall_cause_issue;
 	wire stall_cause_execute;
@@ -70,6 +83,15 @@ module System(input clk);
 		.bus_wdata(bus_wdata_icache), .bus_rd(bus_rd_icache),
 		.bus_wr(bus_wr_icache), .bus_ready(bus_ready));
 	
+	DCache dcache(
+		.clk(clk),
+		.addr(dcache_addr), .rd_req(dcache_rd_req), .wr_req(dcache_wr_req),
+		.rw_wait(dcache_rw_wait), .wr_data(dcache_wr_data), .rd_data(dcache_rd_data),
+		.bus_req(bus_req_dcache), .bus_ack(bus_ack_dcache),
+		.bus_addr(bus_addr_dcache), .bus_rdata(bus_rdata),
+		.bus_wdata(bus_wdata_dcache), .bus_rd(bus_rd_dcache),
+		.bus_wr(bus_wr_dcache), .bus_ready(bus_ready));
+
 	BlockRAM blockram(
 		.clk(clk),
 		.bus_addr(bus_addr), .bus_rdata(bus_rdata_blockram),
