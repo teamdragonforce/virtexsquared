@@ -171,6 +171,7 @@ module Decode(
 		begin
 			read_0 = insn[19:16]; /* Rn */
 			read_1 = insn[3:0];   /* Rm */
+			read_2 = insn[15:12];
 			
 			op0_out = regs0;
 			if(insn[25]) begin
@@ -180,6 +181,7 @@ module Decode(
 				op1_out = shift_res;
 				carry_out = shift_cflag_out;
 			end
+			op2_out = regs2;
 		end
 		`DECODE_LDMSTM:		/* Block data transfer */
 		begin
