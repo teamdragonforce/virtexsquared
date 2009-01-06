@@ -78,7 +78,8 @@ module Memory(
 		next_write_data = write_data;
 		next_inc_next = 1'b0;
 		outstall = 1'b0;
-		
+		next_regs = 16'b0;
+
 		casez(insn)
 		`DECODE_LDRSTR_UNDEFINED: begin end
 		`DECODE_LDRSTR: begin
@@ -119,44 +120,66 @@ module Memory(
 			busaddr = {op0[31:2], 2'b0};
 			rd_req = insn[20];
 			wr_req = ~insn[20];
-			casez(regs)
-			16'b???????????????1: begin
+			if(inc_next) begin
+			end
+			else if(rw_wait)
 				next_regs = regs;
+			else begin
+				casez(regs)
+				16'b???????????????1: begin
+					next_regs = regs & 16'b1111111111111110;
+				end
+				16'b??????????????10: begin
+					next_regs = regs & 16'b1111111111111100;
+				end
+				16'b?????????????100: begin
+					next_regs = regs & 16'b1111111111111000;
+				end
+				16'b????????????1000: begin
+					next_regs = regs & 16'b1111111111110000;
+				end
+				16'b???????????10000: begin
+					next_regs = regs & 16'b1111111111100000;
+				end
+				16'b??????????100000: begin
+					next_regs = regs & 16'b1111111111000000;
+				end
+				16'b?????????1000000: begin
+					next_regs = regs & 16'b1111111110000000;
+				end
+				16'b????????10000000: begin
+					next_regs = regs & 16'b1111111100000000;
+				end
+				16'b???????100000000: begin
+					next_regs = regs & 16'b1111111000000000;
+				end
+				16'b??????1000000000: begin
+					next_regs = regs & 16'b1111110000000000;
+				end
+				16'b?????10000000000: begin
+					next_regs = regs & 16'b1111100000000000;
+				end
+				16'b????100000000000: begin
+					next_regs = regs & 16'b1111000000000000;
+				end
+				16'b???1000000000000: begin
+					next_regs = regs & 16'b1110000000000000;
+				end
+				16'b??10000000000000: begin
+					next_regs = regs & 16'b1100000000000000;
+				end
+				16'b?100000000000000: begin
+					next_regs = regs & 16'b1000000000000000;
+				end
+				16'b1000000000000000: begin
+					next_regs = 16'b0;
+				end
+				default: begin
+				end
+				endcase
+				next_inc_next = next_regs == 16'b0;
+				next_notdone = ~next_inc_next;
 			end
-			16'b??????????????10: begin
-			end
-			16'b?????????????100: begin
-			end
-			16'b????????????1000: begin
-			end
-			16'b???????????10000: begin
-			end
-			16'b??????????100000: begin
-			end
-			16'b?????????1000000: begin
-			end
-			16'b????????10000000: begin
-			end
-			16'b???????100000000: begin
-			end
-			16'b??????1000000000: begin
-			end
-			16'b?????10000000000: begin
-			end
-			16'b????100000000000: begin
-			end
-			16'b???1000000000000: begin
-			end
-			16'b??10000000000000: begin
-			end
-			16'b?100000000000000: begin
-			end
-			16'b1000000000000000: begin
-			end
-			default: begin
-				next_inc_next = 1'b1;
-			end
-			endcase
 		end
 		default: begin end
 		endcase
