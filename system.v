@@ -40,7 +40,6 @@ module System(input clk);
 	wire decode_out_carry;
 	wire [3:0] regfile_read_0, regfile_read_1, regfile_read_2;
 	wire [31:0] regfile_rdata_0, regfile_rdata_1, regfile_rdata_2, regfile_spsr;
-	wire execute_out_stall, execute_out_bubble;
 	wire execute_out_write_reg;
 	wire [3:0] execute_out_write_num;
 	wire [31:0] execute_out_write_data;
@@ -49,10 +48,13 @@ module System(input clk);
 	
 	wire bubble_out_fetch;
 	wire bubble_out_issue;
+	wire bubble_out_execute;
 	wire [31:0] insn_out_fetch;
 	wire [31:0] insn_out_issue;
+	wire [31:0] insn_out_execute;
 	wire [31:0] pc_out_fetch;
 	wire [31:0] pc_out_issue;
+	wire [31:0] pc_out_execute;
 
 	wire execute_out_backflush;
 
@@ -112,11 +114,11 @@ module System(input clk);
 		.inbubble(bubble_out_issue), .pc(pc_out_issue), .insn(insn_out_issue),
 		.cpsr(32'b0 /* XXX */), .spsr(decode_out_spsr), .op0(decode_out_op0), .op1(decode_out_op1),
 		.op2(decode_out_op2), .carry(decode_out_carry),
-		.outstall(stall_cause_execute), .outbubble(execute_out_bubble),
+		.outstall(stall_cause_execute), .outbubble(bubble_out_execute),
 		.write_reg(execute_out_write_reg), .write_num(execute_out_write_num),
 		.write_data(execute_out_write_data),
-		.jmppc(jmppc),
-		.jmp(jmp));
+		.jmp(jmp), .jmppc(jmppc),
+		.outpc(pc_out_execute), .insn(insn_out_execute));
 	assign execute_out_backflush = jmp;
 
 	reg [31:0] clockno = 0;
@@ -127,6 +129,6 @@ module System(input clk);
 		$display("%3d: FETCH:            Bubble: %d, Instruction: %08x, PC: %08x", clockno, bubble_out_fetch, insn_out_fetch, pc_out_fetch);
 		$display("%3d: ISSUE:  Stall: %d, Bubble: %d, Instruction: %08x, PC: %08x", clockno, stall_cause_issue, bubble_out_issue, insn_out_issue, pc_out_issue);
 		$display("%3d: DECODE:                      op1 %08x, op2 %08x, op3 %08x, carry %d", clockno, decode_out_op0, decode_out_op1, decode_out_op2, decode_out_carry);
-		$display("%3d: EXEC:   Stall: %d, Bubble: %d, Reg: %d, [%08x -> %d], Jmp: %d [%08x]", clockno, stall_cause_execute, execute_out_bubble, execute_out_write_reg, execute_out_write_data, execute_out_write_num, jmp, jmppc);
+		$display("%3d: EXEC:   Stall: %d, Bubble: %d, Instruction: %08x, PC: %08x, Reg: %d, [%08x -> %d], Jmp: %d [%08x]", clockno, stall_cause_execute, bubble_out_execute, insn_out_execute, pc_out_execute, execute_out_write_reg, execute_out_write_data, execute_out_write_num, jmp, jmppc);
 	end
 endmodule

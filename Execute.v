@@ -23,7 +23,9 @@ module Execute(
 	output reg [3:0] write_num = 4'bxxxx,
 	output reg [31:0] write_data = 32'hxxxxxxxx,
 	output reg [31:0] jmppc,
-	output reg jmp
+	output reg jmp,
+	output reg [31:0] outpc,
+	output reg [31:0] outinsn
 	);
 	
 	reg mult_start;
@@ -65,6 +67,8 @@ module Execute(
 			write_reg <= next_write_reg;
 			write_num <= next_write_num;
 			write_data <= next_write_data;
+			outpc <= pc;
+			outinsn <= insn;
 		end
 	end
 
