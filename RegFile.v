@@ -6,6 +6,8 @@ module RegFile(
 	output reg [31:0] rdata_1,
 	input [3:0] read_2,
 	output reg [31:0] rdata_2,
+	input [3:0] read_3,
+	output reg [31:0] rdata_3,
 	output reg [31:0] spsr,
 	input [3:0] write,
 	input write_req,
@@ -49,6 +51,11 @@ module RegFile(
 			rdata_2 = write_data;
 		else
 			rdata_2 = regfile[read_2];
+
+		if ((read_3 == write) && write_req)
+			rdata_3 = write_data;
+		else
+			rdata_3 = regfile[read_3];
 		
 		spsr = regfile[4'hF];
 	end
