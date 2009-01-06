@@ -5,8 +5,8 @@ module Memory(
 	input Nrst,
 	input [31:0] pc,
 	input [31:0] insn,
-	input [31:0] base,
-	input [31:0] offset,
+	input [31:0] op0,
+	input [31:0] op1,
 
 	/* bus interface */
 	output reg [31:0] busaddr,
@@ -37,6 +37,7 @@ module Memory(
 	reg [3:0] next_regsel;
 	reg next_writeback, next_notdone, next_inc_next;
 	reg [31:0] align_s1, align_s2, align_rddata;
+	reg [15:0] regs, next_regs;
 
 	reg notdone = 1'b0;
 	reg inc_next = 1'b0;
@@ -58,8 +59,8 @@ module Memory(
 		casez(insn)
 		`DECODE_LDRSTR_UNDEFINED: begin end
 		`DECODE_LDRSTR: begin
-			addr = insn[23] ? base + offset : base - offset; /* up/down select */
-			raddr = insn[24] ? base : addr;
+			addr = insn[23] ? op0 + op1 : op0 - op1; /* up/down select */
+			raddr = insn[24] ? op0 : addr;
 			busaddr = {raddr[31:2], 2'b0}; /* pre/post increment */
 			rd_req = insn[20];
 			wr_req = ~insn[20];
@@ -88,6 +89,47 @@ module Memory(
 			next_notdone = rw_wait & insn[20] & insn[21];
 		end
 		`DECODE_LDMSTM: begin
+			busaddr = {op0[31:2], 2'b0};
+			rd_req = insn[20];
+			wr_req = ~insn[20];
+			casez(regs)
+			16'b???????????????1: begin
+				next_regs = regs;
+			end
+			16'b??????????????10: begin
+			end
+			16'b?????????????100: begin
+			end
+			16'b????????????1000: begin
+			end
+			16'b???????????10000: begin
+			end
+			16'b??????????100000: begin
+			end
+			16'b?????????1000000: begin
+			end
+			16'b????????10000000: begin
+			end
+			16'b???????100000000: begin
+			end
+			16'b??????1000000000: begin
+			end
+			16'b?????10000000000: begin
+			end
+			16'b????100000000000: begin
+			end
+			16'b???1000000000000: begin
+			end
+			16'b??10000000000000: begin
+			end
+			16'b?100000000000000: begin
+			end
+			16'b1000000000000000: begin
+			end
+			default: begin
+				next_inc_next = 1'b1;
+			end
+			endcase
 		end
 		default: begin end
 		endcase
@@ -103,6 +145,7 @@ module Memory(
 		regdata <= next_regdata;
 		notdone <= next_notdone;
 		inc_next <= next_inc_next;
+		regs <= next_regs;
 	end
 
 endmodule
