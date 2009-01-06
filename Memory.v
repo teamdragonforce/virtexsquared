@@ -38,15 +38,16 @@ module Memory(
 	);
 
 	reg [31:0] addr, raddr, next_regdata;
-	reg [3:0] next_regsel;
+	reg [3:0] next_regsel, cur_reg, prev_reg;
 	reg next_writeback, next_notdone, next_inc_next;
 	reg [31:0] align_s1, align_s2, align_rddata;
-	
+
 	wire next_write_reg;
 	wire [3:0] next_write_num;
 	wire [31:0] next_write_data;
 
 	reg [15:0] regs, next_regs;
+	reg started = 1'b0, next_started;
 
 	reg notdone = 1'b0;
 	reg inc_next = 1'b0;
@@ -62,6 +63,8 @@ module Memory(
 		notdone <= next_notdone;
 		inc_next <= next_inc_next;
 		regs <= next_regs;
+		prev_reg <= cur_reg;
+		started <= next_started;
 	end
 
 	always @(*)
@@ -80,6 +83,7 @@ module Memory(
 		next_inc_next = 1'b0;
 		outstall = 1'b0;
 		next_regs = 16'b0;
+		next_started = started;
 
 		casez(insn)
 		`DECODE_LDRSTR_UNDEFINED: begin end
@@ -117,68 +121,97 @@ module Memory(
 			end
 		end
 		`DECODE_LDMSTM: begin
-			busaddr = {op0[31:2], 2'b0};
 			rd_req = insn[20];
 			wr_req = ~insn[20];
-			if(inc_next) begin
+			if(!started) begin
+				next_regs = op1[15:0];
+				next_started = 1'b1;
 			end
-			else if(rw_wait)
+			else if(inc_next) begin
+				if(insn[21]) begin
+					next_write_reg = 1'b1;
+					next_write_num = insn[19:16];
+					next_write_data = op0;
+				end
+				next_started = 1'b0;
+			end
+			else if(rw_wait) begin
 				next_regs = regs;
+				cur_reg = prev_reg;
+			end
 			else begin
 				casez(regs)
 				16'b???????????????1: begin
+					cur_reg = 4'h0;
 					next_regs = regs & 16'b1111111111111110;
 				end
 				16'b??????????????10: begin
+					cur_reg = 4'h1;
 					next_regs = regs & 16'b1111111111111100;
 				end
 				16'b?????????????100: begin
+					cur_reg = 4'h2;
 					next_regs = regs & 16'b1111111111111000;
 				end
 				16'b????????????1000: begin
+					cur_reg = 4'h3;
 					next_regs = regs & 16'b1111111111110000;
 				end
 				16'b???????????10000: begin
+					cur_reg = 4'h4;
 					next_regs = regs & 16'b1111111111100000;
 				end
 				16'b??????????100000: begin
+					cur_reg = 4'h5;
 					next_regs = regs & 16'b1111111111000000;
 				end
 				16'b?????????1000000: begin
+					cur_reg = 4'h6;
 					next_regs = regs & 16'b1111111110000000;
 				end
 				16'b????????10000000: begin
+					cur_reg = 4'h7;
 					next_regs = regs & 16'b1111111100000000;
 				end
 				16'b???????100000000: begin
+					cur_reg = 4'h8;
 					next_regs = regs & 16'b1111111000000000;
 				end
 				16'b??????1000000000: begin
+					cur_reg = 4'h9;
 					next_regs = regs & 16'b1111110000000000;
 				end
 				16'b?????10000000000: begin
+					cur_reg = 4'hA;
 					next_regs = regs & 16'b1111100000000000;
 				end
 				16'b????100000000000: begin
+					cur_reg = 4'hB;
 					next_regs = regs & 16'b1111000000000000;
 				end
 				16'b???1000000000000: begin
+					cur_reg = 4'hC;
 					next_regs = regs & 16'b1110000000000000;
 				end
 				16'b??10000000000000: begin
+					cur_reg = 4'hD;
 					next_regs = regs & 16'b1100000000000000;
 				end
 				16'b?100000000000000: begin
+					cur_reg = 4'hE;
 					next_regs = regs & 16'b1000000000000000;
 				end
 				16'b1000000000000000: begin
+					cur_reg = 4'hF;
 					next_regs = 16'b0;
 				end
 				default: begin
+					cur_reg = 4'hx;
+					next_regs = 16'b0;
 				end
 				endcase
 				next_inc_next = next_regs == 16'b0;
-				next_notdone = ~next_inc_next;
+				next_notdone = ~next_inc_next | (rw_wait & insn[20] & insn[21]);
 			end
 		end
 		default: begin end
