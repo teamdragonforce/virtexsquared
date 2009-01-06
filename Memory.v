@@ -27,14 +27,13 @@ module Memory(
 
 	/* pc stuff */
 	output reg [31:0] outpc,
-	output reg [31:0] newpc,
 
 	/* stall */
 	output outstall,
 	output reg outbubble
 );
 
-	reg [31:0] addr, raddr, next_regdata, next_newpc;
+	reg [31:0] addr, raddr, next_regdata;
 	reg [3:0] next_regsel;
 	reg next_writeback, next_notdone, next_inc_next;
 	reg [31:0] align_s1, align_s2, align_rddata;
@@ -56,7 +55,6 @@ module Memory(
 		next_regsel = 4'hx;
 		next_regdata = 32'hxxxxxxxx;
 		next_inc_next = 1'b0;
-		next_newpc = 32'hxxxxxxxx;
 		casez(insn)
 		`DECODE_LDRSTR_UNDEFINED: begin end
 		`DECODE_LDRSTR: begin
@@ -66,15 +64,17 @@ module Memory(
 			rd_req = insn[20];
 			wr_req = ~insn[20];
 
+			/* rotate to correct position */
 			align_s1 = raddr[1] ? {rd_data[15:0], rd_data[31:16]} : rd_data;
 			align_s2 = raddr[0] ? {align_s1[7:0], align_s1[31:8]} : align_s1;
+			/* select byte or word */
 			align_rddata = insn[22] ? {24'b0, align_s2[7:0]} : align_s2;
 
 			if(!insn[20]) begin
 				st_read = insn[15:12];
-				wr_data = insn[22] ? {4{st_data[7:0]}} : st_data;
+				wr_data = insn[22] ? {4{st_data[7:0]}} : st_data; /* XXX need to actually store just a byte */
 			end
-			else if(!inc_next) begin /* store */
+			else if(!inc_next) begin
 				next_writeback = 1'b1;
 				next_regsel = insn[15:12];
 				next_regdata = align_rddata;
@@ -102,7 +102,6 @@ module Memory(
 		regsel <= next_regsel;
 		regdata <= next_regdata;
 		notdone <= next_notdone;
-		newpc <= next_newpc;
 		inc_next <= next_inc_next;
 	end
 
