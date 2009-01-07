@@ -20,6 +20,9 @@ module Memory(
 	output reg cp_req,
 	input cp_ack,
 	input cp_busy,
+	output cp_rnw,	/* 1 = read from CP, 0 = write to CP */
+	input [31:0] cp_read,
+	output reg [31:0] cp_write,
 	
 	/* stage inputs */
 	input inbubble,
@@ -101,6 +104,8 @@ module Memory(
 		next_regs = 16'b0;
 		next_started = started;
 		cp_req = 1'b0;
+		cp_rnw = 1'bx;
+		cp_write = 32'hxxxxxxxx;
 		offset = prev_offset;
 		next_outcpsr = started ? out_cpsr : cpsr;
 
@@ -255,6 +260,38 @@ module Memory(
 				next_inc_next = next_regs == 16'b0;
 				next_notdone = ~next_inc_next | rw_wait;
 				busaddr = {raddr[31:2], 2'b0};
+			end
+		end
+		`DECODE_LDCSTC: begin
+			$display("WARNING: Unimplemented LDCSTC");
+		end
+		`DECODE_CDP: begin
+			cp_req = 1;
+			if (cp_busy) begin
+				outstall = 1;
+				next_outbubble = 1;
+			end
+			if (!cp_ack) begin
+				/* XXX undefined instruction trap */
+				$display("WARNING: Possible CDP undefined instruction");
+			end
+		end
+		`DECODE_MRCMCR: begin
+			cp_req = 1;
+			cp_rnw = insn[20] /* L */;
+			if (insn[20] == 0 /* store to coprocessor */)
+				cp_write = op0;
+			else begin
+				next_write_reg = 1'b1;
+				next_write_num = insn[15:12];
+				next_write_data = cp_read;
+			end
+			if (cp_busy) begin
+				outstall = 1;
+				next_outbubble = 1;
+			end
+			if (!cp_ack) begin
+				$display("WARNING: Possible MRCMCR undefined instruction");
 			end
 		end
 		default: begin end
