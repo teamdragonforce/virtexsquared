@@ -111,79 +111,75 @@ module Memory(
 		next_swp_state = swp_state;
 		cur_reg = prev_reg;
 
+		/* XXX shit not given about endianness */
+		/* TODO ldrh/strh */
 		casez(insn)
-		`DECODE_ALU_SWP: begin
-			if(!inbubble) begin
-				outstall = rw_wait;
-				next_outbubble = rw_wait;
-				busaddr = {op0[31:2], 2'b0};
-				case(swp_state)
-				2'b01: begin
-					rd_req = 1'b1;
-					outstall = 1'b1;
-					if(!rw_wait) begin
-						next_swp_state = 2'b10;
-						next_swp_oldval = rd_data;
-					end
+		`DECODE_ALU_SWP: if(!inbubble) begin
+			outstall = rw_wait;
+			next_outbubble = rw_wait;
+			busaddr = {op0[31:2], 2'b0};
+			case(swp_state)
+			2'b01: begin
+				rd_req = 1'b1;
+				outstall = 1'b1;
+				if(!rw_wait) begin
+					next_swp_state = 2'b10;
+					next_swp_oldval = rd_data;
 				end
-				2'b10: begin
-					wr_req = 1'b1;
-					wr_data = op1;
-					next_write_reg = 1'b1;
-					next_write_num = insn[15:12];
-					next_write_data = swp_oldval;
-					if(!rw_wait)
-						next_swp_state = 2'b01;
-				end
-				default: begin end
-				endcase
 			end
+			2'b10: begin
+				wr_req = 1'b1;
+				wr_data = op1;
+				next_write_reg = 1'b1;
+				next_write_num = insn[15:12];
+				next_write_data = swp_oldval;
+				if(!rw_wait)
+					next_swp_state = 2'b01;
+			end
+			default: begin end
+			endcase
 		end
 		`DECODE_LDRSTR_UNDEFINED: begin end
-		`DECODE_LDRSTR: begin
-			if (!inbubble) begin
-				next_outbubble = rw_wait;
-				outstall = rw_wait;
-				addr = insn[23] ? op0 + op1 : op0 - op1; /* up/down select */
-				raddr = insn[24] ? op0 : addr; /* pre/post increment */
-				busaddr = {raddr[31:2], 2'b0};
-
+		`DECODE_LDRSTR: if(!inbubble) begin
+			next_outbubble = rw_wait;
+			outstall = rw_wait;
+			addr = insn[23] ? op0 + op1 : op0 - op1; /* up/down select */
+			raddr = insn[24] ? op0 : addr; /* pre/post increment */
+			busaddr = {raddr[31:2], 2'b0};
 				/* rotate to correct position */
-				align_s1 = raddr[1] ? {rd_data[15:0], rd_data[31:16]} : rd_data;
-				align_s2 = raddr[0] ? {align_s1[7:0], align_s1[31:8]} : align_s1;
-				/* select byte or word */
-				align_rddata = insn[22] ? {24'b0, align_s2[7:0]} : align_s2;
-				if(!insn[20]) begin
-					wr_data = insn[22] ? {4{op2[7:0]}} : op2; /* XXX need to actually store just a byte */
-				end
-				case(lsr_state)
-				2'b01: begin
-					rd_req = insn[20];
-					wr_req = ~insn[20];
-
-					if(insn[20]) begin
-						next_write_reg = 1'b1;
-						next_write_num = insn[15:12];
-						next_write_data = align_rddata;
-					end
-
-					if(insn[21]) begin
-						outstall = 1'b1;
-						if(!rw_wait)
-							next_lsr_state = 2'b10;
-					end
-				end
-				2'b10: begin
-					next_write_reg = 1'b1;
-					next_write_num = insn[19:16];
-					next_write_data = addr;
-					next_lsr_state = 2'b10;
-				end
-				default: begin end
-				endcase
+			align_s1 = raddr[1] ? {rd_data[15:0], rd_data[31:16]} : rd_data;
+			align_s2 = raddr[0] ? {align_s1[7:0], align_s1[31:8]} : align_s1;
+			/* select byte or word */
+			align_rddata = insn[22] ? {24'b0, align_s2[7:0]} : align_s2;
+			if(!insn[20]) begin
+				wr_data = insn[22] ? {4{op2[7:0]}} : op2; /* XXX need to actually store just a byte */
 			end
+			case(lsr_state)
+			2'b01: begin
+				rd_req = insn[20];
+				wr_req = ~insn[20];
+				if(insn[20]) begin
+					next_write_reg = 1'b1;
+					next_write_num = insn[15:12];
+					next_write_data = align_rddata;
+				end
+					if(insn[21]) begin
+					outstall = 1'b1;
+					if(!rw_wait)
+						next_lsr_state = 2'b10;
+				end
+			end
+			2'b10: begin
+				next_write_reg = 1'b1;
+				next_write_num = insn[19:16];
+				next_write_data = addr;
+				next_lsr_state = 2'b10;
+			end
+			default: begin end
+			endcase
 		end
-		`DECODE_LDMSTM: begin
+		/* XXX ldm/stm incorrect in that stupid case where one of the listed regs is the base reg */
+		`DECODE_LDMSTM: if(!inbubble) begin
 			outstall = rw_wait;
 			next_outbubble = rw_wait;
 			case(lsm_state)
@@ -309,10 +305,10 @@ module Memory(
 			default: begin end
 			endcase
 		end
-		`DECODE_LDCSTC: begin
+		`DECODE_LDCSTC: if(!inbubble) begin
 			$display("WARNING: Unimplemented LDCSTC");
 		end
-		`DECODE_CDP: begin
+		`DECODE_CDP: if(!inbubble) begin
 			cp_req = 1;
 			if (cp_busy) begin
 				outstall = 1;
@@ -323,7 +319,7 @@ module Memory(
 				$display("WARNING: Possible CDP undefined instruction");
 			end
 		end
-		`DECODE_MRCMCR: begin
+		`DECODE_MRCMCR: if(!inbubble) begin
 			cp_req = 1;
 			cp_rnw = insn[20] /* L */;
 			if (insn[20] == 0 /* store to coprocessor */)
