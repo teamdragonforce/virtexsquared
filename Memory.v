@@ -16,6 +16,11 @@ module Memory(
 	output reg [3:0] st_read,
 	input [31:0] st_data,
 	
+	/* Coprocessor interface */
+	output reg cp_req,
+	input cp_ack,
+	input cp_busy,
+	
 	/* stage inputs */
 	input inbubble,
 	input [31:0] pc,
@@ -86,6 +91,7 @@ module Memory(
 		outstall = 1'b0;
 		next_regs = 16'b0;
 		next_started = started;
+		cp_req = 1'b0;
 
 		casez(insn)
 		`DECODE_LDRSTR_UNDEFINED: begin end
