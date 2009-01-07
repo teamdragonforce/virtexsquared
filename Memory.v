@@ -325,9 +325,12 @@ module Memory(
 			if (insn[20] == 0 /* store to coprocessor */)
 				cp_write = op0;
 			else begin
-				next_write_reg = 1'b1;
-				next_write_num = insn[15:12];
-				next_write_data = cp_read;
+				if (insn[15:12] != 4'hF /* Fuck you ARM */) begin
+					next_write_reg = 1'b1;
+					next_write_num = insn[15:12];
+					next_write_data = cp_read;
+				end else
+					next_outcpsr = {cp_read[31:28], cpsr[27:0]};
 			end
 			if (cp_busy) begin
 				outstall = 1;
