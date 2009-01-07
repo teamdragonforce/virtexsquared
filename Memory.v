@@ -43,7 +43,7 @@ module Memory(
 
 	reg [31:0] addr, raddr, prev_raddr, next_regdata, next_outcpsr;
 	reg [3:0] next_regsel, cur_reg, prev_reg;
-	reg next_writeback, next_notdone, next_inc_next;
+	reg next_writeback;
 	reg [31:0] align_s1, align_s2, align_rddata;
 
 	wire next_outbubble;	
@@ -51,12 +51,14 @@ module Memory(
 	wire [3:0] next_write_num;
 	wire [31:0] next_write_data;
 
+	reg [1:0] lsr_state = 2'b01, next_lsr_state;
+
 	reg [15:0] regs, next_regs;
-	reg started = 1'b0, next_started;
+	reg [2:0] lsm_state = 3'b001, next_lsm_state;
 	reg [5:0] offset, prev_offset, offset_sel;
 
-	reg notdone = 1'b0;
-	reg inc_next = 1'b0;
+	reg [31:0] swp_oldval, next_swp_oldval;
+	reg [1:0] swp_state = 2'b01, next_swp_state;
 
 	always @(posedge clk)
 	begin
@@ -66,15 +68,13 @@ module Memory(
 		out_write_reg <= next_write_reg;
 		out_write_num <= next_write_num;
 		out_write_data <= next_write_data;
-		notdone <= next_notdone;
-		inc_next <= next_inc_next;
 		regs <= next_regs;
 		prev_reg <= cur_reg;
-		started <= next_started;
 		prev_offset <= offset;
 		prev_raddr <= raddr;
 		out_cpsr <= next_outcpsr;
 		out_spsr <= spsr;
+		swp_state <= next_swp_state;
 	end
 
 	always @(*)
@@ -86,79 +86,108 @@ module Memory(
 		wr_data = 32'hxxxxxxxx;
 		busaddr = 32'hxxxxxxxx;
 		outstall = 1'b0;
-		next_notdone = 1'b0;
 		next_write_reg = write_reg;
 		next_write_num = write_num;
 		next_write_data = write_data;
-		next_inc_next = 1'b0;
 		next_outbubble = inbubble;
 		outstall = 1'b0;
-		next_regs = 16'b0;
-		next_started = started;
+		next_regs = regs;
 		offset = prev_offset;
-		next_outcpsr = started ? out_cpsr : cpsr;
+		next_outcpsr = lsm_state == 3'b010 ? out_cpsr : cpsr;
+		next_lsm_state = lsm_state;
+		next_lsr_state = lsr_state;
+		next_swp_oldval = swp_oldval;
+		next_swp_state = swp_state;
+		cur_reg = prev_reg;
 
 		casez(insn)
+		`DECODE_ALU_SWP: begin
+			if(!inbubble) begin
+				outstall = rw_wait;
+				next_outbubble = rw_wait;
+				busaddr = {op0[31:2], 2'b0};
+				case(swp_state)
+				2'b01: begin
+					rd_req = 1'b1;
+					outstall = 1'b1;
+					if(!rw_wait) begin
+						next_swp_state = 2'b10;
+						next_swp_oldval = rd_data;
+					end
+				end
+				2'b10: begin
+					wr_req = 1'b1;
+					wr_data = op1;
+					next_write_reg = 1'b1;
+					next_write_num = insn[15:12];
+					next_write_data = swp_oldval;
+					if(!rw_wait)
+						next_swp_state = 2'b01;
+				end
+				default: begin end
+				endcase
+			end
+		end
 		`DECODE_LDRSTR_UNDEFINED: begin end
 		`DECODE_LDRSTR: begin
 			if (!inbubble) begin
 				next_outbubble = rw_wait;
-				outstall = rw_wait | notdone;
-			
+				outstall = rw_wait;
 				addr = insn[23] ? op0 + op1 : op0 - op1; /* up/down select */
 				raddr = insn[24] ? op0 : addr; /* pre/post increment */
 				busaddr = {raddr[31:2], 2'b0};
-				rd_req = insn[20];
-				wr_req = ~insn[20];
-				
+
 				/* rotate to correct position */
 				align_s1 = raddr[1] ? {rd_data[15:0], rd_data[31:16]} : rd_data;
 				align_s2 = raddr[0] ? {align_s1[7:0], align_s1[31:8]} : align_s1;
 				/* select byte or word */
 				align_rddata = insn[22] ? {24'b0, align_s2[7:0]} : align_s2;
-				
 				if(!insn[20]) begin
 					wr_data = insn[22] ? {4{op2[7:0]}} : op2; /* XXX need to actually store just a byte */
 				end
-				else if(!inc_next) begin
-					next_write_reg = 1'b1;
-					next_write_num = insn[15:12];
-					next_write_data = align_rddata;
-					next_inc_next = 1'b1;
+				case(lsr_state)
+				2'b01: begin
+					rd_req = insn[20];
+					wr_req = ~insn[20];
+
+					if(insn[20]) begin
+						next_write_reg = 1'b1;
+						next_write_num = insn[15:12];
+						next_write_data = align_rddata;
+					end
+
+					if(insn[21]) begin
+						outstall = 1'b1;
+						if(!rw_wait)
+							next_lsr_state = 2'b10;
+					end
 				end
-				else if(insn[21]) begin
+				2'b10: begin
 					next_write_reg = 1'b1;
 					next_write_num = insn[19:16];
 					next_write_data = addr;
+					next_lsr_state = 2'b10;
 				end
-				next_notdone = rw_wait & insn[20] & insn[21];
+				default: begin end
+				endcase
 			end
 		end
 		`DECODE_LDMSTM: begin
-			rd_req = insn[20];
-			wr_req = ~insn[20];
-			if(!started) begin
+			outstall = rw_wait;
+			next_outbubble = rw_wait;
+			case(lsm_state)
+			3'b001: begin
 //				next_regs = insn[23] ? op1[15:0] : op1[0:15];
 				/** verilator can suck my dick */
 				next_regs = insn[23] ? op1[15:0] : {op1[0], op1[1], op1[2], op1[3], op1[4], op1[5], op1[6], op1[7],
 				                                    op1[8], op1[9], op1[10], op1[11], op1[12], op1[13], op1[14], op1[15]};
 				offset = 6'b0;
-				next_started = 1'b1;
+				outstall = 1'b1;
+				next_lsm_state = 3'b010;
 			end
-			else if(inc_next) begin
-				if(insn[21]) begin
-					next_write_reg = 1'b1;
-					next_write_num = insn[19:16];
-					next_write_data = insn[23] ? op0 + {26'b0, prev_offset} : op0 - {26'b0, prev_offset};
-				end
-				next_started = 1'b0;
-			end
-			else if(rw_wait) begin
-				next_regs = regs;
-				cur_reg = prev_reg;
-				raddr = prev_raddr;
-			end
-			else begin
+			3'b010: begin
+				rd_req = insn[20];
+				wr_req = ~insn[20];
 				casez(regs)
 				16'b???????????????1: begin
 					cur_reg = 4'h0;
@@ -233,23 +262,41 @@ module Memory(
 				if(cur_reg == 4'hF && insn[22]) begin
 					next_outcpsr = spsr;
 				end
-				offset = prev_offset + 6'h4;
-				offset_sel = insn[24] ? offset : prev_offset;
-				raddr = insn[23] ? op0 + {26'b0, offset_sel} : op0 - {26'b0, offset_sel};
 
-				if(insn[20]) begin
-					next_write_reg = 1'b1;
-					next_write_num = cur_reg;
-					next_write_data = rd_data;
+				if(rw_wait) begin
+					next_regs = regs;
+					cur_reg = prev_reg;
+					raddr = prev_raddr;
+				end
+				else begin
+					offset = prev_offset + 6'h4;
+					offset_sel = insn[24] ? offset : prev_offset;
+					raddr = insn[23] ? op0 + {26'b0, offset_sel} : op0 - {26'b0, offset_sel};
+					if(insn[20]) begin
+						next_write_reg = 1'b1;
+						next_write_num = cur_reg;
+						next_write_data = rd_data;
+					end
 				end
 
 				st_read = cur_reg;
 				wr_data = st_data;
-
-				next_inc_next = next_regs == 16'b0;
-				next_notdone = ~next_inc_next | rw_wait;
 				busaddr = {raddr[31:2], 2'b0};
+
+				outstall = 1'b1;
+
+				if(next_regs == 16'b0) begin
+					next_lsm_state = 3'b100;
+				end
 			end
+			3'b100: begin
+				next_write_reg = 1'b1;
+				next_write_num = insn[19:16];
+				next_write_data = insn[23] ? op0 + {26'b0, prev_offset} : op0 - {26'b0, prev_offset};
+				next_lsm_state = 3'b001;
+			end
+			default: begin end
+			endcase
 		end
 		default: begin end
 		endcase
