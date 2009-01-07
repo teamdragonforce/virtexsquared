@@ -23,6 +23,8 @@ module Memory(
 	input [31:0] op0,
 	input [31:0] op1,
 	input [31:0] op2,
+	input [31:0] spsr,
+	input [31:0] cpsr,
 	input write_reg,
 	input [3:0] write_num,
 	input [31:0] write_data,
@@ -34,10 +36,12 @@ module Memory(
 	output reg [31:0] outinsn,
 	output reg out_write_reg = 1'b0,
 	output reg [3:0] out_write_num = 4'bxxxx,
-	output reg [31:0] out_write_data = 32'hxxxxxxxx
+	output reg [31:0] out_write_data = 32'hxxxxxxxx,
+	output reg [31:0] out_spsr = 32'hxxxxxxxx,
+	output reg [31:0] out_cpsr = 32'hxxxxxxxx
 	);
 
-	reg [31:0] addr, raddr, prev_raddr, next_regdata;
+	reg [31:0] addr, raddr, prev_raddr, next_regdata, next_outcpsr;
 	reg [3:0] next_regsel, cur_reg, prev_reg;
 	reg next_writeback, next_notdone, next_inc_next;
 	reg [31:0] align_s1, align_s2, align_rddata;
@@ -69,6 +73,8 @@ module Memory(
 		started <= next_started;
 		prev_offset <= offset;
 		prev_raddr <= raddr;
+		out_cpsr <= next_outcpsr;
+		out_spsr <= spsr;
 	end
 
 	always @(*)
@@ -90,6 +96,7 @@ module Memory(
 		next_regs = 16'b0;
 		next_started = started;
 		offset = prev_offset;
+		next_outcpsr = started ? out_cpsr : cpsr;
 
 		casez(insn)
 		`DECODE_LDRSTR_UNDEFINED: begin end
@@ -223,6 +230,9 @@ module Memory(
 				end
 				endcase
 				cur_reg = insn[23] ? 4'hF - cur_reg : cur_reg;
+				if(cur_reg == 4'hF && insn[22]) begin
+					next_outcpsr = spsr;
+				end
 				offset = prev_offset + 6'h4;
 				offset_sel = insn[24] ? offset : prev_offset;
 				raddr = insn[23] ? op0 + {26'b0, offset_sel} : op0 - {26'b0, offset_sel};
@@ -237,7 +247,7 @@ module Memory(
 				wr_data = st_data;
 
 				next_inc_next = next_regs == 16'b0;
-				next_notdone = ~next_inc_next | (rw_wait & insn[20] & insn[21]);
+				next_notdone = ~next_inc_next | rw_wait;
 				busaddr = {raddr[31:2], 2'b0};
 			end
 		end
