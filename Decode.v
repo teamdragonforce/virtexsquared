@@ -63,9 +63,10 @@ module Decode(
 		`DECODE_BRANCH,			/* Branch */
 		`DECODE_LDCSTC,			/* Coprocessor data transfer */
 		`DECODE_CDP,			/* Coprocessor data op */
-		`DECODE_MRCMCR,			/* Coprocessor register transfer */
 		`DECODE_SWI:			/* SWI */
 			rpc = inpc + 8;
+		`DECODE_MRCMCR:			/* Coprocessor register transfer */
+			rpc = inpc + 12;
 		`DECODE_ALU:			/* ALU */
 			rpc = inpc + (insn[25] ? 8 : (insn[4] ? 12 : 8));
 		default:			/* X everything else out */
