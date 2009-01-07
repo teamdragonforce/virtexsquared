@@ -56,6 +56,7 @@ module System(input clk);
 	wire [3:0] execute_out_write_num;
 	wire [31:0] execute_out_write_data;
 	wire [31:0] execute_out_op0, execute_out_op1, execute_out_op2;
+	wire [31:0] execute_out_cpsr, execute_out_spsr;
 	wire [31:0] jmppc;
 	wire jmp;
 	
@@ -158,7 +159,8 @@ module System(input clk);
 		.write_data(execute_out_write_data),
 		.jmp(jmp), .jmppc(jmppc),
 		.outpc(pc_out_execute), .outinsn(insn_out_execute),
-		.outop0(execute_out_op0), .outop1(execute_out_op1), .outop2(execute_out_op2));
+		.outop0(execute_out_op0), .outop1(execute_out_op1), .outop2(execute_out_op2),
+		.outcpsr(execute_out_cpsr), .outspsr(execute_out_spsr));
 	assign execute_out_backflush = jmp;
 	
 	Memory memory(
@@ -169,6 +171,7 @@ module System(input clk);
 		.st_read(regfile_read_3), .st_data(regfile_rdata_3),
 		.inbubble(bubble_out_execute), .pc(pc_out_execute), .insn(insn_out_execute),
 		.op0(execute_out_op0), .op1(execute_out_op1), .op2(execute_out_op2),
+		.spsr(execute_out_spsr), .cpsr(execute_out_cpsr),
 		.write_reg(execute_out_write_reg), .write_num(execute_out_write_num), .write_data(execute_out_write_data),
 		.outstall(stall_cause_memory), .outbubble(bubble_out_memory), 
 		.outpc(pc_out_memory), .outinsn(insn_out_memory),
