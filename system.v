@@ -63,6 +63,13 @@ module System(input clk);
 	wire [3:0] memory_out_write_num;
 	wire [31:0] memory_out_write_data;
 	
+	wire cp_req;
+	wire cp_ack = 0;
+	wire cp_busy = 0;
+	wire cp_rnw;
+	wire [31:0] cp_read = 0;
+	wire [31:0] cp_write;
+	
 	wire stall_cause_issue;
 	wire stall_cause_execute;
 	wire stall_cause_memory;
@@ -166,7 +173,8 @@ module System(input clk);
 		.outstall(stall_cause_memory), .outbubble(bubble_out_memory), 
 		.outpc(pc_out_memory), .outinsn(insn_out_memory),
 		.out_write_reg(memory_out_write_reg), .out_write_num(memory_out_write_num), 
-		.out_write_data(memory_out_write_data));
+		.out_write_data(memory_out_write_data),
+		.cp_req(cp_req), .cp_ack(cp_ack), .cp_busy(cp_busy), .cp_rnw(cp_rnw), .cp_read(cp_read), .cp_write(cp_write));
 
 	reg [31:0] clockno = 0;
 	always @(posedge clk)
