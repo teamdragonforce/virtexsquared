@@ -4,6 +4,8 @@ module Memory(
 	input clk,
 	input Nrst,
 
+	input flush,
+
 	/* bus interface */
 	output reg [31:0] busaddr,
 	output reg rd_req,
@@ -45,8 +47,8 @@ module Memory(
 	output reg out_write_reg = 1'b0,
 	output reg [3:0] out_write_num = 4'bxxxx,
 	output reg [31:0] out_write_data = 32'hxxxxxxxx,
-	output reg [31:0] out_spsr = 32'hxxxxxxxx,
-	output reg [31:0] out_cpsr = 32'hxxxxxxxx
+	output reg [31:0] outspsr = 32'hxxxxxxxx,
+	output reg [31:0] outcpsr = 32'hxxxxxxxx
 	);
 
 	reg [31:0] addr, raddr, prev_raddr, next_regdata, next_outcpsr;
@@ -80,8 +82,8 @@ module Memory(
 		prev_reg <= cur_reg;
 		prev_offset <= offset;
 		prev_raddr <= raddr;
-		out_cpsr <= next_outcpsr;
-		out_spsr <= spsr;
+		outcpsr <= next_outcpsr;
+		outspsr <= spsr;
 		swp_state <= next_swp_state;
 	end
 
@@ -104,7 +106,7 @@ module Memory(
 		cp_rnw = 1'bx;
 		cp_write = 32'hxxxxxxxx;
 		offset = prev_offset;
-		next_outcpsr = lsm_state == 3'b010 ? out_cpsr : cpsr;
+		next_outcpsr = lsm_state == 3'b010 ? outcpsr : cpsr;
 		next_lsm_state = lsm_state;
 		next_lsr_state = lsr_state;
 		next_swp_oldval = swp_oldval;
@@ -113,7 +115,9 @@ module Memory(
 
 		/* XXX shit not given about endianness */
 		/* TODO ldrh/strh */
-		casez(insn)
+		if (flush)
+			next_outbubble = 1'b1;
+		else casez(insn)
 		`DECODE_ALU_SWP: if(!inbubble) begin
 			outstall = rw_wait;
 			next_outbubble = rw_wait;

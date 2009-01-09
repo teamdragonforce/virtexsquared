@@ -10,6 +10,7 @@ module Decode(
 	output reg [31:0] op1,
 	output reg [31:0] op2,
 	output reg carry,
+	output reg [31:0] outcpsr,
 	output reg [31:0] outspsr,
 
 	output reg [3:0] read_0,
@@ -225,6 +226,7 @@ module Decode(
 		op1 <= op1_out; /* 'operand 2' - Rm */
 		op2 <= op2_out;   /* thirdedge - Rs */
 		carry <= carry_out;
+		outcpsr <= incpsr;
 		outspsr <= inspsr;
 	end
 

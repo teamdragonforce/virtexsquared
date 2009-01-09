@@ -101,7 +101,7 @@ module Execute(
 		alu_setflags = 1'bx;
 
 		jmp = 1'b0;
-		jmppc = 32'hxxxxxxxx;
+		jmppc = 32'h00000000;
 
 		casez (insn)
 		`DECODE_ALU_MULT:	/* Multiply -- must come before ALU, because it pattern matches a specific case of ALU */

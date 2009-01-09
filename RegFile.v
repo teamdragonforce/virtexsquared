@@ -9,8 +9,8 @@ module RegFile(
 	input [3:0] read_3,
 	output reg [31:0] rdata_3,
 	output reg [31:0] spsr,
-	input [3:0] write,
-	input write_req,
+	input write,
+	input [3:0] write_reg,
 	input [31:0] write_data
 	);
 	
@@ -37,22 +37,22 @@ module RegFile(
 	
 	always @(*)
 	begin
-		if ((read_0 == write) && write_req)
+		if ((read_0 == write_reg) && write)
 			rdata_0 = write_data;
 		else
 			rdata_0 = regfile[read_0];
 		
-		if ((read_1 == write) && write_req)
+		if ((read_1 == write_reg) && write)
 			rdata_1 = write_data;
 		else
 			rdata_1 = regfile[read_1];
 		
-		if ((read_2 == write) && write_req)
+		if ((read_2 == write_reg) && write)
 			rdata_2 = write_data;
 		else
 			rdata_2 = regfile[read_2];
 
-		if ((read_3 == write) && write_req)
+		if ((read_3 == write_reg) && write)
 			rdata_3 = write_data;
 		else
 			rdata_3 = regfile[read_3];
@@ -61,6 +61,6 @@ module RegFile(
 	end
 	
 	always @(posedge clk)
-		if (write_req)
-			regfile[write] <= write_data;
+		if (write)
+			regfile[write_reg] <= write_data;
 endmodule
