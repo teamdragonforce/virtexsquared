@@ -1,3 +1,4 @@
+EE001510  // mcr 5, 0, r1, c0, c0
 E59E0000  // ldr r0, [r14]
 E02DE190  // mla r13, r0, r1, r14 -- r13 := r0*r1 + r14
 E1800001  // orr r0, r0, r1
@@ -26,8 +27,9 @@ E0017361  // and r7, r1, r1, ror #6
 E180F081
 E180F081
 E180F081
-EA000000 // jump forward
-EAFFFFFE // whirrr, skipped the first time
+EA000001 // jump forward
+EE001510 // mcr 5, 0, r1, c0, c0
+EAFFFFFD // whirrr, skipped the first time
 E1A00000 // nop
 EBFFFFFC // jump back
 E0000000
