@@ -11,6 +11,7 @@ module Memory(
 	input rw_wait,
 	output reg [31:0] wr_data,
 	input [31:0] rd_data,
+	output reg [2:0] data_size;
 
 	/* regfile interface */
 	output reg [3:0] st_read,
@@ -103,12 +104,12 @@ module Memory(
 		wr_req = 1'b0;
 		wr_data = 32'hxxxxxxxx;
 		busaddr = 32'hxxxxxxxx;
+		data_size = 3'bxxx;
 		outstall = 1'b0;
 		next_write_reg = write_reg;
 		next_write_num = write_num;
 		next_write_data = write_data;
 		next_outbubble = inbubble;
-		outstall = 1'b0;
 		next_regs = regs;
 		cp_req = 1'b0;
 		cp_rnw = 1'bx;
@@ -116,6 +117,8 @@ module Memory(
 		offset = prev_offset;
 		next_outcpsr = lsm_state == 3'b010 ? out_cpsr : cpsr;
 		lsrh_rddata = 32'hxxxxxxxx;
+		lsrh_rddata_s1 = 32'hxxxxxxxx;
+		lsrh_rddata_s2 = 32'hxxxxxxxx;
 		next_lsm_state = lsm_state;
 		next_lsr_state = lsr_state;
 		next_lsrh_state = lsrh_state;
@@ -124,12 +127,12 @@ module Memory(
 		cur_reg = prev_reg;
 
 		/* XXX shit not given about endianness */
-		/* TODO ldrh/strh */
 		casez(insn)
 		`DECODE_ALU_SWP: if(!inbubble) begin
 			outstall = rw_wait;
 			next_outbubble = rw_wait;
 			busaddr = {op0[31:2], 2'b0};
+			data_size = insn[22] ? 3'b001 : 3'b100;
 			case(swp_state)
 			2'b01: begin
 				rd_req = 1'b1;
@@ -141,10 +144,10 @@ module Memory(
 			end
 			2'b10: begin
 				wr_req = 1'b1;
-				wr_data = op1;
+				wr_data = insn[22] ? {4{op1[7:0]}} : op1;
 				next_write_reg = 1'b1;
 				next_write_num = insn[15:12];
-				next_write_data = swp_oldval;
+				next_write_data = insn[22] ? {24'b0, swp_oldval[7:0]} : swp_oldval;
 				if(!rw_wait)
 					next_swp_state = 2'b01;
 			end
@@ -163,16 +166,19 @@ module Memory(
 			2'b00: begin end /* swp */
 			2'b01: begin /* unsigned half */
 				wr_data = {2{op2[15:0]}}; /* XXX need to store halfword */
+				data_size = 3'b010;
 				lsrh_rddata = {16'b0, raddr[1] ? rd_data[31:16] : rd_data[15:0]};
 			end
 			2'b10: begin /* signed byte */
 				wr_data = {4{op2[7:0]}};
+				data_size = 3'b001;
 				lsrh_rddata_s1 = raddr[1] ? rd_data[31:16] : rd_data[15:0];
 				lsrh_rddata_s2 = raddr[0] ? lsrh_rddata_s1[15:8] : lsrh_rddata_s1[7:0];
 				lsrh_rddata = {{24{lsrh_rddata_s2[7]}}, lsrh_rddata_s2};
 			end
 			2'b11: begin /* signed half */
 				wr_data = {2{op2[15:0]}};
+				data_size = 3'b010;
 				lsrh_rddata = raddr[1] ? {{16{rd_data[31]}}, rd_data[31:16]} : {{16{rd_data[15]}}, rd_data[15:0]};
 			end
 			endcase
@@ -214,6 +220,7 @@ module Memory(
 			/* select byte or word */
 			align_rddata = insn[22] ? {24'b0, align_s2[7:0]} : align_s2;
 			wr_data = insn[22] ? {4{op2[7:0]}} : op2; /* XXX need to actually store just a byte */
+			data_size = insn[22] ? 3'b001 : 3'b100;
 			case(lsr_state)
 			2'b01: begin
 				rd_req = insn[20];
@@ -242,6 +249,7 @@ module Memory(
 		`DECODE_LDMSTM: if(!inbubble) begin
 			outstall = rw_wait;
 			next_outbubble = rw_wait;
+			data_size = 3'b100;
 			case(lsm_state)
 			3'b001: begin
 //				next_regs = insn[23] ? op1[15:0] : op1[0:15];
