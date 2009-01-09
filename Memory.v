@@ -337,8 +337,9 @@ module Memory(
 				next_outbubble = 1;
 			end
 			if (!cp_ack) begin
-				$display("WARNING: Possible MRCMCR undefined instruction");
+				$display("WARNING: Possible MRCMCR undefined instruction: cp_ack %d, cp_busy %d",cp_ack, cp_busy);
 			end
+			$display("MRCMCR: ack %d, busy %d", cp_ack, cp_busy);
 		end
 		default: begin end
 		endcase
