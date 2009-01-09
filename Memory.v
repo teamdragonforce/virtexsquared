@@ -11,7 +11,7 @@ module Memory(
 	input rw_wait,
 	output reg [31:0] wr_data,
 	input [31:0] rd_data,
-	output reg [2:0] data_size;
+	output reg [2:0] data_size,
 
 	/* regfile interface */
 	output reg [3:0] st_read,
@@ -117,8 +117,8 @@ module Memory(
 		offset = prev_offset;
 		next_outcpsr = lsm_state == 3'b010 ? out_cpsr : cpsr;
 		lsrh_rddata = 32'hxxxxxxxx;
-		lsrh_rddata_s1 = 32'hxxxxxxxx;
-		lsrh_rddata_s2 = 32'hxxxxxxxx;
+		lsrh_rddata_s1 = 16'hxxxx;
+		lsrh_rddata_s2 = 8'hxx;
 		next_lsm_state = lsm_state;
 		next_lsr_state = lsr_state;
 		next_lsrh_state = lsrh_state;
