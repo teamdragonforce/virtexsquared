@@ -2,6 +2,7 @@
 
 module Decode(
 	input clk,
+	input stall,
 	input [31:0] insn,
 	input [31:0] inpc,
 	input [31:0] incpsr,
@@ -226,12 +227,15 @@ module Decode(
 
 	
 	always @ (posedge clk) begin
-		op0 <= op0_out;   /* Rn - always */
-		op1 <= op1_out; /* 'operand 2' - Rm */
-		op2 <= op2_out;   /* thirdedge - Rs */
-		carry <= carry_out;
-		outcpsr <= incpsr;
-		outspsr <= inspsr;
+		if (!stall)
+		begin
+			op0 <= op0_out;   /* Rn - always */
+			op1 <= op1_out; /* 'operand 2' - Rm */
+			op2 <= op2_out;   /* thirdedge - Rs */
+			carry <= carry_out;
+			outcpsr <= incpsr;
+			outspsr <= inspsr;
+		end
 	end
 
 endmodule

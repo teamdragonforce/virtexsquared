@@ -158,6 +158,7 @@ module System(input clk);
 	
 	Decode decode(
 		.clk(clk),
+		.stall(stall_cause_execute),
 		.insn(insn_out_fetch), .inpc(pc_out_fetch), .incpsr(writeback_out_cpsr), .inspsr(writeback_out_spsr),
 		.op0(decode_out_op0), .op1(decode_out_op1), .op2(decode_out_op2),
 		.carry(decode_out_carry), .outcpsr(decode_out_cpsr), .outspsr(decode_out_spsr),
