@@ -138,16 +138,20 @@ module Decode(
 		begin
 			read_0 = insn[19:16];
 			read_1 = insn[3:0];
-			
+			read_2 = insn[15:12];
+
 			op0_out = regs0;
 			op1_out = regs1;
+			op2_out = regs2;
 		end
 		`DECODE_ALU_HDATA_IMM:	/* Halfword transfer - immediate offset */
 		begin
 			read_0 = insn[19:16];
+			read_1 = insn[15:12];
 			
 			op0_out = regs0;
 			op1_out = {24'b0, insn[11:8], insn[3:0]};
+			op2_out = regs1;
 		end
 		`DECODE_ALU:		/* ALU */
 		begin
