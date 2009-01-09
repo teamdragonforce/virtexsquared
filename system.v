@@ -63,12 +63,17 @@ module System(input clk);
 	wire memory_out_write_reg;
 	wire [3:0] memory_out_write_num;
 	wire [31:0] memory_out_write_data;
+
+	wire cp_ack_terminal;
+	wire cp_busy_terminal;
+	wire [31:0] cp_read_terminal;
 	
 	wire cp_req;
-	wire cp_ack = 0;
-	wire cp_busy = 0;
+	wire [31:0] cp_insn;
+	wire cp_ack = cp_ack_terminal;
+	wire cp_busy = cp_busy_terminal;
 	wire cp_rnw;
-	wire [31:0] cp_read = 0;
+	wire [31:0] cp_read = cp_read_terminal;
 	wire [31:0] cp_write;
 	
 	wire stall_cause_issue;
@@ -163,6 +168,7 @@ module System(input clk);
 		.outcpsr(execute_out_cpsr), .outspsr(execute_out_spsr));
 	assign execute_out_backflush = jmp;
 	
+	assign cp_insn = insn_out_execute;
 	Memory memory(
 		.clk(clk), .Nrst(1'b0),
 		/* stall? flush? */
@@ -178,6 +184,11 @@ module System(input clk);
 		.out_write_reg(memory_out_write_reg), .out_write_num(memory_out_write_num), 
 		.out_write_data(memory_out_write_data),
 		.cp_req(cp_req), .cp_ack(cp_ack), .cp_busy(cp_busy), .cp_rnw(cp_rnw), .cp_read(cp_read), .cp_write(cp_write));
+	
+	Terminal terminal(	
+		.clk(clk),
+		.cp_req(cp_req), .cp_insn(cp_insn), .cp_ack(cp_ack_terminal), .cp_busy(cp_busy_terminal), .cp_rnw(cp_rnw),
+		.cp_read(cp_read_terminal), .cp_write(cp_write));
 
 	reg [31:0] clockno = 0;
 	always @(posedge clk)
