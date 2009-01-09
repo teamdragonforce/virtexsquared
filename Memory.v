@@ -50,9 +50,9 @@ module Memory(
 	);
 
 	reg [31:0] addr, raddr, prev_raddr, next_regdata, next_outcpsr;
+	reg [31:0] prevaddr;
 	reg [3:0] next_regsel, cur_reg, prev_reg;
 	reg next_writeback;
-	reg [31:0] align_s1, align_s2, align_rddata;
 
 	wire next_outbubble;	
 	wire next_write_reg;
@@ -60,6 +60,12 @@ module Memory(
 	wire [31:0] next_write_data;
 
 	reg [1:0] lsr_state = 2'b01, next_lsr_state;
+	reg [31:0] align_s1, align_s2, align_rddata;
+
+	reg [1:0] lsrh_state = 2'b01, next_lsrh_state;
+	reg [31:0] lsrh_rddata;
+	reg [15:0] lsrh_rddata_s1;
+	reg [7:0] lsrh_rddata_s2;
 
 	reg [15:0] regs, next_regs;
 	reg [2:0] lsm_state = 3'b001, next_lsm_state;
@@ -83,11 +89,15 @@ module Memory(
 		out_cpsr <= next_outcpsr;
 		out_spsr <= spsr;
 		swp_state <= next_swp_state;
+		lsm_state <= next_lsm_state;
+		lsr_state <= next_lsr_state;
+		lsrh_state <= next_lsrh_state;
+		prevaddr <= addr;
 	end
 
 	always @(*)
 	begin
-		addr = 32'hxxxxxxxx;
+		addr = prevaddr;
 		raddr = 32'hxxxxxxxx;
 		rd_req = 1'b0;
 		wr_req = 1'b0;
@@ -105,8 +115,10 @@ module Memory(
 		cp_write = 32'hxxxxxxxx;
 		offset = prev_offset;
 		next_outcpsr = lsm_state == 3'b010 ? out_cpsr : cpsr;
+		lsrh_rddata = 32'hxxxxxxxx;
 		next_lsm_state = lsm_state;
 		next_lsr_state = lsr_state;
+		next_lsrh_state = lsrh_state;
 		next_swp_oldval = swp_oldval;
 		next_swp_state = swp_state;
 		cur_reg = prev_reg;
@@ -139,31 +151,79 @@ module Memory(
 			default: begin end
 			endcase
 		end
+		`DECODE_ALU_HDATA_REG,
+		`DECODE_ALU_HDATA_IMM: if(!inbubble) begin
+			next_outbubble = rw_wait;
+			outstall = rw_wait;
+			addr = insn[23] ? op0 + op1 : op0 - op1; /* up/down select */
+			raddr = insn[24] ? op0 : addr; /* pre/post increment */
+			busaddr = raddr;
+			/* rotate to correct position */
+			case(insn[6:5])
+			2'b00: begin end /* swp */
+			2'b01: begin /* unsigned half */
+				wr_data = {2{op2[15:0]}}; /* XXX need to store halfword */
+				lsrh_rddata = {16'b0, raddr[1] ? rd_data[31:16] : rd_data[15:0]};
+			end
+			2'b10: begin /* signed byte */
+				wr_data = {4{op2[7:0]}};
+				lsrh_rddata_s1 = raddr[1] ? rd_data[31:16] : rd_data[15:0];
+				lsrh_rddata_s2 = raddr[0] ? lsrh_rddata_s1[15:8] : lsrh_rddata_s1[7:0];
+				lsrh_rddata = {{24{lsrh_rddata_s2[7]}}, lsrh_rddata_s2};
+			end
+			2'b11: begin /* signed half */
+				wr_data = {2{op2[15:0]}};
+				lsrh_rddata = raddr[1] ? {{16{rd_data[31]}}, rd_data[31:16]} : {{16{rd_data[15]}}, rd_data[15:0]};
+			end
+			endcase
+
+			case(lsrh_state)
+			2'b01: begin
+				rd_req = insn[20];
+				wr_req = ~insn[20];
+				next_write_num = insn[15:12];
+				next_write_data = lsrh_rddata;
+				if(insn[20]) begin
+					next_write_reg = 1'b1;
+				end
+				if(insn[21] | !insn[24]) begin
+					outstall = 1'b1;
+					if(!rw_wait)
+						next_lsrh_state = 2'b10;
+				end
+			end
+			2'b10: begin
+				next_write_reg = 1'b1;
+				next_write_num = insn[19:16];
+				next_write_data = addr;
+				next_lsrh_state = 2'b10;
+			end
+			default: begin end
+			endcase
+		end
 		`DECODE_LDRSTR_UNDEFINED: begin end
 		`DECODE_LDRSTR: if(!inbubble) begin
 			next_outbubble = rw_wait;
 			outstall = rw_wait;
 			addr = insn[23] ? op0 + op1 : op0 - op1; /* up/down select */
 			raddr = insn[24] ? op0 : addr; /* pre/post increment */
-			busaddr = {raddr[31:2], 2'b0};
-				/* rotate to correct position */
+			busaddr = raddr;
+			/* rotate to correct position */
 			align_s1 = raddr[1] ? {rd_data[15:0], rd_data[31:16]} : rd_data;
 			align_s2 = raddr[0] ? {align_s1[7:0], align_s1[31:8]} : align_s1;
 			/* select byte or word */
 			align_rddata = insn[22] ? {24'b0, align_s2[7:0]} : align_s2;
-			if(!insn[20]) begin
-				wr_data = insn[22] ? {4{op2[7:0]}} : op2; /* XXX need to actually store just a byte */
-			end
+			wr_data = insn[22] ? {4{op2[7:0]}} : op2; /* XXX need to actually store just a byte */
 			case(lsr_state)
 			2'b01: begin
 				rd_req = insn[20];
 				wr_req = ~insn[20];
+				next_write_reg = 1'b1;
+				next_write_num = insn[15:12];
 				if(insn[20]) begin
-					next_write_reg = 1'b1;
-					next_write_num = insn[15:12];
 					next_write_data = align_rddata;
 				end
-					if(insn[21]) begin
+				if(insn[21] | !insn[24]) begin
 					outstall = 1'b1;
 					if(!rw_wait)
 						next_lsr_state = 2'b10;
@@ -288,7 +348,7 @@ module Memory(
 
 				st_read = cur_reg;
 				wr_data = st_data;
-				busaddr = {raddr[31:2], 2'b0};
+				busaddr = raddr;
 
 				outstall = 1'b1;
 
