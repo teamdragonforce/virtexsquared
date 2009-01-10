@@ -14,12 +14,12 @@ module Fetch(
 	output reg [31:0] insn = 0,
 	output reg [31:0] pc = 32'hFFFFFFFC);
 	
-	reg qjmp = 0;	/* A jump has been queued up while we were stalled. */
+	reg qjmp = 0;	/* A jump has been queued up while we were waiting. */
 	reg [31:0] qjmppc;
 	always @(posedge clk)
-		if (stall && jmp && !qjmp)
+		if (rd_wait && jmp && !qjmp)
 			{qjmp,qjmppc} <= {jmp, jmppc};
-		else if (!stall && qjmp)	/* It has already been handled. */
+		else if (!rd_wait && qjmp)	/* It has already been intoed. */
 			{qjmp,qjmppc} <= {1'b0, 32'hxxxxxxxx};
 	
 	reg [31:0] reqpc;
