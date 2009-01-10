@@ -45,6 +45,8 @@ module ICache(
 	wire [3:0] rd_idx = rd_addr[9:6];
 	wire [21:0] rd_tag = rd_addr[31:10];
 	
+	reg [31:0] prev_rd_addr = 32'hFFFFFFFF;
+	
 	wire cache_hit = cache_valid[rd_idx] && (cache_tags[rd_idx] == rd_tag);
 	
 	always @(*) begin	/* XXX does this work nowadays? */
@@ -63,10 +65,13 @@ module ICache(
 			bus_rd = 0;
 		end
 	
-	always @(posedge clk)
-		if (rd_req && !cache_hit) begin
+	always @(posedge clk) begin
+		prev_rd_addr <= {rd_addr[31:6], 6'b0};
+		if (cache_fill_pos != 0 && ((prev_rd_addr != {rd_addr[31:6], 6'b0}) || cache_hit))	/* If this wasn't from the same line, or we've moved on somehow, reset the fill circuitry. */
+			cache_fill_pos <= 0;
+		else if (rd_req && !cache_hit) begin
 			if (bus_ready) begin	/* Started the fill, and we have data. */
-				$display("CACHE FILL: rq adr %08x; bus addr %08x; bus data %08x", rd_addr, bus_addr, bus_rdata);
+				$display("ICACHE: FILL: rd addr %08x; bus addr %08x; bus data %08x", rd_addr, bus_addr, bus_rdata);
 				cache_data[rd_idx][cache_fill_pos] <= bus_rdata;
 				cache_fill_pos <= cache_fill_pos + 1;
 				if (cache_fill_pos == 15) begin	/* Done? */
@@ -75,4 +80,5 @@ module ICache(
 				end
 			end
 		end
+	end
 endmodule

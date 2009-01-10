@@ -44,6 +44,8 @@ module DCache(
 	wire [3:0] idx = addr[9:6];
 	wire [21:0] tag = addr[31:10];
 	
+	reg [31:0] prev_addr = 32'hFFFFFFFF;
+	
 	wire cache_hit = cache_valid[idx] && (cache_tags[idx] == tag);
 	
 	always @(*) begin
@@ -69,8 +71,11 @@ module DCache(
 		end
 	end
 	
-	always @(posedge clk)
-		if (rd_req && !cache_hit) begin
+	always @(posedge clk) begin
+		prev_addr <= {addr[31:6], 6'b0};
+		if (rd_req && (cache_fill_pos != 0) && ((prev_addr != {addr[31:6], 6'b0}) || cache_hit))	/* If this wasn't from the same line, or we've moved on somehow, reset the fill circuitry. */
+			cache_fill_pos <= 0;
+		else if (rd_req && !cache_hit) begin
 			if (bus_ready) begin	/* Started the fill, and we have data. */
 				cache_data[idx][cache_fill_pos] <= bus_rdata;
 				cache_fill_pos <= cache_fill_pos + 1;
@@ -81,4 +86,5 @@ module DCache(
 			end
 		end else if (wr_req && cache_hit)
 			cache_data[idx][addr[5:2]] = wr_data;
+	end
 endmodule
