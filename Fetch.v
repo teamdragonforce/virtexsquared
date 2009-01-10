@@ -12,37 +12,49 @@ module Fetch(
 	input [31:0] jmppc,
 	output reg bubble = 1,
 	output reg [31:0] insn = 0,
-	output reg [31:0] pc = 0);
-
-	reg [31:0] prevpc;
-	reg [31:0] nextpc;
-	initial
-		prevpc = 32'hFFFFFFFC;	/* ugh... the first pc we request will be this +4 */
-	always @(negedge Nrst)
-		prevpc <= 32'hFFFFFFFC;
-
-	always @(*)	
-		if (!Nrst)
-			nextpc = 32'hFFFFFFFC;
-		else if (stall)	/* don't change any internal state */
-			nextpc = prevpc;
-		else if (jmp)
-			nextpc = jmppc;
-		else
-			nextpc = prevpc + 32'h4;
+	output reg [31:0] pc = 32'hFFFFFFFC);
 	
-	assign rd_addr = nextpc;
-	assign rd_req = !stall;
-			
+	reg qjmp = 0;	/* A jump has been queued up while we were stalled. */
+	reg [31:0] qjmppc;
+	always @(posedge clk)
+		if (stall && jmp && !qjmp)
+			{qjmp,qjmppc} <= {jmp, jmppc};
+		else if (!stall && qjmp)	/* It has already been handled. */
+			{qjmp,qjmppc} <= {1'b0, 32'hxxxxxxxx};
+	
+	reg [31:0] reqpc;
+	always @(*)
+		if (stall)
+			reqpc = pc;
+		else if (qjmp)
+			reqpc = qjmppc;
+		else if (jmp)
+			reqpc = jmppc;
+		else
+			reqpc = pc + 4;
+	
+	assign rd_addr = reqpc;
+	assign rd_req = 1;
+	
+	always @(negedge Nrst)
+	begin
+		pc <= 32'hFFFFFFFC;
+		qjmp <= 0;
+		bubble <= 1;
+	end
+	
 	always @(posedge clk)
 	begin
-		if (!rd_wait || !Nrst)
-			prevpc <= nextpc;
-		if (!stall)
+		if (!Nrst) begin
+			pc <= 32'hFFFFFFFC;
+			qjmp <= 0;
+			bubble <= 1;
+		end else if (!stall)
 		begin
 			bubble <= rd_wait;
 			insn <= rd_data;
-			pc <= nextpc;
+			if (!rd_wait)
+				pc <= reqpc;
 		end
 	end
 endmodule
