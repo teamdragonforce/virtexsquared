@@ -2,7 +2,7 @@ extern void putc(unsigned char c);
 
 int main()
 {
-//	unsigned char *costas = "Costas likes ass";
+	unsigned char *costas = "Costas likes ass";
 	
 	putc('A');
 	putc('n');
@@ -10,11 +10,11 @@ int main()
 	putc('s');
 	putc('?');
 	
-//	while (*costas)
-//	{
-//		putc(*costas);
-//		costas++;
-//	}
+	while (*costas)
+	{
+		putc(*costas);
+		costas++;
+	}
 	while(1)
 		;
 	
