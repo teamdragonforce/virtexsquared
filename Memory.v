@@ -23,7 +23,7 @@ module Memory(
 	output reg cp_req,
 	input cp_ack,
 	input cp_busy,
-	output cp_rnw,	/* 1 = read from CP, 0 = write to CP */
+	output reg cp_rnw,	/* 1 = read from CP, 0 = write to CP */
 	input [31:0] cp_read,
 	output reg [31:0] cp_write,
 	
@@ -57,10 +57,10 @@ module Memory(
 	reg [3:0] next_regsel, cur_reg, prev_reg;
 	reg next_writeback;
 
-	wire next_outbubble;	
-	wire next_write_reg;
-	wire [3:0] next_write_num;
-	wire [31:0] next_write_data;
+	reg next_outbubble;	
+	reg next_write_reg;
+	reg [3:0] next_write_num;
+	reg [31:0] next_write_data;
 
 	reg [1:0] lsr_state = 2'b01, next_lsr_state;
 	reg [31:0] align_s1, align_s2, align_rddata;
