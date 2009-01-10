@@ -54,6 +54,11 @@ module DCache(
 	reg [3:0] cache_fill_pos = 0;
 	assign bus_req = (rd_req && !cache_hit) || wr_req;
 	always @(*)
+	begin
+		bus_rd = 0;
+		bus_wr = 0;
+		bus_addr = 0;
+		bus_wdata = 0;
 		if (rd_req && !cache_hit && bus_ack) begin
 			bus_addr = {addr[31:6], cache_fill_pos[3:0], 2'b00 /* reads are 32-bits */};
 			bus_rd = 1;
@@ -61,10 +66,8 @@ module DCache(
 			bus_addr = addr;
 			bus_wr = 1;
 			bus_wdata = wr_data;
-		end else begin
-			bus_addr = 0;
-			bus_rd = 0;
 		end
+	end
 	
 	always @(posedge clk)
 		if (rd_req && !cache_hit) begin
