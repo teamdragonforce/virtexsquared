@@ -181,7 +181,7 @@ module Decode(
 			read_2 = insn[15:12];
 			
 			op0_out = regs0;
-			if(insn[25]) begin
+			if(!insn[25] /* immediate */) begin
 				op1_out = {20'b0, insn[11:0]};
 				carry_out = incpsr[`CPSR_C];
 			end else begin
