@@ -26,8 +26,9 @@ module Terminal(
 			cp_ack = 1;
 		end
 	end
-	
+`ifdef verilator	
 	always @(posedge clk)
 		if (towrite)
 			$c("{extern void term_output(unsigned char d); term_output(",data,");}");
+`endif
 endmodule
