@@ -151,8 +151,8 @@ module System(input clk);
 	
 	RegFile regfile(
 		.clk(clk),
-		.read_0(regfile_read_0), .read_1(regfile_read_1), .read_2(regfile_read_2), .read_2(regfile_read_3),
-		.rdata_0(regfile_rdata_0), .rdata_1(regfile_rdata_1), .rdata_2(regfile_rdata_2), .rdata_2(regfile_rdata_3),
+		.read_0(regfile_read_0), .read_1(regfile_read_1), .read_2(regfile_read_2), .read_3(regfile_read_3),
+		.rdata_0(regfile_rdata_0), .rdata_1(regfile_rdata_1), .rdata_2(regfile_rdata_2), .rdata_3(regfile_rdata_3),
 		.spsr(regfile_spsr),
 		.write(regfile_write), .write_reg(regfile_write_reg), .write_data(regfile_write_data));
 	
@@ -196,7 +196,7 @@ module System(input clk);
 		.out_write_reg(memory_out_write_reg), .out_write_num(memory_out_write_num), 
 		.out_write_data(memory_out_write_data),
 		.cp_req(cp_req), .cp_ack(cp_ack), .cp_busy(cp_busy), .cp_rnw(cp_rnw), .cp_read(cp_read), .cp_write(cp_write),
-		.outcpsr(memory_out_cpsr), .outspsr(memory_out_spsr));
+		.outcpsr(memory_out_cpsr), .outspsr(memory_out_spsr) /* XXX data_size */);
 	
 	Terminal terminal(	
 		.clk(clk),
