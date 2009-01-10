@@ -66,6 +66,7 @@ module ICache(
 	always @(posedge clk)
 		if (rd_req && !cache_hit) begin
 			if (bus_ready) begin	/* Started the fill, and we have data. */
+				$display("CACHE FILL: rq adr %08x; bus addr %08x; bus data %08x", rd_addr, bus_addr, bus_rdata);
 				cache_data[rd_idx][cache_fill_pos] <= bus_rdata;
 				cache_fill_pos <= cache_fill_pos + 1;
 				if (cache_fill_pos == 15) begin	/* Done? */
