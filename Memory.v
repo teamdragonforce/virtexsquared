@@ -258,8 +258,9 @@ module Memory(
 			3'b001: begin
 //				next_regs = insn[23] ? op1[15:0] : op1[0:15];
 				/** verilator can suck my dick */
-				next_regs = insn[23] ? op1[15:0] : {op1[0], op1[1], op1[2], op1[3], op1[4], op1[5], op1[6], op1[7],
-				                                    op1[8], op1[9], op1[10], op1[11], op1[12], op1[13], op1[14], op1[15]};
+				$display("LDMSTM: Round 1: base register: %08x, reg list %b", op0, op1[15:0]);
+				next_regs = insn[23] /* U */ ? op1[15:0] : {op1[0], op1[1], op1[2], op1[3], op1[4], op1[5], op1[6], op1[7],
+				                                            op1[8], op1[9], op1[10], op1[11], op1[12], op1[13], op1[14], op1[15]};
 				offset = 6'b0;
 				outstall = 1'b1;
 				next_lsm_state = 3'b010;
@@ -337,7 +338,7 @@ module Memory(
 					next_regs = 16'b0;
 				end
 				endcase
-				cur_reg = insn[23] ? 4'hF - cur_reg : cur_reg;
+				cur_reg = insn[23] ? cur_reg : 4'hF - cur_reg;
 				if(cur_reg == 4'hF && insn[22]) begin
 					next_outcpsr = spsr;
 				end
@@ -359,8 +360,10 @@ module Memory(
 				end
 
 				st_read = cur_reg;
-				wr_data = st_data;
+				wr_data = (cur_reg == 4'hF) ? (pc + 12) : st_data;
 				busaddr = raddr;
+				
+				$display("LDMSTM: Stage 2: Writing: reg %d, wr_data %08x, addr %08x", cur_reg, wr_data, busaddr);
 
 				outstall = 1'b1;
 
@@ -369,7 +372,7 @@ module Memory(
 				end
 			end
 			3'b100: begin
-				next_write_reg = 1'b1;
+				next_write_reg = insn[21] /* writeback */;
 				next_write_num = insn[19:16];
 				next_write_data = insn[23] ? op0 + {26'b0, prev_offset} : op0 - {26'b0, prev_offset};
 				next_lsm_state = 3'b001;
