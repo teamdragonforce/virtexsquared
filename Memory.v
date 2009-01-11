@@ -216,7 +216,7 @@ module Memory(
 			next_outbubble = rw_wait;
 			outstall = rw_wait;
 			addr = insn[23] ? op0 + op1 : op0 - op1; /* up/down select */
-			raddr = insn[24] ? op0 : addr; /* pre/post increment */
+			raddr = insn[24] ? addr : op0; /* pre/post increment */
 			busaddr = raddr;
 			/* rotate to correct position */
 			align_s1 = raddr[1] ? {rd_data[15:0], rd_data[31:16]} : rd_data;
@@ -244,7 +244,7 @@ module Memory(
 				next_write_reg = 1'b1;
 				next_write_num = insn[19:16];
 				next_write_data = addr;
-				next_lsr_state = 2'b10;
+				next_lsr_state = 2'b01;
 			end
 			default: begin end
 			endcase
