@@ -15,8 +15,6 @@ int main()
 		putc(*costas);
 		costas++;
 	}
-	while(1)
-		;
 	
 	return 0;
 }
