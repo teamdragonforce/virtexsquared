@@ -51,7 +51,7 @@ module DCache(
 	always @(*) begin
 		rw_wait = (rd_req && !cache_hit) || (wr_req && (!bus_ack || !bus_ready));
 		rd_data = cache_data[idx][didx_word];
-		if (!rw_wait)
+		if (!rw_wait && rd_req)
 			$display("DCACHE: READ COMPLETE: Addr %08x, data %08x", addr, rd_data);
 	end
 	
@@ -67,7 +67,7 @@ module DCache(
 			bus_addr = {addr[31:6], cache_fill_pos[3:0], 2'b00 /* reads are 32-bits */};
 			bus_rd = 1;
 		end else if (wr_req && bus_ack) begin
-			$display("DCACHE: WRITE REQUEST: Addr %08x, data %08x", addr, wr_data);
+			$display("DCACHE: WRITE REQUEST: Addr %08x, data %08x, wait %d", addr, wr_data, rw_wait);
 			bus_addr = addr;
 			bus_wr = 1;
 			bus_wdata = wr_data;
