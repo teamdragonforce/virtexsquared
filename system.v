@@ -1,5 +1,5 @@
-`define BUS_ICACHE 0
-`define BUS_DCACHE 1
+`define BUS_ICACHE 1
+`define BUS_DCACHE 0
 
 module System(input clk);
 	wire [7:0] bus_req;
@@ -12,7 +12,7 @@ module System(input clk);
 
 	wire bus_req_icache;
 	wire bus_req_dcache;
-	assign bus_req = {6'b0, bus_req_dcache, bus_req_icache};
+	assign bus_req = {6'b0, bus_req_icache, bus_req_dcache};
 	wire bus_ack_icache = bus_ack[`BUS_ICACHE];
 	wire bus_ack_dcache = bus_ack[`BUS_DCACHE];
 	
