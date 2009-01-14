@@ -1,7 +1,7 @@
 	.text
 	.globl _start
 _start:
-	mov sp, #0x3000
+	ldr sp, =0x3FFC
 	bl main
 1:	b 1b
 
