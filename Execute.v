@@ -57,7 +57,7 @@ module Execute(
 		.in0(alu_in0), .in1(alu_in1), .cpsr(cpsr), .op(alu_op),
 		.setflags(alu_setflags), .shifter_carry(carry),
 		.result(alu_result), .cpsr_out(alu_outcpsr), .setres(alu_setres));
-	
+
 	always @(posedge clk)
 	begin
 		if (!stall)
@@ -75,6 +75,13 @@ module Execute(
 			outop2 <= op2;
 		end
 	end
+	
+	reg delayedflush = 0;
+	always @(posedge clk)
+		if (flush && outstall /* halp! I can't do it now, maybe later? */)
+			delayedflush <= 1;
+		else if (!outstall /* anything has been handled this time around */)
+			delayedflush <= 0;
 
 	reg prevstall = 0;
 	always @(posedge clk)
@@ -83,7 +90,7 @@ module Execute(
 	always @(*)
 	begin
 		outstall = stall;
-		next_outbubble = inbubble | flush;
+		next_outbubble = inbubble | flush | delayedflush;
 		next_outcpsr = cpsr;
 		next_outspsr = spsr;
 		next_write_reg = 0;
@@ -171,7 +178,7 @@ module Execute(
 		begin end
 		`DECODE_BRANCH:
 		begin
-			if(!inbubble && !flush) begin
+			if(!inbubble && !flush && !delayedflush) begin
 				jmppc = pc + op0 + 32'h8;
 				if(insn[24]) begin
 					next_write_reg = 1;
