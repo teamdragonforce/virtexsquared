@@ -282,8 +282,15 @@ module Issue(
 		waiting_cpsr = use_cpsr & (cpsr_inflight[0] | cpsr_inflight[1]);
 		waiting_regs = |(use_regs & (regs_inflight[0] | regs_inflight[1]));
 		
-		outstall = ((waiting && !inbubble) || stall) && !flush;	/* Happens in an always @*, because it is an exception. */
+		outstall = (waiting && !inbubble && !flush) || stall;	/* Happens in an always @*, because it is an exception. */
 	end
+
+	reg delayedflush = 0;
+	always @(posedge clk)
+		if (flush && outstall /* halp! I can't do it now, maybe later? */)
+			delayedflush <= 1;
+		else if (!outstall /* anything has been handled this time around */)
+			delayedflush <= 0;
 	
 	/* Actually do the issue. */
 	always @(posedge clk)
@@ -291,7 +298,7 @@ module Issue(
 		if (waiting)
 			$display("ISSUE: Stalling instruction %08x because %d/%d", insn, waiting_cpsr, waiting_regs);
 
-		if(flush)
+		if((flush || delayedflush) && !outstall)
 		begin
 			cpsr_inflight[0] = 1'b0;
 			cpsr_inflight[1] = 1'b0;
