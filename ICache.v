@@ -70,7 +70,7 @@ module ICache(
 		if (cache_fill_pos != 0 && ((prev_rd_addr != {rd_addr[31:6], 6'b0}) || cache_hit))	/* If this wasn't from the same line, or we've moved on somehow, reset the fill circuitry. */
 			cache_fill_pos <= 0;
 		else if (rd_req && !cache_hit) begin
-			if (bus_ready) begin	/* Started the fill, and we have data. */
+			if (bus_ack && bus_ready) begin	/* Started the fill, and we have data. */
 				$display("ICACHE: FILL: rd addr %08x; bus addr %08x; bus data %08x", rd_addr, bus_addr, bus_rdata);
 				cache_data[rd_idx][cache_fill_pos] <= bus_rdata;
 				cache_fill_pos <= cache_fill_pos + 1;

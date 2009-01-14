@@ -79,7 +79,7 @@ module DCache(
 		if (rd_req && (cache_fill_pos != 0) && ((prev_addr != {addr[31:6], 6'b0}) || cache_hit))	/* If this wasn't from the same line, or we've moved on somehow, reset the fill circuitry. */
 			cache_fill_pos <= 0;
 		else if (rd_req && !cache_hit) begin
-			if (bus_ready) begin	/* Started the fill, and we have data. */
+			if (bus_ready && bus_ack) begin	/* Started the fill, and we have data. */
 				cache_data[idx][cache_fill_pos] <= bus_rdata;
 				cache_fill_pos <= cache_fill_pos + 1;
 				if (cache_fill_pos == 15) begin	/* Done? */
