@@ -121,8 +121,8 @@ module Execute(
 				mult_in1 = op2 /* Rs */;
 				$display("New MUL instruction");
 			end
-			outstall = stall | ((!prevstall | !mult_done) && !inbubble);
-			next_outbubble = inbubble | !mult_done | !prevstall;
+			outstall = outstall | ((!prevstall | !mult_done) && !inbubble);
+			next_outbubble = next_outbubble | !mult_done | !prevstall;
 			next_outcpsr = insn[20] /* S */ ? {mult_result[31] /* N */, mult_result == 0 /* Z */, 1'b0 /* C */, cpsr[28] /* V */, cpsr[27:0]} : cpsr;
 			next_write_reg = 1;
 			next_write_num = insn[19:16] /* Rd -- why the fuck isn't this the same place as ALU */;
