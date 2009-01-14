@@ -97,6 +97,13 @@ module Memory(
 		lsrh_state <= next_lsrh_state;
 		prevaddr <= addr;
 	end
+	
+	reg delayedflush = 0;
+	always @(posedge clk)
+		if (flush && outstall /* halp! I can't do it now, maybe later? */)
+			delayedflush <= 1;
+		else if (!outstall /* anything has been handled this time around */)
+			delayedflush <= 0;
 
 	always @(*)
 	begin
@@ -129,9 +136,7 @@ module Memory(
 		cur_reg = prev_reg;
 
 		/* XXX shit not given about endianness */
-		if (flush)
-			next_outbubble = 1'b1;
-		else casez(insn)
+		casez(insn)
 		`DECODE_ALU_SWP: if(!inbubble) begin
 			outstall = rw_wait;
 			next_outbubble = rw_wait;
@@ -239,6 +244,7 @@ module Memory(
 					if(!rw_wait)
 						next_lsr_state = 2'b10;
 				end
+				$display("LDRSTR: rd_req %d, wr_req %d, raddr %08x, wait %d", rd_req, wr_req, raddr, rw_wait);
 			end
 			2'b10: begin
 				next_write_reg = 1'b1;
@@ -343,27 +349,27 @@ module Memory(
 					next_outcpsr = spsr;
 				end
 
-				if(rw_wait) begin
-					next_regs = regs;
-					cur_reg = prev_reg;
-					raddr = prev_raddr;
-				end
-				else begin
+				if (rw_wait)
+					offset = prev_offset;	/* whoops, do this one again */
+				else
 					offset = prev_offset + 6'h4;
-					offset_sel = insn[24] ? offset : prev_offset;
-					raddr = insn[23] ? op0 + {26'b0, offset_sel} : op0 - {26'b0, offset_sel};
-					if(insn[20]) begin
-						next_write_reg = 1'b1;
-						next_write_num = cur_reg;
-						next_write_data = rd_data;
-					end
+				offset_sel = insn[24] ? offset : prev_offset;
+				raddr = insn[23] ? op0 + {26'b0, offset_sel} : op0 - {26'b0, offset_sel};
+				if(insn[20]) begin
+					next_write_reg = !rw_wait;
+					next_write_num = cur_reg;
+					next_write_data = rd_data;
+				end
+				if (rw_wait) begin
+					next_regs = regs;
+					cur_reg = prev_reg;	/* whoops, do this one again */
 				end
 
 				st_read = cur_reg;
 				wr_data = (cur_reg == 4'hF) ? (pc + 12) : st_data;
 				busaddr = raddr;
 				
-				$display("LDMSTM: Stage 2: Writing: reg %d, wr_data %08x, addr %08x", cur_reg, wr_data, busaddr);
+				$display("LDMSTM: Stage 2: Writing: regs %b, next_regs %b, reg %d, wr_data %08x, addr %08x", regs, next_regs, cur_reg, wr_data, busaddr);
 
 				outstall = 1'b1;
 
@@ -376,9 +382,11 @@ module Memory(
 				next_write_num = insn[19:16];
 				next_write_data = insn[23] ? op0 + {26'b0, prev_offset} : op0 - {26'b0, prev_offset};
 				next_lsm_state = 3'b001;
+				$display("LDMSTM: Stage 3: Writing back");
 			end
-			default: begin end
+			default: $stop;
 			endcase
+			$display("LDMSTM: Decoded, bubble %d, insn %08x, lsm state %b -> %b, stall %d", inbubble, insn, lsm_state, next_lsm_state, outstall);
 		end
 		`DECODE_LDCSTC: if(!inbubble) begin
 			$display("WARNING: Unimplemented LDCSTC");
@@ -418,5 +426,8 @@ module Memory(
 		end
 		default: begin end
 		endcase
+		
+		if ((flush || delayedflush) && !outstall)
+			next_outbubble = 1'b1;
 	end
 endmodule
