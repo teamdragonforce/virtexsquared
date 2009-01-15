@@ -258,7 +258,7 @@ module ALU(
 
 	assign sum = {1'b0, in0} + {1'b0, in1};
 	assign diff = {1'b0, in0} - {1'b0, in1};
-	assign rdiff = {1'b0, in1} + {1'b0, in0};
+	assign rdiff = {1'b0, in1} - {1'b0, in0};
 	assign sum_v = (in0[31] ^~ in1[31]) & (sum[31] ^ in0[31]);
 	assign diff_v = (in0[31] ^ in1[31]) & (diff[31] ^ in0[31]);
 	assign rdiff_v = (in0[31] ^ in1[31]) & (rdiff[31] ^ in1[31]);
