@@ -42,7 +42,7 @@ struct tests {
 };
 
 extern int ldm_bonehead();
-
+#ifndef X86
 __asm__(
 ".globl ldm_bonehead\n"
 "ldm_bonehead:;"
@@ -69,10 +69,14 @@ __asm__(
 "nop;"
 "nop;\n"
 );
-
+#endif
 void ldm_tester()
 {
+#ifdef X86
+	int x = 0x00880000;
+#else
 	int x = ldm_bonehead();
+#endif
 	if (x != 0x00880000)
 	{
 		puts("FAIL: result was ");
