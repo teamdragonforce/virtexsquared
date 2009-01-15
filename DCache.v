@@ -80,6 +80,7 @@ module DCache(
 			cache_fill_pos <= 0;
 		else if (rd_req && !cache_hit) begin
 			if (bus_ready && bus_ack) begin	/* Started the fill, and we have data. */
+				$display("DCACHE: FILL: rd addr %08x; bus addr %08x; bus data %08x, bus_req %d, bus_ack %d", addr, bus_addr, bus_rdata, bus_req, bus_ack);
 				cache_data[idx][cache_fill_pos] <= bus_rdata;
 				cache_fill_pos <= cache_fill_pos + 1;
 				if (cache_fill_pos == 15) begin	/* Done? */
