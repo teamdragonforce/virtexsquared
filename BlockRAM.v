@@ -31,7 +31,7 @@ module BlockRAM(
 	always @(posedge clk)
 	begin
 		if (bus_wr && decode)
-			data[ramaddr[13:2]] <= bus_wdata;
+			data[ramaddr[13:2]] = bus_wdata;
 		
 		/* This is not allowed to be conditional -- stupid Xilinx
 		 * blockram. */
