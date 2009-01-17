@@ -86,7 +86,8 @@ module DCache(
 				if (cache_fill_pos == 15) begin	/* Done? */
 					cache_tags[idx] <= tag;
 					cache_valid[idx] <= 1;
-				end
+				end else
+					cache_valid[idx] <= 0;
 			end
 		end else if (wr_req && cache_hit)
 			cache_data[idx][addr[5:2]] = wr_data;

@@ -77,7 +77,9 @@ module ICache(
 				if (cache_fill_pos == 15) begin	/* Done? */
 					cache_tags[rd_idx] <= rd_tag;
 					cache_valid[rd_idx] <= 1;
-				end
+					$display("ICACHE: Fill complete for line %x, tag %x", rd_idx, rd_tag);
+				end else
+					cache_valid[rd_idx] <= 0;
 			end
 		end
 	end
