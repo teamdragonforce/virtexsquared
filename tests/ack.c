@@ -17,9 +17,10 @@ void acktest()
 {	int x;
 	if ((x = ack(3, 3)) != 61)
 	{
-		puts("FAIL: Ack test did not return 61\n");
+		puthex(x);
+		puts(" -> FAIL\n");
 		puthex(x);
 	}
 	else
-		puts("PASS: Ack test returned 61\n");
+		puts("PASS\n");
 }

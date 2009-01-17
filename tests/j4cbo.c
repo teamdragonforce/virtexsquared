@@ -165,8 +165,10 @@ int h1100(bitpos)
 
 void j4cbo()
 {
-	if (h(0) != 151)
-		puts("Result was not 151\r\n");
-	else
-		puts("Result was 151\r\n");
+	int x;
+	if ((x = h(0)) != 151) {	
+		puthex(x);
+		puts(" -> FAIL\n");
+	} else
+		puts("PASS\n");
 }
