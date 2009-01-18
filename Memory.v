@@ -151,6 +151,7 @@ module Memory(
 					next_swp_state = 2'b10;
 					next_swp_oldval = rd_data;
 				end
+				$display("SWP: read stage");
 			end
 			2'b10: begin
 				wr_req = 1'b1;
@@ -160,10 +161,12 @@ module Memory(
 				next_write_data = insn[22] ? {24'b0, swp_oldval[7:0]} : swp_oldval;
 				if(!rw_wait)
 					next_swp_state = 2'b01;
+				$display("SWP: write stage");
 			end
 			default: begin end
 			endcase
 		end
+		`DECODE_ALU_MULT: begin end
 		`DECODE_ALU_HDATA_REG,
 		`DECODE_ALU_HDATA_IMM: if(!inbubble) begin
 			next_outbubble = rw_wait;
@@ -207,6 +210,7 @@ module Memory(
 					if(!rw_wait)
 						next_lsrh_state = 2'b10;
 				end
+				$display("ALU_LDRSTRH: rd_req %d, wr_req %d", rd_req, wr_req);
 			end
 			2'b10: begin
 				next_write_reg = 1'b1;
@@ -233,14 +237,14 @@ module Memory(
 			data_size = insn[22] ? 3'b001 : 3'b100;
 			case(lsr_state)
 			2'b01: begin
-				rd_req = insn[20];
-				wr_req = ~insn[20];
-				next_write_reg = 1'b1;
+				rd_req = insn[20] /* L */;
+				wr_req = ~insn[20] /* L */;
+				next_write_reg = insn[20] /* L */;
 				next_write_num = insn[15:12];
-				if(insn[20]) begin
+				if(insn[20] /* L */) begin
 					next_write_data = align_rddata;
 				end
-				if(insn[21] | !insn[24]) begin
+				if(insn[21] /* W */ | !insn[24] /* P */) begin
 					outstall = 1'b1;
 					if(!rw_wait)
 						next_lsr_state = 2'b10;
