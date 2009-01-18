@@ -1,10 +1,10 @@
 all: costas.hex
 
 %.o: %.c
-	arm-elf-gcc -c -o $@ $<
+	arm-elf-gcc $(CFLAGS) -c -o $@ $<
 
 %.o: %.S
-	arm-elf-gcc -c -o $@ $<
+	arm-elf-gcc $(CFLAGS) -c -o $@ $<
 
 %.elf: %.o anulib.o script.lds
 	arm-elf-ld -o $@ -T script.lds anulib.o $<
