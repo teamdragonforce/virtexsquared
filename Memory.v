@@ -87,7 +87,8 @@ module Memory(
 		out_write_data <= next_write_data;
 		regs <= next_regs;
 		prev_reg <= cur_reg;
-		prev_offset <= offset;
+		if (!rw_wait)
+			prev_offset <= offset;
 		prev_raddr <= raddr;
 		outcpsr <= next_outcpsr;
 		outspsr <= spsr;
@@ -349,10 +350,7 @@ module Memory(
 					next_outcpsr = spsr;
 				end
 
-				if (rw_wait)
-					offset = prev_offset;	/* whoops, do this one again */
-				else
-					offset = prev_offset + 6'h4;
+				offset = prev_offset + 6'h4;
 				offset_sel = insn[24] ? offset : prev_offset;
 				raddr = insn[23] ? op0 + {26'b0, offset_sel} : op0 - {26'b0, offset_sel};
 				if(insn[20]) begin
