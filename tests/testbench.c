@@ -19,6 +19,7 @@ void puthex(unsigned int x)
 #include "ack.c"
 #include "j4cbo.c"
 #include "corecurse.c"
+#include "miniblarg.c"
 
 int fact(int n)
 {
@@ -42,8 +43,11 @@ struct tests {
 };
 
 extern int ldm_bonehead();
+
 #ifndef X86
-__asm__(
+int shnasto()
+{
+__asm__ volatile(
 ".globl ldm_bonehead\n"
 "ldm_bonehead:;"
 "mov r3, lr;"
@@ -59,8 +63,9 @@ __asm__(
 "nop;"
 "mov pc, r3\n;"
 "1:\n"
-"ldr r2, =0x00002FE0;"
-"ldr r1, =0x0000004C;"
+"mov r2, #0x00002F00;"
+"orr r2, r2, #0x000000E0;"
+"mov r1, #0x0000004C;"
 "mov ip, sp;"
 "stmdb sp!, {fp, ip, lr, pc};"
 "mov r0, #0x00880000;"
@@ -69,7 +74,9 @@ __asm__(
 "nop;"
 "nop;\n"
 );
+}
 #endif
+
 void ldm_tester()
 {
 #ifdef X86
@@ -91,6 +98,7 @@ struct tests tlist[] = {
 	{"fact", facttest},
 	{"j4cbo", j4cbo},
 	{"ack", acktest},
+	{"miniblarg", testmain},
 	{"corecurse", corecurse},
 	{0, 0}};
 
