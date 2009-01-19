@@ -62,16 +62,16 @@ module Memory(
 	reg [3:0] next_write_num;
 	reg [31:0] next_write_data;
 
-	reg [1:0] lsr_state = 2'b01, next_lsr_state;
+	reg [2:0] lsr_state = 3'b001, next_lsr_state;
 	reg [31:0] align_s1, align_s2, align_rddata;
 
-	reg [1:0] lsrh_state = 2'b01, next_lsrh_state;
+	reg [2:0] lsrh_state = 3'b001, next_lsrh_state;
 	reg [31:0] lsrh_rddata;
 	reg [15:0] lsrh_rddata_s1;
 	reg [7:0] lsrh_rddata_s2;
 
 	reg [15:0] regs, next_regs;
-	reg [2:0] lsm_state = 3'b001, next_lsm_state;
+	reg [3:0] lsm_state = 4'b0001, next_lsm_state;
 	reg [5:0] offset, prev_offset, offset_sel;
 
 	reg [31:0] swp_oldval, next_swp_oldval;
@@ -125,7 +125,7 @@ module Memory(
 		cp_rnw = 1'bx;
 		cp_write = 32'hxxxxxxxx;
 		offset = prev_offset;
-		next_outcpsr = lsm_state == 3'b010 ? outcpsr : cpsr;
+		next_outcpsr = lsm_state == 4'b0010 ? outcpsr : cpsr;
 		lsrh_rddata = 32'hxxxxxxxx;
 		lsrh_rddata_s1 = 16'hxxxx;
 		lsrh_rddata_s2 = 8'hxx;
@@ -197,7 +197,7 @@ module Memory(
 			endcase
 
 			case(lsrh_state)
-			2'b01: begin
+			3'b001: begin
 				rd_req = insn[20];
 				wr_req = ~insn[20];
 				next_write_num = insn[15:12];
@@ -205,18 +205,23 @@ module Memory(
 				if(insn[20]) begin
 					next_write_reg = 1'b1;
 				end
-				if(insn[21] | !insn[24]) begin
+				if(insn[21] | !insn[24] && !flush) begin
 					outstall = 1'b1;
 					if(!rw_wait)
-						next_lsrh_state = 2'b10;
+						next_lsrh_state = 3'b010;
 				end
 				$display("ALU_LDRSTRH: rd_req %d, wr_req %d", rd_req, wr_req);
 			end
-			2'b10: begin
+			3'b010: begin
+				next_outbubble = 1'b0;
 				next_write_reg = 1'b1;
 				next_write_num = insn[19:16];
 				next_write_data = addr;
-				next_lsrh_state = 2'b10;
+				next_lsrh_state = 3'b100;
+			end
+			3'b100: begin
+				outstall = 0;
+				next_lsrh_state = 3'b001;
 			end
 			default: begin end
 			endcase
@@ -236,7 +241,7 @@ module Memory(
 			wr_data = insn[22] ? {4{op2[7:0]}} : op2; /* XXX need to actually store just a byte */
 			data_size = insn[22] ? 3'b001 : 3'b100;
 			case(lsr_state)
-			2'b01: begin
+			3'b001: begin
 				rd_req = insn[20] /* L */;
 				wr_req = ~insn[20] /* L */;
 				next_write_reg = insn[20] /* L */;
@@ -244,18 +249,24 @@ module Memory(
 				if(insn[20] /* L */) begin
 					next_write_data = align_rddata;
 				end
-				if(insn[21] /* W */ | !insn[24] /* P */) begin
+				if(insn[21] /* W */ | !insn[24] /* P */ && !flush /* don't move on if we get a flush on the first time around. */) begin
 					outstall = 1'b1;
 					if(!rw_wait)
-						next_lsr_state = 2'b10;
+						next_lsr_state = 3'b010;
 				end
 				$display("LDRSTR: rd_req %d, wr_req %d, raddr %08x, wait %d", rd_req, wr_req, raddr, rw_wait);
 			end
-			2'b10: begin
+			3'b010: begin
+				outstall = 1;
+				next_outbubble = 0;
 				next_write_reg = 1'b1;
 				next_write_num = insn[19:16];
 				next_write_data = addr;
-				next_lsr_state = 2'b01;
+				next_lsr_state = 3'b100;
+			end
+			3'b100: begin
+				outstall = 0;
+				next_lsr_state = 3'b001;
 			end
 			default: begin end
 			endcase
@@ -266,17 +277,19 @@ module Memory(
 			next_outbubble = rw_wait;
 			data_size = 3'b100;
 			case(lsm_state)
-			3'b001: begin
+			4'b0001: begin
 //				next_regs = insn[23] ? op1[15:0] : op1[0:15];
 				/** verilator can suck my dick */
 				$display("LDMSTM: Round 1: base register: %08x, reg list %b", op0, op1[15:0]);
 				next_regs = insn[23] /* U */ ? op1[15:0] : {op1[0], op1[1], op1[2], op1[3], op1[4], op1[5], op1[6], op1[7],
 				                                            op1[8], op1[9], op1[10], op1[11], op1[12], op1[13], op1[14], op1[15]};
 				offset = 6'b0;
-				outstall = 1'b1;
-				next_lsm_state = 3'b010;
+				if (!flush /* Don't move on if we got a flush on the first time around. */) begin
+					outstall = 1'b1;
+					next_lsm_state = 4'b0010;
+				end
 			end
-			3'b010: begin
+			4'b0010: begin
 				rd_req = insn[20];
 				wr_req = ~insn[20];
 				casez(regs)
@@ -376,15 +389,21 @@ module Memory(
 				outstall = 1'b1;
 
 				if(next_regs == 16'b0) begin
-					next_lsm_state = 3'b100;
+					next_lsm_state = 4'b0100;
 				end
 			end
-			3'b100: begin
+			4'b0100: begin
+				outstall = 1;
+				next_outbubble = 0;
 				next_write_reg = insn[21] /* writeback */;
 				next_write_num = insn[19:16];
 				next_write_data = insn[23] ? op0 + {26'b0, prev_offset} : op0 - {26'b0, prev_offset};
-				next_lsm_state = 3'b001;
+				next_lsm_state = 4'b1000;
 				$display("LDMSTM: Stage 3: Writing back");
+			end
+			4'b1000: begin
+				outstall = 0;
+				next_lsm_state = 4'b0001;
 			end
 			default: $stop;
 			endcase
