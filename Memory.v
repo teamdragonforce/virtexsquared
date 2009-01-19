@@ -205,7 +205,7 @@ module Memory(
 				if(insn[20]) begin
 					next_write_reg = 1'b1;
 				end
-				if(insn[21] | !insn[24] && !flush) begin
+				if(insn[21] | !insn[24]) begin
 					outstall = 1'b1;
 					if(!rw_wait)
 						next_lsrh_state = 3'b010;
@@ -225,6 +225,11 @@ module Memory(
 			end
 			default: begin end
 			endcase
+			
+			if ((lsrh_state == 3'b001) && flush) begin	/* Reject it. */
+				outstall = 1'b0;
+				next_lsrh_state = 3'b001;
+			end
 		end
 		`DECODE_LDRSTR_UNDEFINED: begin end
 		`DECODE_LDRSTR: if(!inbubble) begin
@@ -249,7 +254,7 @@ module Memory(
 				if(insn[20] /* L */) begin
 					next_write_data = align_rddata;
 				end
-				if(insn[21] /* W */ | !insn[24] /* P */ && !flush /* don't move on if we get a flush on the first time around. */) begin
+				if(insn[21] /* W */ | !insn[24] /* P */) begin
 					outstall = 1'b1;
 					if(!rw_wait)
 						next_lsr_state = 3'b010;
@@ -270,6 +275,11 @@ module Memory(
 			end
 			default: begin end
 			endcase
+			
+			if ((lsr_state == 3'b001) && flush) begin	/* Reject it. */
+				outstall = 1'b0;
+				next_lsr_state = 3'b001;
+			end
 		end
 		/* XXX ldm/stm incorrect in that stupid case where one of the listed regs is the base reg */
 		`DECODE_LDMSTM: if(!inbubble) begin
@@ -284,10 +294,8 @@ module Memory(
 				next_regs = insn[23] /* U */ ? op1[15:0] : {op1[0], op1[1], op1[2], op1[3], op1[4], op1[5], op1[6], op1[7],
 				                                            op1[8], op1[9], op1[10], op1[11], op1[12], op1[13], op1[14], op1[15]};
 				offset = 6'b0;
-				if (!flush /* Don't move on if we got a flush on the first time around. */) begin
-					outstall = 1'b1;
-					next_lsm_state = 4'b0010;
-				end
+				outstall = 1'b1;
+				next_lsm_state = 4'b0010;
 			end
 			4'b0010: begin
 				rd_req = insn[20];
@@ -407,6 +415,10 @@ module Memory(
 			end
 			default: $stop;
 			endcase
+			if ((lsm_state == 4'b0001) && flush) begin	/* Reject it. */
+				outstall = 1'b0;
+				next_lsm_state = 4'b0001;
+			end
 			$display("LDMSTM: Decoded, bubble %d, insn %08x, lsm state %b -> %b, stall %d", inbubble, insn, lsm_state, next_lsm_state, outstall);
 		end
 		`DECODE_LDCSTC: if(!inbubble) begin
