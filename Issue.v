@@ -180,7 +180,7 @@ module Issue(
 		`DECODE_LDRSTR:
 		begin
 			use_cpsr = `COND_MATTERS(cond);
-			use_regs = idxbit(rn) | (insn[20] /* L */ ? 0 : idxbit(rd));
+			use_regs = idxbit(rn) | (insn[25] /* I */ ? idxbit(rm) : 0) | (insn[20] /* L */ ? 0 : idxbit(rd));
 			def_cpsr = 0;
 			def_regs = insn[20] /* L */ ? idxbit(rd) : 0;
 		end
