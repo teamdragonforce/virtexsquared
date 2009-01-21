@@ -30,8 +30,8 @@ module DCache(
 	reg cache_valid [15:0];
 	reg [21:0] cache_tags [15:0];
 	reg [31:0] cache_data [15:0 /* line */] [15:0 /* word */];
-	
-	reg [4:0] i;
+
+	integer i;	
 	initial
 		for (i = 0; i < 16; i = i + 1)
 		begin
