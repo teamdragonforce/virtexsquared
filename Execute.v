@@ -188,7 +188,7 @@ module Execute(
 		begin end
 		`DECODE_BRANCH:
 		begin
-			if(!inbubble && !flush && !delayedflush) begin
+			if(!inbubble && !flush && !delayedflush && !outstall /* Let someone else take precedence. */) begin
 				jmppc = pc + op0 + 32'h8;
 				if(insn[24]) begin
 					next_write_reg = 1;
