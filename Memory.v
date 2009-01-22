@@ -36,6 +36,7 @@ module Memory(
 	input [31:0] op2,
 	input [31:0] spsr,
 	input [31:0] cpsr,
+	input cpsrup,
 	input write_reg,
 	input [3:0] write_num,
 	input [31:0] write_data,
@@ -49,10 +50,12 @@ module Memory(
 	output reg [3:0] out_write_num = 4'bxxxx,
 	output reg [31:0] out_write_data = 32'hxxxxxxxx,
 	output reg [31:0] outspsr = 32'hxxxxxxxx,
-	output reg [31:0] outcpsr = 32'hxxxxxxxx
+	output reg [31:0] outcpsr = 32'hxxxxxxxx,
+	output reg outcpsrup = 1'hx
 	);
 
 	reg [31:0] addr, raddr, prev_raddr, next_regdata, next_outcpsr;
+	reg next_outcpsrup;
 	reg [31:0] prevaddr;
 	reg [3:0] next_regsel, cur_reg, prev_reg;
 	reg next_writeback;
@@ -92,6 +95,7 @@ module Memory(
 		prev_raddr <= raddr;
 		outcpsr <= next_outcpsr;
 		outspsr <= spsr;
+		outcpsrup <= next_outcpsrup;
 		swp_state <= next_swp_state;
 		lsm_state <= next_lsm_state;
 		lsr_state <= next_lsr_state;
@@ -126,6 +130,7 @@ module Memory(
 		cp_write = 32'hxxxxxxxx;
 		offset = prev_offset;
 		next_outcpsr = lsm_state == 4'b0010 ? outcpsr : cpsr;
+		next_outcpsrup = cpsrup;
 		lsrh_rddata = 32'hxxxxxxxx;
 		lsrh_rddata_s1 = 16'hxxxx;
 		lsrh_rddata_s2 = 8'hxx;
@@ -373,6 +378,7 @@ module Memory(
 				cur_reg = insn[23] ? cur_reg : 4'hF - cur_reg;
 				if(cur_reg == 4'hF && insn[22]) begin
 					next_outcpsr = spsr;
+					next_outcpsrup = 1;
 				end
 
 				offset = prev_offset + 6'h4;
@@ -445,8 +451,10 @@ module Memory(
 					next_write_reg = 1'b1;
 					next_write_num = insn[15:12];
 					next_write_data = cp_read;
-				end else
+				end else begin
 					next_outcpsr = {cp_read[31:28], cpsr[27:0]};
+					next_outcpsrup = 1;
+				end
 			end
 			if (cp_busy) begin
 				outstall = 1;

@@ -9,6 +9,7 @@ module Writeback(
 	
 	input [31:0] cpsr,
 	input [31:0] spsr,
+	input cpsrup,
 	
 	output reg regfile_write,
 	output reg [3:0] regfile_write_reg,
@@ -23,13 +24,13 @@ module Writeback(
 	reg [31:0] last_outcpsr = 0, last_outspsr = 0;
 	
 	always @(*)
-		if (inbubble)
+		if (inbubble || !cpsrup)
 			outcpsr = last_outcpsr;
 		else
 			outcpsr = cpsr;
 	
 	always @(*)
-		if (inbubble)
+		if (inbubble || !cpsrup)
 			outspsr = last_outspsr;
 		else
 			outspsr = spsr;

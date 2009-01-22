@@ -60,6 +60,7 @@ module System(input clk);
 	wire [31:0] execute_out_write_data;
 	wire [31:0] execute_out_op0, execute_out_op1, execute_out_op2;
 	wire [31:0] execute_out_cpsr, execute_out_spsr;
+	wire execute_out_cpsrup;
 	
 	wire jmp_out_execute, jmp_out_writeback;
 	wire [31:0] jmppc_out_execute, jmppc_out_writeback;
@@ -70,6 +71,7 @@ module System(input clk);
 	wire [3:0] memory_out_write_num;
 	wire [31:0] memory_out_write_data;
 	wire [31:0] memory_out_cpsr, memory_out_spsr;
+	wire memory_out_cpsrup;
 	
 	wire [31:0] writeback_out_cpsr, writeback_out_spsr;
 
@@ -177,7 +179,7 @@ module System(input clk);
 		.jmp(jmp_out_execute), .jmppc(jmppc_out_execute),
 		.outpc(pc_out_execute), .outinsn(insn_out_execute),
 		.outop0(execute_out_op0), .outop1(execute_out_op1), .outop2(execute_out_op2),
-		.outcpsr(execute_out_cpsr), .outspsr(execute_out_spsr));
+		.outcpsr(execute_out_cpsr), .outspsr(execute_out_spsr), .outcpsrup(execute_out_cpsrup));
 	assign execute_out_backflush = jmp;
 	
 	assign cp_insn = insn_out_execute;
@@ -189,14 +191,14 @@ module System(input clk);
 		.st_read(regfile_read_3), .st_data(regfile_rdata_3),
 		.inbubble(bubble_out_execute), .pc(pc_out_execute), .insn(insn_out_execute),
 		.op0(execute_out_op0), .op1(execute_out_op1), .op2(execute_out_op2),
-		.spsr(execute_out_spsr), .cpsr(execute_out_cpsr),
+		.spsr(execute_out_spsr), .cpsr(execute_out_cpsr), .cpsrup(execute_out_cpsrup),
 		.write_reg(execute_out_write_reg), .write_num(execute_out_write_num), .write_data(execute_out_write_data),
 		.outstall(stall_cause_memory), .outbubble(bubble_out_memory), 
 		.outpc(pc_out_memory), .outinsn(insn_out_memory),
 		.out_write_reg(memory_out_write_reg), .out_write_num(memory_out_write_num), 
 		.out_write_data(memory_out_write_data),
 		.cp_req(cp_req), .cp_ack(cp_ack), .cp_busy(cp_busy), .cp_rnw(cp_rnw), .cp_read(cp_read), .cp_write(cp_write),
-		.outcpsr(memory_out_cpsr), .outspsr(memory_out_spsr) /* XXX data_size */);
+		.outcpsr(memory_out_cpsr), .outspsr(memory_out_spsr), .outcpsrup(memory_out_cpsrup) /* XXX data_size */);
 	
 	Terminal terminal(	
 		.clk(clk),
@@ -207,7 +209,7 @@ module System(input clk);
 		.clk(clk),
 		.inbubble(bubble_out_memory),
 		.write_reg(memory_out_write_reg), .write_num(memory_out_write_num), .write_data(memory_out_write_data),
-		.cpsr(memory_out_cpsr), .spsr(memory_out_spsr),
+		.cpsr(memory_out_cpsr), .spsr(memory_out_spsr), .cpsrup(memory_out_cpsrup),
 		.regfile_write(regfile_write), .regfile_write_reg(regfile_write_reg), .regfile_write_data(regfile_write_data),
 		.outcpsr(writeback_out_cpsr), .outspsr(writeback_out_spsr), 
 		.jmp(jmp_out_writeback), .jmppc(jmppc_out_writeback));
