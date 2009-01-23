@@ -291,11 +291,13 @@ module ALU(
 		end
 		`ALU_SUB: begin
 			{flag_c, result} = diff;
+			flag_c = !flag_c;
 			flag_v = diff_v;
 			setres = 1'b1;
 		end
 		`ALU_RSB: begin
 			{flag_c, result} = rdiff;
+			flag_c = !flag_c;
 			flag_v = rdiff_v;
 			setres = 1'b1;
 		end
@@ -311,11 +313,13 @@ module ALU(
 		end
 		`ALU_SBC: begin
 			{flag_c, result} = diff - {32'b0, (~cpsr[`CPSR_C])};
+			flag_c = !flag_c;
 			flag_v = diff_v | (diff[31] & ~result[31]);
 			setres = 1'b1;
 		end
 		`ALU_RSC: begin
 			{flag_c, result} = rdiff - {32'b0, (~cpsr[`CPSR_C])};
+			flag_c = !flag_c;
 			flag_v = rdiff_v | (rdiff[31] & ~result[31]);
 			setres = 1'b1;
 		end
@@ -331,6 +335,7 @@ module ALU(
 		end
 		`ALU_CMP: begin
 			{flag_c, result} = diff;
+			flag_c = !flag_c;
 			flag_v = diff_v;
 			setres = 1'b0;
 		end
