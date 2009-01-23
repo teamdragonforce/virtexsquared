@@ -196,7 +196,7 @@ module Issue(
 			use_cpsr = `COND_MATTERS(cond);
 			use_regs = 0;
 			def_cpsr = 0;
-			def_regs = 0;
+			def_regs = insn[24] /* L */ ? (16'b1 << 14) : 0;
 		end
 		`DECODE_LDCSTC:	/* Coprocessor data transfer */
 		begin
@@ -291,29 +291,21 @@ module Issue(
 			delayedflush <= 1;
 		else if (!outstall /* anything has been handled this time around */)
 			delayedflush <= 0;
-	
+
 	/* Actually do the issue. */
 	always @(posedge clk)
 	begin
 		if (waiting)
 			$display("ISSUE: Stalling instruction %08x because %d/%d", insn, waiting_cpsr, waiting_regs);
 
-		if((flush || delayedflush) && !outstall)
-		begin
-			cpsr_inflight[0] = 1'b0;
-			cpsr_inflight[1] = 1'b0;
-			regs_inflight[0] = 16'b0;
-			regs_inflight[1] = 16'b0;
-			outbubble <= 1'b1;
-		end
-		else if (!stall)
+		if (!stall)
 		begin
 			cpsr_inflight[0] <= cpsr_inflight[1];	/* I'm not sure how well selects work with arrays, and that seems like a dumb thing to get anusulated by. */
 			cpsr_inflight[1] <= (waiting || inbubble || !condition_met) ? 0 : def_cpsr;
 			regs_inflight[0] <= regs_inflight[1];
 			regs_inflight[1] <= (waiting || inbubble || !condition_met) ? 0 : def_regs;
 			
-			outbubble <= inbubble | waiting | !condition_met;
+			outbubble <= inbubble | waiting | !condition_met | flush | delayedflush;
 			outpc <= inpc;
 			outinsn <= insn;
 		end
