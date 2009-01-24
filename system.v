@@ -127,7 +127,12 @@ module System(input clk);
 		.bus_wdata(bus_wdata_dcache), .bus_rd(bus_rd_dcache),
 		.bus_wr(bus_wr_dcache), .bus_ready(bus_ready));
 
-	BlockRAM blockram(
+`ifdef verilator
+	BigBlockRAM
+`else
+	BlockRAM
+`endif
+	blockram(
 		.clk(clk),
 		.bus_addr(bus_addr), .bus_rdata(bus_rdata_blockram),
 		.bus_wdata(bus_wdata), .bus_rd(bus_rd), .bus_wr(bus_wr),
