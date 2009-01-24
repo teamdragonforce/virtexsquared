@@ -89,51 +89,45 @@ module Execute(
 	reg prevstall = 0;
 	always @(posedge clk)
 		prevstall <= outstall;
-
+	
 	always @(*)
 	begin
 		outstall = stall;
-		next_outbubble = inbubble | flush | delayedflush;
+		
+		casez (insn)
+		`DECODE_ALU_MULT:	/* Multiply -- must come before ALU, because it pattern matches a specific case of ALU */
+			outstall = outstall | ((!prevstall | !mult_done) && !inbubble);
+		endcase
+	end
+	
+	/* ALU inputs */
+	always @(*)
+	begin
+		alu_in0 = op0;
+		alu_in1 = op1;
+		alu_op = insn[24:21];
+		alu_setflags = insn[20] /* S */;
+	end
+	
+	/* Register outputs */
+	always @(*)
+	begin
 		next_outcpsr = cpsr;
 		next_outspsr = spsr;
 		next_outcpsrup = 0;
 		next_write_reg = 0;
 		next_write_num = 4'hx;
 		next_write_data = 32'hxxxxxxxx;
-
-		mult_start = 0;
-		mult_acc0 = 32'hxxxxxxxx;
-		mult_in0 = 32'hxxxxxxxx;
-		mult_in1 = 32'hxxxxxxxx;
-
-		alu_in0 = 32'hxxxxxxxx;
-		alu_in1 = 32'hxxxxxxxx;
-		alu_op = 4'hx;	/* hax! */
-		alu_setflags = 1'bx;
-
-		jmp = 1'b0;
-		jmppc = 32'h00000000;
-
-		casez (insn)
+		
+		casez(insn)
 		`DECODE_ALU_MULT:	/* Multiply -- must come before ALU, because it pattern matches a specific case of ALU */
 		begin
-			if (!prevstall && !inbubble)
-			begin
-				mult_start = 1;
-				mult_acc0 = insn[21] /* A */ ? op0 /* Rn */ : 32'h0;
-				mult_in0 = op1 /* Rm */;
-				mult_in1 = op2 /* Rs */;
-				$display("New MUL instruction");
-			end
-			outstall = outstall | ((!prevstall | !mult_done) && !inbubble);
-			next_outbubble = next_outbubble | !mult_done | !prevstall;
 			next_outcpsr = insn[20] /* S */ ? {mult_result[31] /* N */, mult_result == 0 /* Z */, 1'b0 /* C */, cpsr[28] /* V */, cpsr[27:0]} : cpsr;
 			next_outcpsrup = insn[20] /* S */;
 			next_write_reg = 1;
 			next_write_num = insn[19:16] /* Rd -- why the fuck isn't this the same place as ALU */;
 			next_write_data = mult_result;
 		end
-//		`DECODE_ALU_MUL_LONG,	/* Multiply long */
 		`DECODE_ALU_MRS:	/* MRS (Transfer PSR to register) */
 		begin
 			next_write_reg = 1;
@@ -142,7 +136,6 @@ module Execute(
 				next_write_data = spsr;
 			else
 				next_write_data = cpsr;
-			next_outcpsrup = 1;
 		end
 		`DECODE_ALU_MSR,	/* MSR (Transfer register to PSR) */
 		`DECODE_ALU_MSR_FLAGS:	/* MSR (Transfer register or immediate to PSR, flag bits only) */
@@ -168,20 +161,74 @@ module Execute(
 		begin end
 		`DECODE_ALU:		/* ALU */
 		begin
-			alu_in0 = op0;
-			alu_in1 = op1;
-			alu_op = insn[24:21];
-			alu_setflags = insn[20] /* S */;
-			
 			if (alu_setres) begin
 				next_write_reg = 1;
 				next_write_num = insn[15:12] /* Rd */;
 				next_write_data = alu_result;
 			end
 			
-			next_outcpsr = ((insn[15:12] == 4'b1111) && insn[20]) ? spsr : alu_outcpsr;
-			next_outcpsrup = insn[20] /* S */;
+			if (insn[20] /* S */) begin
+				next_outcpsrup = 1;
+				next_outcpsr = ((insn[15:12] == 4'b1111) && insn[20]) ? spsr : alu_outcpsr;
+			end
 		end
+		`DECODE_LDRSTR_UNDEFINED,	/* Undefined. I hate ARM */
+		`DECODE_LDRSTR,		/* Single data transfer */
+		`DECODE_LDMSTM:		/* Block data transfer */
+		begin end
+		`DECODE_BRANCH:		/* Branch */
+		begin
+			if(insn[24] /* L */) begin
+				next_write_reg = 1;
+				next_write_num = 4'hE; /* link register */
+				next_write_data = pc + 32'h4;
+			end
+		end
+		endcase
+	end
+	
+	/* Multiplier inputs */
+	always @(*)
+	begin
+		mult_start = 0;
+		mult_acc0 = 32'hxxxxxxxx;
+		mult_in0 = 32'hxxxxxxxx;
+		mult_in1 = 32'hxxxxxxxx;
+		
+		casez(insn)
+		`DECODE_ALU_MULT:
+		begin
+			if (!prevstall /* i.e., this is a new one */ && !inbubble /* i.e., this is a real one */)
+			begin
+				mult_start = 1;
+				mult_acc0 = insn[21] /* A */ ? op0 /* Rn */ : 32'h0;
+				mult_in0 = op1 /* Rm */;
+				mult_in1 = op2 /* Rs */;
+				$display("New MUL instruction");
+			end
+		end
+		endcase
+	end
+
+	/* Miscellaneous cleanup. */
+	always @(*)
+	begin
+		next_outbubble = inbubble | flush | delayedflush;
+
+		jmp = 1'b0;
+		jmppc = 32'h00000000;
+
+		casez (insn)
+		`DECODE_ALU_MULT:	/* Multiply -- must come before ALU, because it pattern matches a specific case of ALU */
+			next_outbubble = next_outbubble | !mult_done | !prevstall;
+		`DECODE_ALU_MRS,	/* MRS (Transfer PSR to register) */
+		`DECODE_ALU_MSR,	/* MSR (Transfer register to PSR) */
+		`DECODE_ALU_MSR_FLAGS,	/* MSR (Transfer register or immediate to PSR, flag bits only) */
+		`DECODE_ALU_SWP,	/* Atomic swap */
+		`DECODE_ALU_BX,		/* Branch */
+		`DECODE_ALU_HDATA_REG,	/* Halfword transfer - register offset */
+		`DECODE_ALU_HDATA_IMM,	/* Halfword transfer - immediate offset */
+		`DECODE_ALU,		/* ALU */
 		`DECODE_LDRSTR_UNDEFINED,	/* Undefined. I hate ARM */
 		`DECODE_LDRSTR,		/* Single data transfer */
 		`DECODE_LDMSTM:		/* Block data transfer */
@@ -190,11 +237,6 @@ module Execute(
 		begin
 			if(!inbubble && !flush && !delayedflush && !outstall /* Let someone else take precedence. */) begin
 				jmppc = pc + op0 + 32'h8;
-				if(insn[24]) begin
-					next_write_reg = 1;
-					next_write_num = 4'hE; /* link register */
-					next_write_data = pc + 32'h4;
-				end
 				jmp = 1'b1;
 			end
 		end                     /* Branch */
