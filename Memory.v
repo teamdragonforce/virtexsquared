@@ -65,7 +65,7 @@ module Memory(
 	reg [3:0] next_write_num;
 	reg [31:0] next_write_data;
 
-	reg [2:0] lsr_state = 3'b001, next_lsr_state;
+	reg [3:0] lsr_state = 4'b0001, next_lsr_state;
 	reg [31:0] align_s1, align_s2, align_rddata;
 
 	reg [2:0] lsrh_state = 3'b001, next_lsrh_state;
@@ -79,6 +79,9 @@ module Memory(
 
 	reg [31:0] swp_oldval, next_swp_oldval;
 	reg [1:0] swp_state = 2'b01, next_swp_state;
+	
+	reg do_rd_data_latch;
+	reg [31:0] rd_data_latch = 32'hxxxxxxxx;
 
 	always @(posedge clk)
 	begin
@@ -100,6 +103,8 @@ module Memory(
 		lsm_state <= next_lsm_state;
 		lsr_state <= next_lsr_state;
 		lsrh_state <= next_lsrh_state;
+		if (do_rd_data_latch)
+			rd_data_latch <= rd_data;
 		prevaddr <= addr;
 	end
 	
@@ -120,6 +125,7 @@ module Memory(
 		busaddr = 32'hxxxxxxxx;
 		data_size = 3'bxxx;
 		outstall = 1'b0;
+		do_rd_data_latch = 0;
 		next_write_reg = write_reg;
 		next_write_num = write_num;
 		next_write_data = write_data;
@@ -248,42 +254,69 @@ module Memory(
 			align_s2 = raddr[0] ? {align_s1[7:0], align_s1[31:8]} : align_s1;
 			/* select byte or word */
 			align_rddata = insn[22] ? {24'b0, align_s2[7:0]} : align_s2;
-			wr_data = insn[22] ? {4{op2[7:0]}} : op2; /* XXX need to actually store just a byte */
+			wr_data = insn[22] ? {24'h0, {op2[7:0]}} : op2;
 			data_size = insn[22] ? 3'b001 : 3'b100;
 			case(lsr_state)
-			3'b001: begin
-				rd_req = insn[20] /* L */;
-				wr_req = ~insn[20] /* L */;
+			4'b0001: begin
+				rd_req = insn[20] /* L */ || insn[22] /* B */;
+				wr_req = !insn[20] /* L */ && !insn[22]/* B */;
 				next_write_reg = insn[20] /* L */;
 				next_write_num = insn[15:12];
 				if(insn[20] /* L */) begin
-					next_write_data = align_rddata;
+					next_write_data = insn[22] /* B */ ? {24'h0, align_rddata[7:0]} : align_rddata;
 				end
-				if(insn[21] /* W */ | !insn[24] /* P */) begin
+				if (insn[22] /* B */ && !insn[20] /* L */) begin
+					do_rd_data_latch = 1;
+					outstall = 1'b1;
+					if (!rw_wait)
+						next_lsr_state = 4'b0010;	/* XXX: One-hot, my ass. */
+				end else if(insn[21] /* W */ | !insn[24] /* P */) begin
 					outstall = 1'b1;
 					if(!rw_wait)
-						next_lsr_state = 3'b010;
+						next_lsr_state = 4'b0100;
 				end
 				$display("LDRSTR: rd_req %d, wr_req %d, raddr %08x, wait %d", rd_req, wr_req, raddr, rw_wait);
 			end
-			3'b010: begin
+			4'b0010: begin
+				$display("LDRSTR: Handling STRB");
 				outstall = 1;
+				rd_req = 0;
+				wr_req = 1;
+				next_write_reg = 0;
+				case (busaddr[1:0])
+				2'b00: wr_data = {rd_data_latch[31:8], op2[7:0]};
+				2'b01: wr_data = {rd_data_latch[31:16], op2[7:0], rd_data_latch[7:0]};
+				2'b10: wr_data = {rd_data_latch[31:24], op2[7:0], rd_data_latch[15:0]};
+				2'b11: wr_data = {op2[7:0], rd_data_latch[23:0]};
+				endcase
+				if(insn[21] /* W */ | !insn[24] /* P */) begin
+					if(!rw_wait)
+						next_lsr_state = 4'b0100;
+				end else if (!rw_wait)
+					next_lsr_state = 4'b1000;
+			end
+			4'b0100: begin
+				outstall = 1;
+				rd_req = 0;
+				wr_req= 0;
 				next_outbubble = 0;
 				next_write_reg = 1'b1;
 				next_write_num = insn[19:16];
 				next_write_data = addr;
-				next_lsr_state = 3'b100;
+				next_lsr_state = 4'b1000;
 			end
-			3'b100: begin
+			4'b1000: begin
+				rd_req = 0;
+				wr_req= 0;
 				outstall = 0;
-				next_lsr_state = 3'b001;
+				next_lsr_state = 4'b0001;
 			end
 			default: begin end
 			endcase
 			
-			if ((lsr_state == 3'b001) && flush) begin	/* Reject it. */
+			if ((lsr_state == 4'b0001) && flush) begin	/* Reject it. */
 				outstall = 1'b0;
-				next_lsr_state = 3'b001;
+				next_lsr_state = 4'b0001;
 			end
 		end
 		/* XXX ldm/stm incorrect in that stupid case where one of the listed regs is the base reg */
