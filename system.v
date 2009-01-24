@@ -1,7 +1,15 @@
 `define BUS_ICACHE 1
 `define BUS_DCACHE 0
 
-module System(input clk);
+module System(input clk
+`ifdef verilator
+`else
+	, output wire [8:0] sys_odata,
+	input [8:0] sys_idata,
+	output wire sys_tookdata
+`endif
+	);
+	
 	wire [7:0] bus_req;
 	wire [7:0] bus_ack;
 	wire [31:0] bus_addr;
@@ -208,7 +216,12 @@ module System(input clk);
 	Terminal terminal(	
 		.clk(clk),
 		.cp_req(cp_req), .cp_insn(cp_insn), .cp_ack(cp_ack_terminal), .cp_busy(cp_busy_terminal), .cp_rnw(cp_rnw),
-		.cp_read(cp_read_terminal), .cp_write(cp_write));
+		.cp_read(cp_read_terminal), .cp_write(cp_write)
+`ifdef verilator
+`else
+		, .sys_odata(sys_odata), .sys_tookdata(sys_tookdata), .sys_idata(sys_idata)
+`endif
+		);
 	
 	Writeback writeback(
 		.clk(clk),

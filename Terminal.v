@@ -7,7 +7,14 @@ module Terminal(
 	output reg cp_busy,
 	input cp_rnw,
 	output reg [31:0] cp_read = 0,
-	input [31:0] cp_write);
+	input [31:0] cp_write
+`ifdef verilator
+`else
+	, output reg [8:0] sys_odata = 0,
+	input [8:0] sys_idata,
+	output reg sys_tookdata = 0
+`endif
+);
 	
 	/* Terminal pretends to be cp5. */
 	reg towrite = 0;
@@ -41,5 +48,16 @@ module Terminal(
 			$c("{extern void term_output(unsigned char d); term_output(",data,");}");
 		else if (didread || !indata[8])
 			indata = $c("({extern unsigned int term_input(); term_input();})");
+`else
+	always @(posedge clk)
+	begin
+		sys_odata = {towrite,data};
+		if (didread || !indata[8])
+		begin
+			indata = sys_idata;
+			sys_tookdata = 1;
+		end else
+			sys_tookdata = 0;
+	end
 `endif
 endmodule
