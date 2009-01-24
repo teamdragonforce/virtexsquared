@@ -16,8 +16,10 @@ module Fetch(
 	
 	reg qjmp = 0;	/* A jump has been queued up while we were waiting. */
 	reg [31:0] qjmppc;
-	always @(posedge clk)
-		if ((rd_wait || stall) && jmp)
+	always @(posedge clk or negedge Nrst)
+		if (!Nrst)
+			qjmp <= 0;
+		else if ((rd_wait || stall) && jmp)
 			{qjmp,qjmppc} <= {jmp, jmppc};
 		else if (!rd_wait && !stall && qjmp)	/* It has already been intoed. */
 			{qjmp,qjmppc} <= {1'b0, 32'hxxxxxxxx};
@@ -36,18 +38,10 @@ module Fetch(
 	assign rd_addr = reqpc;
 	assign rd_req = 1;
 	
-	always @(negedge Nrst)
-	begin
-		pc <= 32'hFFFFFFFC;
-		qjmp <= 0;
-		bubble <= 1;
-	end
-	
-	always @(posedge clk)
+	always @(posedge clk or negedge Nrst)
 	begin
 		if (!Nrst) begin
 			pc <= 32'hFFFFFFFC;
-			qjmp <= 0;
 			bubble <= 1;
 		end else if (!stall)
 		begin
