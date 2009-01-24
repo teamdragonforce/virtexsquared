@@ -1,14 +1,14 @@
 module RegFile(
 	input clk,
 	input [3:0] read_0,
-	output reg [31:0] rdata_0,
+	output wire [31:0] rdata_0,
 	input [3:0] read_1,
-	output reg [31:0] rdata_1,
+	output wire [31:0] rdata_1,
 	input [3:0] read_2,
-	output reg [31:0] rdata_2,
+	output wire [31:0] rdata_2,
 	input [3:0] read_3,
-	output reg [31:0] rdata_3,
-	output reg [31:0] spsr,
+	output wire [31:0] rdata_3,
+	output wire [31:0] spsr,
 	input write,
 	input [3:0] write_reg,
 	input [31:0] write_data
@@ -35,30 +35,11 @@ module RegFile(
 		regfile[4'hF] = 32'h00000000;	/* Start off claiming we are in user mode. */
 	end
 	
-	always @(*)
-	begin
-		if ((read_0 == write_reg) && write)
-			rdata_0 = write_data;
-		else
-			rdata_0 = regfile[read_0];
-		
-		if ((read_1 == write_reg) && write)
-			rdata_1 = write_data;
-		else
-			rdata_1 = regfile[read_1];
-		
-		if ((read_2 == write_reg) && write)
-			rdata_2 = write_data;
-		else
-			rdata_2 = regfile[read_2];
-
-		if ((read_3 == write_reg) && write)
-			rdata_3 = write_data;
-		else
-			rdata_3 = regfile[read_3];
-		
-		spsr = regfile[4'hF];
-	end
+	assign rdata_0 = ((read_0 == write_reg) && write) ? write_data : regfile[read_0];
+	assign rdata_1 = ((read_1 == write_reg) && write) ? write_data : regfile[read_1];
+	assign rdata_2 = ((read_2 == write_reg) && write) ? write_data : regfile[read_2];
+	assign rdata_3 = ((read_3 == write_reg) && write) ? write_data : regfile[read_3];
+	assign spsr = regfile[4'hF];
 	
 	always @(posedge clk)
 		if (write)
