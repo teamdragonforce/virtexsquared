@@ -19,7 +19,7 @@ module BigBlockRAM(
 	reg [31:0] data [((8*1024*1024) / 4 - 1):0];
 	
 	reg [31:0] temprdata = 0;
-	reg [22:0] lastread = 23'h7FFFFFFF;
+	reg [22:0] lastread = 23'h7FFFFF;
 	assign bus_rdata = (bus_rd && decode) ? temprdata : 32'h0;
 	
 	assign bus_ready = decode &&
