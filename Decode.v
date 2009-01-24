@@ -80,6 +80,69 @@ module Decode(
 		read_1 = 4'hx;
 		read_2 = 4'hx;
 		
+		casez (insn)
+		`DECODE_ALU_MULT:	/* Multiply -- must come before ALU, because it pattern matches a specific case of ALU */
+		begin
+			read_0 = insn[15:12]; /* Rn */
+			read_1 = insn[3:0];   /* Rm */
+			read_2 = insn[11:8];  /* Rs */
+		end
+		`DECODE_ALU_MRS:	/* MRS (Transfer PSR to register) */
+		begin end
+		`DECODE_ALU_MSR:	/* MSR (Transfer register to PSR) */
+			read_0 = insn[3:0];	/* Rm */
+		`DECODE_ALU_MSR_FLAGS:	/* MSR (Transfer register or immediate to PSR, flag bits only) */
+			read_0 = insn[3:0];	/* Rm */
+		`DECODE_ALU_SWP:	/* Atomic swap */
+		begin
+			read_0 = insn[19:16]; /* Rn */
+			read_1 = insn[3:0];   /* Rm */
+		end
+		`DECODE_ALU_BX:		/* Branch and exchange */
+			read_0 = insn[3:0];   /* Rn */
+		`DECODE_ALU_HDATA_REG:	/* Halfword transfer - register offset */
+		begin
+			read_0 = insn[19:16];
+			read_1 = insn[3:0];
+			read_2 = insn[15:12];
+		end
+		`DECODE_ALU_HDATA_IMM:	/* Halfword transfer - immediate offset */
+		begin
+			read_0 = insn[19:16];
+			read_1 = insn[15:12];
+		end
+		`DECODE_ALU:		/* ALU */
+		begin
+			read_0 = insn[19:16]; /* Rn */
+			read_1 = insn[3:0];   /* Rm */
+			read_2 = insn[11:8];  /* Rs for shift */
+		end
+		`DECODE_LDRSTR_UNDEFINED:	/* Undefined. I hate ARM */
+		begin end
+		`DECODE_LDRSTR:		/* Single data transfer */
+		begin
+			read_0 = insn[19:16]; /* Rn */
+			read_1 = insn[3:0];   /* Rm */
+			read_2 = insn[15:12];
+		end
+		`DECODE_LDMSTM:		/* Block data transfer */
+			read_0 = insn[19:16];
+		`DECODE_BRANCH:		/* Branch */
+		begin end
+		`DECODE_LDCSTC:		/* Coprocessor data transfer */
+			read_0 = insn[19:16];
+		`DECODE_CDP:		/* Coprocessor data op */
+		begin end
+		`DECODE_MRCMCR:		/* Coprocessor register transfer */
+			read_0 = insn[15:12];
+		`DECODE_SWI:		/* SWI */
+		begin end
+		default:
+			$display("Undecoded instruction");
+		endcase
+	end
+	
+	always @(*) begin
 		op0_out = 32'hxxxxxxxx;
 		op1_out = 32'hxxxxxxxx;
 		op2_out = 32'hxxxxxxxx;
@@ -88,79 +151,41 @@ module Decode(
 		casez (insn)
 		`DECODE_ALU_MULT:	/* Multiply -- must come before ALU, because it pattern matches a specific case of ALU */
 		begin
-			read_0 = insn[15:12]; /* Rn */
-			read_1 = insn[3:0];   /* Rm */
-			read_2 = insn[11:8];  /* Rs */
-			
 			op0_out = regs0;
 			op1_out = regs1;
 			op2_out = regs2;
 		end
-//		`DECODE_ALU_MUL_LONG:	/* Multiply long */
-//		begin
-//			read_0 = insn[11:8]; /* Rn */
-//			read_1 = insn[3:0];   /* Rm */
-//			read_2 = 4'b0;       /* anyus */
-//
-//			op1_res = regs1;
-//		end
 		`DECODE_ALU_MRS:	/* MRS (Transfer PSR to register) */
 		begin end
 		`DECODE_ALU_MSR:	/* MSR (Transfer register to PSR) */
-		begin
-			read_0 = insn[3:0];	/* Rm */
-			
 			op0_out = regs0;
-		end
 		`DECODE_ALU_MSR_FLAGS:	/* MSR (Transfer register or immediate to PSR, flag bits only) */
-		begin
-			read_0 = insn[3:0];	/* Rm */
-			
 			if(insn[25]) begin     /* the constant case */
 				op0_out = rotate_res;
 			end else begin
 				op0_out = regs0;
 			end
-		end
 		`DECODE_ALU_SWP:	/* Atomic swap */
 		begin
-			read_0 = insn[19:16]; /* Rn */
-			read_1 = insn[3:0];   /* Rm */
-			
 			op0_out = regs0;
 			op1_out = regs1;
 		end
 		`DECODE_ALU_BX:		/* Branch and exchange */
-		begin
-			read_0 = insn[3:0];   /* Rn */
-			
 			op0_out = regs0;
-		end
 		`DECODE_ALU_HDATA_REG:	/* Halfword transfer - register offset */
 		begin
-			read_0 = insn[19:16];
-			read_1 = insn[3:0];
-			read_2 = insn[15:12];
-
 			op0_out = regs0;
 			op1_out = regs1;
 			op2_out = regs2;
 		end
 		`DECODE_ALU_HDATA_IMM:	/* Halfword transfer - immediate offset */
 		begin
-			read_0 = insn[19:16];
-			read_1 = insn[15:12];
-			
 			op0_out = regs0;
 			op1_out = {24'b0, insn[11:8], insn[3:0]};
 			op2_out = regs1;
 		end
 		`DECODE_ALU:		/* ALU */
 		begin
-			read_0 = insn[19:16]; /* Rn */
-			read_1 = insn[3:0];   /* Rm */
-			read_2 = insn[11:8];  /* Rs for shift */
-			
 			op0_out = regs0;
 			if(insn[25]) begin     /* the constant case */
 				carry_out = incpsr[`CPSR_C];
@@ -170,16 +195,8 @@ module Decode(
 				op1_out = shift_res;
 			end
 		end
-		`DECODE_LDRSTR_UNDEFINED:	/* Undefined. I hate ARM */
-		begin
-			/* eat shit */
-		end
 		`DECODE_LDRSTR:		/* Single data transfer */
 		begin
-			read_0 = insn[19:16]; /* Rn */
-			read_1 = insn[3:0];   /* Rm */
-			read_2 = insn[15:12];
-			
 			op0_out = regs0;
 			if(!insn[25] /* immediate */) begin
 				op1_out = {20'b0, insn[11:0]};
@@ -192,39 +209,24 @@ module Decode(
 		end
 		`DECODE_LDMSTM:		/* Block data transfer */
 		begin
-			read_0 = insn[19:16];
-			
 			op0_out = regs0;
 			op1_out = {16'b0, insn[15:0]};
 		end
 		`DECODE_BRANCH:		/* Branch */
-		begin
 			op0_out = {{6{insn[23]}}, insn[23:0], 2'b0};
-		end
 		`DECODE_LDCSTC:		/* Coprocessor data transfer */
 		begin
-			read_0 = insn[19:16];
-			
 			op0_out = regs0;
 			op1_out = {24'b0, insn[7:0]};
 		end
 		`DECODE_CDP:		/* Coprocessor data op */
-		begin
-		end
+		begin end
 		`DECODE_MRCMCR:		/* Coprocessor register transfer */
-		begin
-			read_0 = insn[15:12];
-			
 			op0_out = regs0;
-		end
 		`DECODE_SWI:		/* SWI */
-		begin
-		end
-		default:
-			$display("Undecoded instruction");
+		begin end
 		endcase
 	end
-
 	
 	always @ (posedge clk) begin
 		if (!stall)
