@@ -30,7 +30,7 @@ module ICache(
 	
 	reg cache_valid [15:0];
 	reg [21:0] cache_tags [15:0];
-	reg [31:0] cache_data [15:0 /* line */] [15:0 /* word */];
+	reg [31:0] cache_data [255:0 /* {line, word} */];	//synthesis attribute ram_style of cache_data is distributed
 	
 	integer i;
 	initial
@@ -48,12 +48,6 @@ module ICache(
 	reg [31:0] prev_rd_addr = 32'hFFFFFFFF;
 	
 	wire cache_hit = cache_valid[rd_idx] && (cache_tags[rd_idx] == rd_tag);
-
-	wire [31:0] curdata = cache_data[rd_idx][rd_didx_word];
-	always @(*) begin
-		rd_wait = rd_req && !cache_hit;
-		rd_data = curdata;
-	end
 	
 	reg [3:0] cache_fill_pos = 0;
 	assign bus_req = rd_req && !cache_hit; /* xxx, needed for Verilator */
@@ -65,23 +59,27 @@ module ICache(
 			bus_addr = 0;
 			bus_rd = 0;
 		end
+
+	wire [31:0] curdata = cache_data[{rd_idx,rd_didx_word}];
+	always @(*) begin
+		rd_wait = rd_req && !cache_hit;
+		rd_data = curdata;
+	end
 	
 	always @(posedge clk) begin
 		prev_rd_addr <= {rd_addr[31:6], 6'b0};
 		if (cache_fill_pos != 0 && ((prev_rd_addr != {rd_addr[31:6], 6'b0}) || cache_hit))	/* If this wasn't from the same line, or we've moved on somehow, reset the fill circuitry. */
 			cache_fill_pos <= 0;
-		else if (rd_req && !cache_hit) begin
-			if (bus_ack && bus_ready) begin	/* Started the fill, and we have data. */
-				$display("ICACHE: FILL: rd addr %08x; bus addr %08x; bus data %08x", rd_addr, bus_addr, bus_rdata);
-				cache_data[rd_idx][cache_fill_pos] <= bus_rdata;
-				cache_fill_pos <= cache_fill_pos + 1;
-				if (cache_fill_pos == 15) begin	/* Done? */
-					cache_tags[rd_idx] <= rd_tag;
-					cache_valid[rd_idx] <= 1;
-					$display("ICACHE: Fill complete for line %x, tag %x", rd_idx, rd_tag);
-				end else
-					cache_valid[rd_idx] <= 0;
-			end
+		else if (rd_req && !cache_hit && bus_ack && bus_ready) begin
+			$display("ICACHE: FILL: rd addr %08x; bus addr %08x; bus data %08x", rd_addr, bus_addr, bus_rdata);
+			cache_data[{rd_idx,cache_fill_pos}] <= bus_rdata;
+			cache_fill_pos <= cache_fill_pos + 1;
+			if (cache_fill_pos == 15) begin	/* Done? */
+				cache_tags[rd_idx] <= rd_tag;
+				cache_valid[rd_idx] <= 1;
+				$display("ICACHE: Fill complete for line %x, tag %x", rd_idx, rd_tag);
+			end else
+				cache_valid[rd_idx] <= 0;
 		end
 	end
 endmodule

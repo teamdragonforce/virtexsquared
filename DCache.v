@@ -29,7 +29,7 @@ module DCache(
 	
 	reg cache_valid [15:0];
 	reg [21:0] cache_tags [15:0];
-	reg [31:0] cache_data [15:0 /* line */] [15:0 /* word */];
+	reg [31:0] cache_data [255:0 /* {line,word} */];
 
 	integer i;	
 	initial
@@ -48,7 +48,7 @@ module DCache(
 	
 	wire cache_hit = cache_valid[idx] && (cache_tags[idx] == tag);
 	
-	wire [31:0] curdata = cache_data[idx][didx_word];
+	wire [31:0] curdata = cache_data[{idx,didx_word}];
 	always @(*) begin
 		rw_wait = (rd_req && !cache_hit) || (wr_req && (!bus_ack || !bus_ready));
 		rd_data = curdata;
@@ -79,18 +79,18 @@ module DCache(
 		prev_addr <= {addr[31:6], 6'b0};
 		if (rd_req && (cache_fill_pos != 0) && ((prev_addr != {addr[31:6], 6'b0}) || cache_hit))	/* If this wasn't from the same line, or we've moved on somehow, reset the fill circuitry. */
 			cache_fill_pos <= 0;
-		else if (rd_req && !cache_hit) begin
-			if (bus_ready && bus_ack) begin	/* Started the fill, and we have data. */
-				$display("DCACHE: FILL: rd addr %08x; bus addr %08x; bus data %08x, bus_req %d, bus_ack %d", addr, bus_addr, bus_rdata, bus_req, bus_ack);
-				cache_data[idx][cache_fill_pos] <= bus_rdata;
-				cache_fill_pos <= cache_fill_pos + 1;
-				if (cache_fill_pos == 15) begin	/* Done? */
-					cache_tags[idx] <= tag;
-					cache_valid[idx] <= 1;
-				end else
-					cache_valid[idx] <= 0;
-			end
-		end else if (wr_req && cache_hit)
-			cache_data[idx][addr[5:2]] <= wr_data;
+		else if (rd_req && !cache_hit && bus_ready && bus_ack) begin	/* Started the fill, and we have data. */
+			$display("DCACHE: FILL: rd addr %08x; bus addr %08x; bus data %08x, bus_req %d, bus_ack %d", addr, bus_addr, bus_rdata, bus_req, bus_ack);
+			cache_fill_pos <= cache_fill_pos + 1;
+			if (cache_fill_pos == 15) begin	/* Done? */
+				cache_tags[idx] <= tag;
+				cache_valid[idx] <= 1;
+			end else
+				cache_valid[idx] <= 0;
+		end
+		
+		/* Split this out because XST is kind of silly about this sort of thing. */
+		if ((rd_req && !cache_hit && bus_ready && bus_ack) || (wr_req && cache_hit))
+			cache_data[wr_req ? {idx,addr[5:2]} : {idx,cache_fill_pos}] <= wr_req ? wr_data : bus_rdata;
 	end
 endmodule
