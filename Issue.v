@@ -12,7 +12,7 @@ module Issue(
 	input [31:0] inpc,
 	input [31:0] cpsr,
 	
-	output reg outstall = 0,	/* stage outputs */
+	output wire outstall,	/* stage outputs */
 	output reg outbubble = 1,
 	output reg [31:0] outpc = 0,
 	output reg [31:0] outinsn = 0
@@ -265,10 +265,6 @@ module Issue(
 	reg cpsr_inflight [1:0];
 	reg [15:0] regs_inflight [1:0];
 	
-	reg waiting_cpsr;
-	reg waiting_regs;
-	wire waiting = waiting_cpsr | waiting_regs;
-	
 	initial
 	begin
 		cpsr_inflight[0] = 0;
@@ -276,14 +272,11 @@ module Issue(
 		regs_inflight[0] = 0;
 		regs_inflight[1] = 0;
 	end
-		
-	always @(*)
-	begin
-		waiting_cpsr = use_cpsr & (cpsr_inflight[0] | cpsr_inflight[1]);
-		waiting_regs = |(use_regs & (regs_inflight[0] | regs_inflight[1]));
-		
-		outstall = (waiting && !inbubble && !flush) || stall;	/* Happens in an always @*, because it is an exception. */
-	end
+	
+	wire waiting_cpsr = use_cpsr & (cpsr_inflight[0] | cpsr_inflight[1]);
+	wire waiting_regs = |(use_regs & (regs_inflight[0] | regs_inflight[1]));
+	wire waiting = waiting_cpsr | waiting_regs;
+	assign outstall = (waiting && !inbubble && !flush) || stall;
 
 	reg delayedflush = 0;
 	always @(posedge clk)
