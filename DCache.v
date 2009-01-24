@@ -48,9 +48,10 @@ module DCache(
 	
 	wire cache_hit = cache_valid[idx] && (cache_tags[idx] == tag);
 	
+	wire [31:0] curdata = cache_data[idx][didx_word];
 	always @(*) begin
 		rw_wait = (rd_req && !cache_hit) || (wr_req && (!bus_ack || !bus_ready));
-		rd_data = cache_data[idx][didx_word];
+		rd_data = curdata;
 		if (!rw_wait && rd_req)
 			$display("DCACHE: READ COMPLETE: Addr %08x, data %08x", addr, rd_data);
 	end
@@ -90,6 +91,6 @@ module DCache(
 					cache_valid[idx] <= 0;
 			end
 		end else if (wr_req && cache_hit)
-			cache_data[idx][addr[5:2]] = wr_data;
+			cache_data[idx][addr[5:2]] <= wr_data;
 	end
 endmodule

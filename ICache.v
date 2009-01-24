@@ -48,10 +48,11 @@ module ICache(
 	reg [31:0] prev_rd_addr = 32'hFFFFFFFF;
 	
 	wire cache_hit = cache_valid[rd_idx] && (cache_tags[rd_idx] == rd_tag);
-	
-	always @(*) begin	/* XXX does this work nowadays? */
+
+	wire [31:0] curdata = cache_data[rd_idx][rd_didx_word];
+	always @(*) begin
 		rd_wait = rd_req && !cache_hit;
-		rd_data = cache_data[rd_idx][rd_didx_word];
+		rd_data = curdata;
 	end
 	
 	reg [3:0] cache_fill_pos = 0;
