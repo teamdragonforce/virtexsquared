@@ -125,6 +125,7 @@ module Memory(
 		busaddr = 32'hxxxxxxxx;
 		data_size = 3'bxxx;
 		outstall = 1'b0;
+		st_read = 4'hx;
 		do_rd_data_latch = 0;
 		next_write_reg = write_reg;
 		next_write_num = write_num;
