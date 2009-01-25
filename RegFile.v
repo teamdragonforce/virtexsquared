@@ -1,5 +1,6 @@
 module RegFile(
 	input clk,
+	input Nrst,
 	input [3:0] read_0,
 	output wire [31:0] rdata_0,
 	input [3:0] read_1,
@@ -15,24 +16,11 @@ module RegFile(
 	);
 	
 	reg [31:0] regfile [0:15];
+	integer i;
 	
 	initial begin
-		regfile[4'h0] = 32'h00000005;
-		regfile[4'h1] = 32'h00000050;
-		regfile[4'h2] = 32'h00000500;
-		regfile[4'h3] = 32'h00005000;
-		regfile[4'h4] = 32'h00050000;
-		regfile[4'h5] = 32'h00500000;
-		regfile[4'h6] = 32'h05000000;
-		regfile[4'h7] = 32'h50000000;
-		regfile[4'h8] = 32'hA0000000;
-		regfile[4'h9] = 32'h0A000000;
-		regfile[4'hA] = 32'h00A00000;
-		regfile[4'hB] = 32'h000A0000;
-		regfile[4'hC] = 32'h0000A000;
-		regfile[4'hD] = 32'h00000A00;
-		regfile[4'hE] = 32'h000000A0;
-		regfile[4'hF] = 32'h00000000;	/* Start off claiming we are in user mode. */
+		for (i = 0; i < 16; i = i + 1)
+			regfile[i] = 0;
 	end
 	
 	assign rdata_0 = ((read_0 == write_reg) && write) ? write_data : regfile[read_0];
@@ -41,7 +29,10 @@ module RegFile(
 	assign rdata_3 = ((read_3 == write_reg) && write) ? write_data : regfile[read_3];
 	assign spsr = regfile[4'hF];
 	
-	always @(posedge clk)
-		if (write)
+	always @(posedge clk or negedge Nrst)
+		if (!Nrst) begin
+			for (i = 0; i < 16; i = i + 1)
+				regfile[i] <= 0;
+		end else if (write)
 			regfile[write_reg] <= write_data;
 endmodule

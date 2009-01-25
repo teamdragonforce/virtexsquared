@@ -279,19 +279,27 @@ module Issue(
 	assign outstall = (waiting && !inbubble && !flush) || stall;
 
 	reg delayedflush = 0;
-	always @(posedge clk)
-		if (flush && outstall /* halp! I can't do it now, maybe later? */)
+	always @(posedge clk/* or negedge Nrst*/)
+		if (!Nrst)
+			delayedflush <= 0;
+		else if (flush && outstall /* halp! I can't do it now, maybe later? */)
 			delayedflush <= 1;
 		else if (!outstall /* anything has been handled this time around */)
 			delayedflush <= 0;
 
 	/* Actually do the issue. */
-	always @(posedge clk)
+	always @(posedge clk or negedge Nrst)
 	begin
 		if (waiting)
 			$display("ISSUE: Stalling instruction %08x because %d/%d", insn, waiting_cpsr, waiting_regs);
 
-		if (!stall)
+		if (!Nrst) begin
+			cpsr_inflight[0] <= 0;
+			cpsr_inflight[1] <= 0;
+			regs_inflight[0] <= 0;
+			regs_inflight[1] <= 0;
+			outbubble <= 1;
+		end else if (!stall)
 		begin
 			cpsr_inflight[0] <= cpsr_inflight[1];	/* I'm not sure how well selects work with arrays, and that seems like a dumb thing to get anusulated by. */
 			cpsr_inflight[1] <= (waiting || inbubble || !condition_met) ? 0 : def_cpsr;

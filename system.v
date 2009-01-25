@@ -1,7 +1,7 @@
 `define BUS_ICACHE 1
 `define BUS_DCACHE 0
 
-module System(input clk
+module System(input clk, input rst
 `ifdef verilator
 `else
 	, output wire [8:0] sys_odata,
@@ -148,7 +148,7 @@ module System(input clk
 
 	Fetch fetch(
 		.clk(clk),
-		.Nrst(1'b1 /* XXX */),
+		.Nrst(~rst),
 		.rd_addr(icache_rd_addr), .rd_req(icache_rd_req),
 		.rd_wait(icache_rd_wait), .rd_data(icache_rd_data),
 		.stall(stall_cause_issue), .jmp(jmp), .jmppc(jmppc),
@@ -157,7 +157,7 @@ module System(input clk
 	
 	Issue issue(
 		.clk(clk),
-		.Nrst(1'b1 /* XXX */),
+		.Nrst(~rst),
 		.stall(stall_cause_execute), .flush(execute_out_backflush | writeback_out_backflush),
 		.inbubble(bubble_out_fetch), .insn(insn_out_fetch),
 		.inpc(pc_out_fetch), .cpsr(writeback_out_cpsr),
@@ -165,7 +165,7 @@ module System(input clk
 		.outpc(pc_out_issue), .outinsn(insn_out_issue));
 	
 	RegFile regfile(
-		.clk(clk),
+		.clk(clk), .Nrst(~rst),
 		.read_0(regfile_read_0), .read_1(regfile_read_1), .read_2(regfile_read_2), .read_3(regfile_read_3),
 		.rdata_0(regfile_rdata_0), .rdata_1(regfile_rdata_1), .rdata_2(regfile_rdata_2), .rdata_3(regfile_rdata_3),
 		.spsr(regfile_spsr),
@@ -181,7 +181,7 @@ module System(input clk
 		.rdata_0(regfile_rdata_0), .rdata_1(regfile_rdata_1), .rdata_2(regfile_rdata_2));
 	
 	Execute execute(
-		.clk(clk), .Nrst(1'b0),
+		.clk(clk), .Nrst(~rst),
 		.stall(stall_cause_memory), .flush(writeback_out_backflush),
 		.inbubble(bubble_out_issue), .pc(pc_out_issue), .insn(insn_out_issue),
 		.cpsr(decode_out_cpsr), .spsr(decode_out_spsr), .op0(decode_out_op0), .op1(decode_out_op1),
@@ -197,7 +197,7 @@ module System(input clk
 	
 	assign cp_insn = insn_out_execute;
 	Memory memory(
-		.clk(clk), .Nrst(1'b0),
+		.clk(clk), .Nrst(~rst),
 		/* stall? */ .flush(writeback_out_backflush),
 		.busaddr(dcache_addr), .rd_req(dcache_rd_req), .wr_req(dcache_wr_req),
 		.rw_wait(dcache_rw_wait), .wr_data(dcache_wr_data), .rd_data(dcache_rd_data),

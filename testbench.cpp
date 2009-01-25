@@ -65,7 +65,7 @@ int main()
 	while (!Verilated::gotFinish())
 	{
 		top->clk = !top->clk;
-		
+		top->rst = 0;
 		top->eval();
 //		if (top->clk == 1)
 //			printf("%d: Bubble: %d. PC: %08x. Ins'n: %08x\n", main_time/2, top->bubbleshield, top->pc, top->insn);
