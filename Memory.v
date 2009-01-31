@@ -444,12 +444,11 @@ module Memory(
 		endcase
 	end
 	
-	/* Bus control logic. */
+	/* Bus/address control logic. */
 	always @(*)
 	begin
 		rd_req = 1'b0;
 		wr_req = 1'b0;
-		wr_data = 32'hxxxxxxxx;
 		offset = prev_offset;
 		addr = prevaddr;
 		raddr = 32'hxxxxxxxx;
@@ -463,10 +462,8 @@ module Memory(
 			case(swp_state)
 			`SWP_READING:
 				rd_req = 1'b1;
-			`SWP_WRITING: begin
+			`SWP_WRITING:
 				wr_req = 1'b1;
-				wr_data = insn[22] ? {4{op1[7:0]}} : op1;
-			end
 			default: begin end
 			endcase
 		end
@@ -478,18 +475,12 @@ module Memory(
 			busaddr = raddr;
 			/* rotate to correct position */
 			case(insn[6:5])
-			2'b01: begin /* unsigned half */
-				wr_data = {2{op2[15:0]}}; /* XXX need to store halfword */
+			2'b01: /* unsigned half */
 				data_size = 3'b010;
-			end
-			2'b10: begin /* signed byte */
-				wr_data = {4{op2[7:0]}};
+			2'b10: /* signed byte */
 				data_size = 3'b001;
-			end
-			2'b11: begin /* signed half */
-				wr_data = {2{op2[15:0]}};
+			2'b11: /* signed half */
 				data_size = 3'b010;
-			end
 			default: begin
 				wr_data = 32'hxxxxxxxx;
 				data_size = 3'bxxx;
@@ -518,15 +509,8 @@ module Memory(
 				rd_req = insn[20] /* L */ || insn[22] /* B */;
 				wr_req = !insn[20] /* L */ && !insn[22]/* B */;
 			end
-			`LSR_STRB_WR: begin
+			`LSR_STRB_WR:
 				wr_req = 1;
-				case (busaddr[1:0])
-				2'b00: wr_data = {rd_data_latch[31:8], op2[7:0]};
-				2'b01: wr_data = {rd_data_latch[31:16], op2[7:0], rd_data_latch[7:0]};
-				2'b10: wr_data = {rd_data_latch[31:24], op2[7:0], rd_data_latch[15:0]};
-				2'b11: wr_data = {op2[7:0], rd_data_latch[23:0]};
-				endcase
-			end
 			`LSR_BASEWB: begin end
 			`LSR_WBFLUSH: begin end
 			default: begin end
@@ -540,7 +524,6 @@ module Memory(
 			`LSM_MEMIO: begin
 				rd_req = insn[20];
 				wr_req = ~insn[20];
-				wr_data = (cur_reg == 4'hF) ? (pc + 12) : st_data;
 				offset = prev_offset + 6'h4;
 				offset_sel = insn[24] ? offset : prev_offset;
 				raddr = insn[23] ? op0 + {26'b0, offset_sel} : op0 - {26'b0, offset_sel};
@@ -558,93 +541,61 @@ module Memory(
 		endcase
 	end
 	
+	/* Bus data control logic. */
 	always @(*)
 	begin
-		st_read = 4'hx;
-		do_rd_data_latch = 0;
+		wr_data = 32'hxxxxxxxx;
 		
-		next_outbubble = inbubble;
-		next_regs = regs;
-		
-		offset = prev_offset;
-		lsrh_rddata = 32'hxxxxxxxx;
-		lsrh_rddata_s1 = 16'hxxxx;
-		lsrh_rddata_s2 = 8'hxx;
-		next_swp_oldval = swp_oldval;
-		cur_reg = prev_reg;
-
-		/* XXX shit not given about endianness */
 		casez(insn)
-		`DECODE_ALU_SWP: if(!inbubble) begin
-			next_outbubble = rw_wait;
-			case(swp_state)
-			`SWP_READING:
-				if(!rw_wait)
-					next_swp_oldval = rd_data;
-			`SWP_WRITING: begin end
-			default: begin end
-			endcase
-		end
+		`DECODE_ALU_SWP: if(!inbubble)
+			if (swp_state == `SWP_WRITING)
+				wr_data = insn[22] ? {4{op1[7:0]}} : op1;
 		`DECODE_ALU_MULT: begin end
 		`DECODE_ALU_HDATA_REG,
-		`DECODE_ALU_HDATA_IMM: if(!inbubble) begin
-			next_outbubble = rw_wait;
-			
-			/* rotate to correct position */
+		`DECODE_ALU_HDATA_IMM: if(!inbubble)
 			case(insn[6:5])
-			2'b01: begin /* unsigned half */
-				lsrh_rddata = {16'b0, raddr[1] ? rd_data[31:16] : rd_data[15:0]};
-			end
-			2'b10: begin /* signed byte */
-				lsrh_rddata_s1 = raddr[1] ? rd_data[31:16] : rd_data[15:0];
-				lsrh_rddata_s2 = raddr[0] ? lsrh_rddata_s1[15:8] : lsrh_rddata_s1[7:0];
-				lsrh_rddata = {{24{lsrh_rddata_s2[7]}}, lsrh_rddata_s2};
-			end
-			2'b11: begin /* signed half */
-				lsrh_rddata = raddr[1] ? {{16{rd_data[31]}}, rd_data[31:16]} : {{16{rd_data[15]}}, rd_data[15:0]};
-			end
-			default: begin
-				lsrh_rddata = 32'hxxxxxxxx;
-			end
-			endcase
-
-			case(lsrh_state)
-			`LSRH_MEMIO: begin end
-			`LSRH_BASEWB:
-				next_outbubble = 1'b0;
-			`LSRH_WBFLUSH: begin end
+			2'b01: /* unsigned half */
+				wr_data = {2{op2[15:0]}}; /* XXX need to store halfword */
+			2'b10: /* signed byte */
+				wr_data = {4{op2[7:0]}};
+			2'b11: /* signed half */
+				wr_data = {2{op2[15:0]}};
 			default: begin end
 			endcase
-		end
 		`DECODE_LDRSTR_UNDEFINED: begin end
 		`DECODE_LDRSTR: if(!inbubble) begin
-			next_outbubble = rw_wait;
-			/* rotate to correct position */
-			align_s1 = raddr[1] ? {rd_data[15:0], rd_data[31:16]} : rd_data;
-			align_s2 = raddr[0] ? {align_s1[7:0], align_s1[31:8]} : align_s1;
-			/* select byte or word */
-			align_rddata = insn[22] ? {24'b0, align_s2[7:0]} : align_s2;
-			case(lsr_state)
-			`LSR_MEMIO:
-				if (insn[22] /* B */ && !insn[20] /* L */)
-					do_rd_data_latch = 1;
-			`LSR_STRB_WR: begin end
-			`LSR_BASEWB:
-				next_outbubble = 0;
-			`LSR_WBFLUSH: begin end
-			default: begin end
-			endcase
+			wr_data = insn[22] ? {24'h0, {op2[7:0]}} : op2;
+			if (lsr_state == `LSR_STRB_WR)
+				case (busaddr[1:0])
+				2'b00: wr_data = {rd_data_latch[31:8], op2[7:0]};
+				2'b01: wr_data = {rd_data_latch[31:16], op2[7:0], rd_data_latch[7:0]};
+				2'b10: wr_data = {rd_data_latch[31:24], op2[7:0], rd_data_latch[15:0]};
+				2'b11: wr_data = {op2[7:0], rd_data_latch[23:0]};
+				endcase
 		end
-		/* XXX ldm/stm incorrect in that stupid case where one of the listed regs is the base reg */
+		`DECODE_LDMSTM: if (!inbubble)
+			if (lsr_state == `LSM_MEMIO)
+				wr_data = (cur_reg == 4'hF) ? (pc + 12) : st_data;
+		`DECODE_LDCSTC: begin end
+		`DECODE_CDP: begin end
+		`DECODE_MRCMCR: begin end
+		default: begin end
+		endcase
+	end
+	
+	/* LDM/STM register control logic. */
+	always @(*)
+	begin
+		offset = prev_offset;
+		cur_reg = prev_reg;
+		next_regs = regs;
+		
+		casez(insn)
 		`DECODE_LDMSTM: if(!inbubble) begin
-			next_outbubble = rw_wait;
 			case(lsm_state)
-			`LSM_SETUP: begin
-//				next_regs = insn[23] ? op1[15:0] : op1[0:15];
-				/** verilator can suck my dick */
+			`LSM_SETUP:
 				next_regs = insn[23] /* U */ ? op1[15:0] : {op1[0], op1[1], op1[2], op1[3], op1[4], op1[5], op1[6], op1[7],
 				                                            op1[8], op1[9], op1[10], op1[11], op1[12], op1[13], op1[14], op1[15]};
-			end
 			`LSM_MEMIO: begin
 				casez(regs)
 				16'b???????????????1: begin
@@ -717,14 +668,102 @@ module Memory(
 				end
 				endcase
 				cur_reg = insn[23] ? cur_reg : 4'hF - cur_reg;
-
+				
 				if (rw_wait) begin
 					next_regs = regs;
 					cur_reg = prev_reg;	/* whoops, do this one again */
 				end
-
+				
 				st_read = cur_reg;
 			end
+			`LSM_BASEWB: begin end
+			`LSM_WBFLUSH: begin end
+			default: begin end
+			endcase
+		end
+		endcase
+	end
+	
+	always @(*)
+	begin
+		st_read = 4'hx;
+		do_rd_data_latch = 0;
+		
+		next_outbubble = inbubble;
+		
+		lsrh_rddata = 32'hxxxxxxxx;
+		lsrh_rddata_s1 = 16'hxxxx;
+		lsrh_rddata_s2 = 8'hxx;
+		next_swp_oldval = swp_oldval;
+
+		/* XXX shit not given about endianness */
+		casez(insn)
+		`DECODE_ALU_SWP: if(!inbubble) begin
+			next_outbubble = rw_wait;
+			case(swp_state)
+			`SWP_READING:
+				if(!rw_wait)
+					next_swp_oldval = rd_data;
+			`SWP_WRITING: begin end
+			default: begin end
+			endcase
+		end
+		`DECODE_ALU_MULT: begin end
+		`DECODE_ALU_HDATA_REG,
+		`DECODE_ALU_HDATA_IMM: if(!inbubble) begin
+			next_outbubble = rw_wait;
+			
+			/* rotate to correct position */
+			case(insn[6:5])
+			2'b01: begin /* unsigned half */
+				lsrh_rddata = {16'b0, raddr[1] ? rd_data[31:16] : rd_data[15:0]};
+			end
+			2'b10: begin /* signed byte */
+				lsrh_rddata_s1 = raddr[1] ? rd_data[31:16] : rd_data[15:0];
+				lsrh_rddata_s2 = raddr[0] ? lsrh_rddata_s1[15:8] : lsrh_rddata_s1[7:0];
+				lsrh_rddata = {{24{lsrh_rddata_s2[7]}}, lsrh_rddata_s2};
+			end
+			2'b11: begin /* signed half */
+				lsrh_rddata = raddr[1] ? {{16{rd_data[31]}}, rd_data[31:16]} : {{16{rd_data[15]}}, rd_data[15:0]};
+			end
+			default: begin
+				lsrh_rddata = 32'hxxxxxxxx;
+			end
+			endcase
+
+			case(lsrh_state)
+			`LSRH_MEMIO: begin end
+			`LSRH_BASEWB:
+				next_outbubble = 1'b0;
+			`LSRH_WBFLUSH: begin end
+			default: begin end
+			endcase
+		end
+		`DECODE_LDRSTR_UNDEFINED: begin end
+		`DECODE_LDRSTR: if(!inbubble) begin
+			next_outbubble = rw_wait;
+			/* rotate to correct position */
+			align_s1 = raddr[1] ? {rd_data[15:0], rd_data[31:16]} : rd_data;
+			align_s2 = raddr[0] ? {align_s1[7:0], align_s1[31:8]} : align_s1;
+			/* select byte or word */
+			align_rddata = insn[22] ? {24'b0, align_s2[7:0]} : align_s2;
+			case(lsr_state)
+			`LSR_MEMIO:
+				if (insn[22] /* B */ && !insn[20] /* L */)
+					do_rd_data_latch = 1;
+			`LSR_STRB_WR: begin end
+			`LSR_BASEWB:
+				next_outbubble = 0;
+			`LSR_WBFLUSH: begin end
+			default: begin end
+			endcase
+		end
+		/* XXX ldm/stm incorrect in that stupid case where one of the listed regs is the base reg */
+		`DECODE_LDMSTM: if(!inbubble) begin
+			next_outbubble = rw_wait;
+			case(lsm_state)
+			`LSM_SETUP: begin end
+			`LSM_MEMIO: begin end
 			`LSM_BASEWB:
 				next_outbubble = 0;
 			`LSM_WBFLUSH: begin end
