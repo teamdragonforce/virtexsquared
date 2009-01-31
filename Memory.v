@@ -285,17 +285,166 @@ module Memory(
 			if (cp_busy) begin
 				outstall = 1;
 			end
+			if (!cp_ack) begin
+				/* XXX undefined instruction trap */
+				$display("WARNING: Possible CDP undefined instruction");
+			end
 		end
 		`DECODE_MRCMCR: if (!inbubble) begin
 			if (cp_busy) begin
 				outstall = 1;
+			end
+			if (!cp_ack) begin
+				$display("WARNING: Possible MRCMCR undefined instruction: cp_ack %d, cp_busy %d",cp_ack, cp_busy);
 			end
 			$display("MRCMCR: ack %d, busy %d", cp_ack, cp_busy);
 		end
 		default: begin end
 		endcase
 	end
-
+	
+	/* Coprocessor input. */
+	always @(*)
+	begin
+		cp_req = 0;
+		cp_rnw = 1'bx;
+		cp_write = 32'hxxxxxxxx;
+		casez (insn)
+		`DECODE_CDP: if(!inbubble) begin
+			cp_req = 1;
+		end
+		`DECODE_MRCMCR: if(!inbubble) begin
+			cp_req = 1;
+			cp_rnw = insn[20] /* L */;
+			if (insn[20] == 0 /* store to coprocessor */)
+				cp_write = op0;
+		end
+		endcase
+	end
+	
+	/* Register output logic. */
+	
+	always @(*)
+	begin
+		next_write_reg = write_reg;
+		next_write_num = write_num;
+		next_write_data = write_data;
+		next_outcpsr = lsm_state == 4'b0010 ? outcpsr : cpsr;
+		next_outcpsrup = cpsrup;
+		
+		casez(insn)
+		`DECODE_ALU_SWP: if (!inbubble) begin
+			next_write_reg = 1'bx;
+			next_write_num = 4'bxxxx;
+			next_write_data = 32'hxxxxxxxx;
+			case(swp_state)
+			`SWP_READING:
+				next_write_reg = 1'b0;
+			`SWP_WRITING: begin
+				next_write_reg = 1'b1;
+				next_write_num = insn[15:12];
+				next_write_data = insn[22] ? {24'b0, swp_oldval[7:0]} : swp_oldval;
+			end
+			default: begin end
+			endcase
+		end
+		`DECODE_ALU_MULT: begin end
+		`DECODE_ALU_HDATA_REG,
+		`DECODE_ALU_HDATA_IMM: if(!inbubble) begin
+			next_write_reg = 1'bx;
+			next_write_num = 4'bxxxx;
+			next_write_data = 32'hxxxxxxxx;
+			case(lsrh_state)
+			`LSRH_MEMIO: begin
+				next_write_num = insn[15:12];
+				next_write_data = lsrh_rddata;
+				if(insn[20]) begin
+					next_write_reg = 1'b1;
+				end
+			end
+			`LSRH_BASEWB: begin
+				next_write_reg = 1'b1;
+				next_write_num = insn[19:16];
+				next_write_data = addr;
+			end
+			`LSRH_WBFLUSH:
+				next_write_reg = 1'b0;
+			default: begin end
+			endcase
+		end
+		`DECODE_LDRSTR_UNDEFINED: begin end
+		`DECODE_LDRSTR: if(!inbubble) begin
+			next_write_reg = 1'bx;
+			next_write_num = 4'bxxxx;
+			next_write_data = 32'hxxxxxxxx;
+			case(lsr_state)
+			`LSR_MEMIO: begin
+				next_write_reg = insn[20] /* L */;
+				next_write_num = insn[15:12];
+				if(insn[20] /* L */) begin
+					next_write_data = insn[22] /* B */ ? {24'h0, align_rddata[7:0]} : align_rddata;
+				end
+			end
+			`LSR_STRB_WR:
+				next_write_reg = 1'b0;
+			`LSR_BASEWB: begin
+				next_write_reg = 1'b1;
+				next_write_num = insn[19:16];
+				next_write_data = addr;
+			end
+			`LSR_WBFLUSH:
+				next_write_reg = 1'b0;
+			default: begin end
+			endcase
+		end
+		`DECODE_LDMSTM: if(!inbubble) begin
+			next_write_reg = 1'bx;
+			next_write_num = 4'bxxxx;
+			next_write_data = 32'hxxxxxxxx;
+			case(lsm_state)
+			`LSM_SETUP:
+				next_write_reg = 1'b0;
+			`LSM_MEMIO: begin
+				if(insn[20]) begin
+					next_write_reg = !rw_wait;
+					next_write_num = cur_reg;
+					next_write_data = rd_data;
+				end else
+					next_write_reg = 1'b0;
+			end
+			`LSM_BASEWB: begin
+				next_write_reg = insn[21] /* writeback */;
+				next_write_num = insn[19:16];
+				next_write_data = insn[23] ? op0 + {26'b0, prev_offset} : op0 - {26'b0, prev_offset};
+				if(cur_reg == 4'hF && insn[22]) begin
+					next_outcpsr = spsr;
+					next_outcpsrup = 1;
+				end
+			end
+			`LSM_WBFLUSH:
+				next_write_reg = 1'b0;
+			default: begin end
+			endcase
+		end
+		`DECODE_MRCMCR: if(!inbubble) begin
+			next_write_reg = 1'bx;
+			next_write_num = 4'bxxxx;
+			next_write_data = 32'hxxxxxxxx;
+			next_outcpsr = 32'hxxxxxxxx;
+			next_outcpsrup = 1'bx;
+			if (insn[20] == 1 /* load from coprocessor */)
+				if (insn[15:12] != 4'hF /* Fuck you ARM */) begin
+					next_write_reg = 1'b1;
+					next_write_num = insn[15:12];
+					next_write_data = cp_read;
+				end else begin
+					next_outcpsr = {cp_read[31:28], cpsr[27:0]};
+					next_outcpsrup = 1;
+				end
+		end
+		endcase
+	end
+	
 	always @(*)
 	begin
 		addr = prevaddr;
@@ -307,17 +456,11 @@ module Memory(
 		data_size = 3'bxxx;
 		st_read = 4'hx;
 		do_rd_data_latch = 0;
-		next_write_reg = write_reg;
-		next_write_num = write_num;
-		next_write_data = write_data;
+		
 		next_outbubble = inbubble;
 		next_regs = regs;
-		cp_req = 1'b0;
-		cp_rnw = 1'bx;
-		cp_write = 32'hxxxxxxxx;
+		
 		offset = prev_offset;
-		next_outcpsr = lsm_state == 4'b0010 ? outcpsr : cpsr;
-		next_outcpsrup = cpsrup;
 		lsrh_rddata = 32'hxxxxxxxx;
 		lsrh_rddata_s1 = 16'hxxxx;
 		lsrh_rddata_s2 = 8'hxx;
@@ -340,9 +483,6 @@ module Memory(
 			`SWP_WRITING: begin
 				wr_req = 1'b1;
 				wr_data = insn[22] ? {4{op1[7:0]}} : op1;
-				next_write_reg = 1'b1;
-				next_write_num = insn[15:12];
-				next_write_data = insn[22] ? {24'b0, swp_oldval[7:0]} : swp_oldval;
 			end
 			default: begin end
 			endcase
@@ -384,20 +524,10 @@ module Memory(
 			`LSRH_MEMIO: begin
 				rd_req = insn[20];
 				wr_req = ~insn[20];
-				next_write_num = insn[15:12];
-				next_write_data = lsrh_rddata;
-				if(insn[20]) begin
-					next_write_reg = 1'b1;
-				end
 			end
-			`LSRH_BASEWB: begin
+			`LSRH_BASEWB:
 				next_outbubble = 1'b0;
-				next_write_reg = 1'b1;
-				next_write_num = insn[19:16];
-				next_write_data = addr;
-			end
-			`LSRH_WBFLUSH: begin
-			end
+			`LSRH_WBFLUSH: begin end
 			default: begin end
 			endcase
 		end
@@ -418,11 +548,6 @@ module Memory(
 			`LSR_MEMIO: begin
 				rd_req = insn[20] /* L */ || insn[22] /* B */;
 				wr_req = !insn[20] /* L */ && !insn[22]/* B */;
-				next_write_reg = insn[20] /* L */;
-				next_write_num = insn[15:12];
-				if(insn[20] /* L */) begin
-					next_write_data = insn[22] /* B */ ? {24'h0, align_rddata[7:0]} : align_rddata;
-				end
 				if (insn[22] /* B */ && !insn[20] /* L */) begin
 					do_rd_data_latch = 1;
 				end
@@ -442,9 +567,6 @@ module Memory(
 				rd_req = 0;
 				wr_req = 0;
 				next_outbubble = 0;
-				next_write_reg = 1'b1;
-				next_write_num = insn[19:16];
-				next_write_data = addr;
 			end
 			`LSR_WBFLUSH: begin
 				rd_req = 0;
@@ -539,19 +661,10 @@ module Memory(
 				end
 				endcase
 				cur_reg = insn[23] ? cur_reg : 4'hF - cur_reg;
-				if(cur_reg == 4'hF && insn[22]) begin
-					next_outcpsr = spsr;
-					next_outcpsrup = 1;
-				end
 
 				offset = prev_offset + 6'h4;
 				offset_sel = insn[24] ? offset : prev_offset;
 				raddr = insn[23] ? op0 + {26'b0, offset_sel} : op0 - {26'b0, offset_sel};
-				if(insn[20]) begin
-					next_write_reg = !rw_wait;
-					next_write_num = cur_reg;
-					next_write_data = rd_data;
-				end
 				if (rw_wait) begin
 					next_regs = regs;
 					cur_reg = prev_reg;	/* whoops, do this one again */
@@ -561,47 +674,21 @@ module Memory(
 				wr_data = (cur_reg == 4'hF) ? (pc + 12) : st_data;
 				busaddr = raddr;
 			end
-			`LSM_BASEWB: begin
+			`LSM_BASEWB:
 				next_outbubble = 0;
-				next_write_reg = insn[21] /* writeback */;
-				next_write_num = insn[19:16];
-				next_write_data = insn[23] ? op0 + {26'b0, prev_offset} : op0 - {26'b0, prev_offset};
-			end
 			`LSM_WBFLUSH: begin end
 			default: $stop;
 			endcase
 		end
 		`DECODE_LDCSTC: begin end
 		`DECODE_CDP: if(!inbubble) begin
-			cp_req = 1;
 			if (cp_busy) begin
 				next_outbubble = 1;
-			end
-			if (!cp_ack) begin
-				/* XXX undefined instruction trap */
-				$display("WARNING: Possible CDP undefined instruction");
 			end
 		end
 		`DECODE_MRCMCR: if(!inbubble) begin
-			cp_req = 1;
-			cp_rnw = insn[20] /* L */;
-			if (insn[20] == 0 /* store to coprocessor */)
-				cp_write = op0;
-			else begin
-				if (insn[15:12] != 4'hF /* Fuck you ARM */) begin
-					next_write_reg = 1'b1;
-					next_write_num = insn[15:12];
-					next_write_data = cp_read;
-				end else begin
-					next_outcpsr = {cp_read[31:28], cpsr[27:0]};
-					next_outcpsrup = 1;
-				end
-			end
 			if (cp_busy) begin
 				next_outbubble = 1;
-			end
-			if (!cp_ack) begin
-				$display("WARNING: Possible MRCMCR undefined instruction: cp_ack %d, cp_busy %d",cp_ack, cp_busy);
 			end
 		end
 		default: begin end
