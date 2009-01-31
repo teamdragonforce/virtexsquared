@@ -109,8 +109,6 @@ module Memory(
 		out_write_reg <= next_write_reg;
 		out_write_num <= next_write_num;
 		out_write_data <= next_write_data;
-		regs <= next_regs;
-		prev_reg <= cur_reg;
 		if (!rw_wait)
 			prev_offset <= offset;
 		prev_raddr <= raddr;
@@ -584,6 +582,13 @@ module Memory(
 	end
 	
 	/* LDM/STM register control logic. */
+	always @(posedge clk)
+		if (!rw_wait)
+		begin
+			prev_reg <= cur_reg;
+			regs <= next_regs;
+		end
+	
 	always @(*)
 	begin
 		offset = prev_offset;
@@ -668,11 +673,6 @@ module Memory(
 				end
 				endcase
 				cur_reg = insn[23] ? cur_reg : 4'hF - cur_reg;
-				
-				if (rw_wait) begin
-					next_regs = regs;
-					cur_reg = prev_reg;	/* whoops, do this one again */
-				end
 				
 				st_read = cur_reg;
 			end
