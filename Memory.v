@@ -148,6 +148,23 @@ module Memory(
 		next_swp_state = swp_state;
 		cur_reg = prev_reg;
 
+`define SWP_READING 2'b01
+`define SWP_WRITING 2'b10
+
+`define LSRH_MEMIO	3'b001
+`define LSRH_BASEWB	3'b010
+`define LSRH_WBFLUSH	3'b100
+
+`define LSR_MEMIO	4'b0001
+`define LSR_STRB_WR	4'b0010
+`define LSR_BASEWB	4'b0100
+`define LSR_WBFLUSH	4'b1000
+
+`define LSM_SETUP	4'b0001
+`define LSM_MEMIO	4'b0010
+`define LSM_BASEWB	4'b0100
+`define LSM_WBFLUSH	4'b1000
+
 		/* XXX shit not given about endianness */
 		casez(insn)
 		`DECODE_ALU_SWP: if(!inbubble) begin
@@ -156,23 +173,23 @@ module Memory(
 			busaddr = {op0[31:2], 2'b0};
 			data_size = insn[22] ? 3'b001 : 3'b100;
 			case(swp_state)
-			2'b01: begin
+			`SWP_READING: begin
 				rd_req = 1'b1;
 				outstall = 1'b1;
 				if(!rw_wait) begin
-					next_swp_state = 2'b10;
+					next_swp_state = `SWP_WRITING;
 					next_swp_oldval = rd_data;
 				end
 				$display("SWP: read stage");
 			end
-			2'b10: begin
+			`SWP_WRITING: begin
 				wr_req = 1'b1;
 				wr_data = insn[22] ? {4{op1[7:0]}} : op1;
 				next_write_reg = 1'b1;
 				next_write_num = insn[15:12];
 				next_write_data = insn[22] ? {24'b0, swp_oldval[7:0]} : swp_oldval;
 				if(!rw_wait)
-					next_swp_state = 2'b01;
+					next_swp_state = `SWP_READING;
 				$display("SWP: write stage");
 			end
 			default: begin end
@@ -188,7 +205,6 @@ module Memory(
 			busaddr = raddr;
 			/* rotate to correct position */
 			case(insn[6:5])
-			2'b00: begin end /* swp */
 			2'b01: begin /* unsigned half */
 				wr_data = {2{op2[15:0]}}; /* XXX need to store halfword */
 				data_size = 3'b010;
@@ -206,10 +222,15 @@ module Memory(
 				data_size = 3'b010;
 				lsrh_rddata = raddr[1] ? {{16{rd_data[31]}}, rd_data[31:16]} : {{16{rd_data[15]}}, rd_data[15:0]};
 			end
+			default: begin
+				wr_data = 32'hxxxxxxxx;
+				data_size = 3'bxxx;
+				lsrh_rddata = 32'hxxxxxxxx;
+			end
 			endcase
 
 			case(lsrh_state)
-			3'b001: begin
+			`LSRH_MEMIO: begin
 				rd_req = insn[20];
 				wr_req = ~insn[20];
 				next_write_num = insn[15:12];
@@ -220,27 +241,27 @@ module Memory(
 				if(insn[21] | !insn[24]) begin
 					outstall = 1'b1;
 					if(!rw_wait)
-						next_lsrh_state = 3'b010;
+						next_lsrh_state = `LSRH_BASEWB;
 				end
 				$display("ALU_LDRSTRH: rd_req %d, wr_req %d", rd_req, wr_req);
 			end
-			3'b010: begin
+			`LSRH_BASEWB: begin
 				next_outbubble = 1'b0;
 				next_write_reg = 1'b1;
 				next_write_num = insn[19:16];
 				next_write_data = addr;
-				next_lsrh_state = 3'b100;
+				next_lsrh_state = `LSRH_WBFLUSH;
 			end
-			3'b100: begin
+			`LSRH_WBFLUSH: begin
 				outstall = 0;
-				next_lsrh_state = 3'b001;
+				next_lsrh_state = `LSRH_MEMIO;
 			end
 			default: begin end
 			endcase
 			
-			if ((lsrh_state == 3'b001) && flush) begin	/* Reject it. */
+			if ((lsrh_state == `LSRH_MEMIO) && flush) begin	/* Reject it. */
 				outstall = 1'b0;
-				next_lsrh_state = 3'b001;
+				next_lsrh_state = `LSRH_MEMIO;
 			end
 		end
 		`DECODE_LDRSTR_UNDEFINED: begin end
@@ -258,7 +279,8 @@ module Memory(
 			wr_data = insn[22] ? {24'h0, {op2[7:0]}} : op2;
 			data_size = insn[22] ? 3'b001 : 3'b100;
 			case(lsr_state)
-			4'b0001: begin
+
+			`LSR_MEMIO: begin
 				rd_req = insn[20] /* L */ || insn[22] /* B */;
 				wr_req = !insn[20] /* L */ && !insn[22]/* B */;
 				next_write_reg = insn[20] /* L */;
@@ -270,15 +292,15 @@ module Memory(
 					do_rd_data_latch = 1;
 					outstall = 1'b1;
 					if (!rw_wait)
-						next_lsr_state = 4'b0010;	/* XXX: One-hot, my ass. */
+						next_lsr_state = `LSR_STRB_WR;
 				end else if(insn[21] /* W */ | !insn[24] /* P */) begin
 					outstall = 1'b1;
 					if(!rw_wait)
-						next_lsr_state = 4'b0100;
+						next_lsr_state = `LSR_BASEWB;
 				end
 				$display("LDRSTR: rd_req %d, wr_req %d, raddr %08x, wait %d", rd_req, wr_req, raddr, rw_wait);
 			end
-			4'b0010: begin
+			`LSR_STRB_WR: begin
 				$display("LDRSTR: Handling STRB");
 				outstall = 1;
 				rd_req = 0;
@@ -292,11 +314,11 @@ module Memory(
 				endcase
 				if(insn[21] /* W */ | !insn[24] /* P */) begin
 					if(!rw_wait)
-						next_lsr_state = 4'b0100;
+						next_lsr_state = `LSR_BASEWB;
 				end else if (!rw_wait)
-					next_lsr_state = 4'b1000;
+					next_lsr_state = `LSR_WBFLUSH;
 			end
-			4'b0100: begin
+			`LSR_BASEWB: begin
 				outstall = 1;
 				rd_req = 0;
 				wr_req= 0;
@@ -304,20 +326,20 @@ module Memory(
 				next_write_reg = 1'b1;
 				next_write_num = insn[19:16];
 				next_write_data = addr;
-				next_lsr_state = 4'b1000;
+				next_lsr_state = `LSR_WBFLUSH;
 			end
-			4'b1000: begin
+			`LSR_WBFLUSH: begin
 				rd_req = 0;
 				wr_req= 0;
 				outstall = 0;
-				next_lsr_state = 4'b0001;
+				next_lsr_state = `LSR_MEMIO;
 			end
 			default: begin end
 			endcase
 			
-			if ((lsr_state == 4'b0001) && flush) begin	/* Reject it. */
+			if ((lsr_state == `LSR_MEMIO) && flush) begin	/* Reject it. */
 				outstall = 1'b0;
-				next_lsr_state = 4'b0001;
+				next_lsr_state = `LSR_MEMIO;
 			end
 		end
 		/* XXX ldm/stm incorrect in that stupid case where one of the listed regs is the base reg */
@@ -326,7 +348,7 @@ module Memory(
 			next_outbubble = rw_wait;
 			data_size = 3'b100;
 			case(lsm_state)
-			4'b0001: begin
+			`LSM_SETUP: begin
 //				next_regs = insn[23] ? op1[15:0] : op1[0:15];
 				/** verilator can suck my dick */
 				$display("LDMSTM: Round 1: base register: %08x, reg list %b", op0, op1[15:0]);
@@ -334,7 +356,7 @@ module Memory(
 				                                            op1[8], op1[9], op1[10], op1[11], op1[12], op1[13], op1[14], op1[15]};
 				offset = 6'b0;
 				outstall = 1'b1;
-				next_lsm_state = 4'b0010;
+				next_lsm_state = `LSM_MEMIO;
 			end
 			4'b0010: begin
 				rd_req = insn[20];
@@ -437,27 +459,27 @@ module Memory(
 				outstall = 1'b1;
 
 				if(next_regs == 16'b0) begin
-					next_lsm_state = 4'b0100;
+					next_lsm_state = `LSM_BASEWB;
 				end
 			end
-			4'b0100: begin
+			`LSM_BASEWB: begin
 				outstall = 1;
 				next_outbubble = 0;
 				next_write_reg = insn[21] /* writeback */;
 				next_write_num = insn[19:16];
 				next_write_data = insn[23] ? op0 + {26'b0, prev_offset} : op0 - {26'b0, prev_offset};
-				next_lsm_state = 4'b1000;
+				next_lsm_state = `LSM_WBFLUSH;
 				$display("LDMSTM: Stage 3: Writing back");
 			end
-			4'b1000: begin
+			`LSM_WBFLUSH: begin
 				outstall = 0;
-				next_lsm_state = 4'b0001;
+				next_lsm_state = `LSM_SETUP;
 			end
 			default: $stop;
 			endcase
-			if ((lsm_state == 4'b0001) && flush) begin	/* Reject it. */
+			if ((lsm_state == `LSM_SETUP) && flush) begin	/* Reject it. */
 				outstall = 1'b0;
-				next_lsm_state = 4'b0001;
+				next_lsm_state = `LSM_SETUP;
 			end
 			$display("LDMSTM: Decoded, bubble %d, insn %08x, lsm state %b -> %b, stall %d", inbubble, insn, lsm_state, next_lsm_state, outstall);
 		end
