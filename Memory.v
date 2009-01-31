@@ -450,6 +450,9 @@ module Memory(
 		rd_req = 1'b0;
 		wr_req = 1'b0;
 		wr_data = 32'hxxxxxxxx;
+		offset = prev_offset;
+		addr = prevaddr;
+		raddr = 32'hxxxxxxxx;
 		busaddr = 32'hxxxxxxxx;
 		data_size = 3'bxxx;
 		
@@ -470,6 +473,8 @@ module Memory(
 		`DECODE_ALU_MULT: begin end
 		`DECODE_ALU_HDATA_REG,
 		`DECODE_ALU_HDATA_IMM: if(!inbubble) begin
+			addr = insn[23] ? op0 + op1 : op0 - op1; /* up/down select */
+			raddr = insn[24] ? op0 : addr; /* pre/post increment */
 			busaddr = raddr;
 			/* rotate to correct position */
 			case(insn[6:5])
@@ -503,6 +508,8 @@ module Memory(
 		end
 		`DECODE_LDRSTR_UNDEFINED: begin end
 		`DECODE_LDRSTR: if(!inbubble) begin
+			addr = insn[23] ? op0 + op1 : op0 - op1; /* up/down select */
+			raddr = insn[24] ? addr : op0; /* pre/post increment */
 			busaddr = raddr;
 			wr_data = insn[22] ? {24'h0, {op2[7:0]}} : op2;
 			data_size = insn[22] ? 3'b001 : 3'b100;
@@ -528,11 +535,15 @@ module Memory(
 		`DECODE_LDMSTM: if (!inbubble) begin
 			data_size = 3'b100;
 			case (lsm_state)
-			`LSM_SETUP: begin end
+			`LSM_SETUP:
+				offset = 6'b0;
 			`LSM_MEMIO: begin
 				rd_req = insn[20];
 				wr_req = ~insn[20];
 				wr_data = (cur_reg == 4'hF) ? (pc + 12) : st_data;
+				offset = prev_offset + 6'h4;
+				offset_sel = insn[24] ? offset : prev_offset;
+				raddr = insn[23] ? op0 + {26'b0, offset_sel} : op0 - {26'b0, offset_sel};
 				busaddr = raddr;
 			end
 			`LSM_BASEWB: begin end
@@ -549,8 +560,6 @@ module Memory(
 	
 	always @(*)
 	begin
-		addr = prevaddr;
-		raddr = 32'hxxxxxxxx;
 		st_read = 4'hx;
 		do_rd_data_latch = 0;
 		
@@ -580,8 +589,7 @@ module Memory(
 		`DECODE_ALU_HDATA_REG,
 		`DECODE_ALU_HDATA_IMM: if(!inbubble) begin
 			next_outbubble = rw_wait;
-			addr = insn[23] ? op0 + op1 : op0 - op1; /* up/down select */
-			raddr = insn[24] ? op0 : addr; /* pre/post increment */
+			
 			/* rotate to correct position */
 			case(insn[6:5])
 			2'b01: begin /* unsigned half */
@@ -611,8 +619,6 @@ module Memory(
 		`DECODE_LDRSTR_UNDEFINED: begin end
 		`DECODE_LDRSTR: if(!inbubble) begin
 			next_outbubble = rw_wait;
-			addr = insn[23] ? op0 + op1 : op0 - op1; /* up/down select */
-			raddr = insn[24] ? addr : op0; /* pre/post increment */
 			/* rotate to correct position */
 			align_s1 = raddr[1] ? {rd_data[15:0], rd_data[31:16]} : rd_data;
 			align_s2 = raddr[0] ? {align_s1[7:0], align_s1[31:8]} : align_s1;
@@ -638,7 +644,6 @@ module Memory(
 				/** verilator can suck my dick */
 				next_regs = insn[23] /* U */ ? op1[15:0] : {op1[0], op1[1], op1[2], op1[3], op1[4], op1[5], op1[6], op1[7],
 				                                            op1[8], op1[9], op1[10], op1[11], op1[12], op1[13], op1[14], op1[15]};
-				offset = 6'b0;
 			end
 			`LSM_MEMIO: begin
 				casez(regs)
@@ -713,9 +718,6 @@ module Memory(
 				endcase
 				cur_reg = insn[23] ? cur_reg : 4'hF - cur_reg;
 
-				offset = prev_offset + 6'h4;
-				offset_sel = insn[24] ? offset : prev_offset;
-				raddr = insn[23] ? op0 + {26'b0, offset_sel} : op0 - {26'b0, offset_sel};
 				if (rw_wait) begin
 					next_regs = regs;
 					cur_reg = prev_reg;	/* whoops, do this one again */
