@@ -1,5 +1,23 @@
 `include "ARM_Constants.v"
 
+`define SWP_READING	2'b01
+`define SWP_WRITING	2'b10
+
+`define LSRH_MEMIO	3'b001
+`define LSRH_BASEWB	3'b010
+`define LSRH_WBFLUSH	3'b100
+
+`define LSR_MEMIO	4'b0001
+`define LSR_STRB_WR	4'b0010
+`define LSR_BASEWB	4'b0100
+`define LSR_WBFLUSH	4'b1000
+
+`define LSM_SETUP	4'b0001
+`define LSM_MEMIO	4'b0010
+`define LSM_BASEWB	4'b0100
+`define LSM_WBFLUSH	4'b1000
+
+
 module Memory(
 	input clk,
 	input Nrst,
@@ -114,6 +132,169 @@ module Memory(
 			delayedflush <= 1;
 		else if (!outstall /* anything has been handled this time around */)
 			delayedflush <= 0;
+	
+	/* Drive the state machines and stall. */
+	always @(*)
+	begin
+		outstall = 1'b0;
+		next_lsm_state = lsm_state;
+		next_lsr_state = lsr_state;
+		next_lsrh_state = lsrh_state;
+		next_swp_state = swp_state;
+		casez(insn)
+		`DECODE_ALU_SWP: if(!inbubble) begin
+			case(swp_state)
+			`SWP_READING: begin
+				outstall = 1'b1;
+				if (!rw_wait)
+					next_swp_state = `SWP_WRITING;
+				$display("SWP: read stage");
+			end
+			`SWP_WRITING: begin
+				outstall = rw_wait;
+				if(!rw_wait)
+					next_swp_state = `SWP_READING;
+				$display("SWP: write stage");
+			end
+			default: begin
+				outstall = 1'bx;
+				next_swp_state = 2'bxx;
+			end
+			endcase
+		end
+		`DECODE_ALU_MULT: begin end
+		`DECODE_ALU_HDATA_REG,
+		`DECODE_ALU_HDATA_IMM: if(!inbubble) begin
+			case(lsrh_state)
+			`LSRH_MEMIO: begin
+				outstall = rw_wait;
+				if(insn[21] | !insn[24]) begin
+					outstall = 1'b1;
+					if(!rw_wait)
+						next_lsrh_state = `LSRH_BASEWB;
+				end
+				
+				if (flush) /* special case! */ begin
+					outstall = 1'b0;
+					next_lsrh_state = `LSRH_MEMIO;
+				end
+				
+				$display("ALU_LDRSTRH: rd_req %d, wr_req %d", rd_req, wr_req);
+			end
+			`LSRH_BASEWB: begin
+				outstall = 1'b1;
+				next_lsrh_state = `LSRH_WBFLUSH;
+			end
+			`LSRH_WBFLUSH: begin
+				outstall = 1'b0;
+				next_lsrh_state = `LSRH_MEMIO;
+			end
+			default: begin
+				outstall = 1'bx;
+				next_lsrh_state = 3'bxxx;
+			end
+			endcase
+		end
+		`DECODE_LDRSTR_UNDEFINED: begin end
+		`DECODE_LDRSTR: if(!inbubble) begin
+			outstall = rw_wait;
+			case(lsr_state)
+			`LSR_MEMIO: begin
+				outstall = rw_wait;
+				next_lsr_state = `LSR_MEMIO;
+				if (insn[22] /* B */ && !insn[20] /* L */) begin	/* i.e., strb */
+					outstall = 1'b1;
+					if (!rw_wait)
+						next_lsr_state = `LSR_STRB_WR;
+				end else if (insn[21] /* W */ || !insn[24] /* P */) begin	/* writeback needed */
+					outstall = 1'b1;
+					if (!rw_wait)
+						next_lsr_state = `LSR_BASEWB;
+				end
+				
+				if (flush) begin
+					outstall = 1'b0;
+					next_lsr_state = `LSR_MEMIO;
+				end
+				$display("LDRSTR: rd_req %d, wr_req %d, raddr %08x, wait %d", rd_req, wr_req, raddr, rw_wait);
+			end
+			`LSR_STRB_WR: begin
+				outstall = 1;
+				if(insn[21] /* W */ | !insn[24] /* P */) begin
+					if(!rw_wait)
+						next_lsr_state = `LSR_BASEWB;
+				end else if (!rw_wait)
+					next_lsr_state = `LSR_WBFLUSH;
+				$display("LDRSTR: Handling STRB");
+			end
+			`LSR_BASEWB: begin
+				outstall = 1;
+				next_lsr_state = `LSR_WBFLUSH;
+			end
+			`LSR_WBFLUSH: begin
+				outstall = 0;
+				next_lsr_state = `LSR_MEMIO;
+			end
+			default: begin
+				outstall = 1'bx;
+				next_lsr_state = 4'bxxxx;
+			end
+			endcase
+			$display("LDRSTR: Decoded, bubble %d, insn %08x, lsm state %b -> %b, stall %d", inbubble, insn, lsr_state, next_lsr_state, outstall);
+		end
+		`DECODE_LDMSTM: if(!inbubble) begin
+			outstall = rw_wait;
+			case(lsm_state)
+			`LSM_SETUP: begin
+				outstall = 1'b1;
+				next_lsm_state = `LSM_MEMIO;
+				if (flush) begin
+					outstall = 1'b0;
+					next_lsm_state = `LSM_SETUP;
+				end
+				$display("LDMSTM: Round 1: base register: %08x, reg list %b", op0, op1[15:0]);
+			end
+			`LSM_MEMIO: begin
+				outstall = 1'b1;
+				if(next_regs == 16'b0) begin
+					next_lsm_state = `LSM_BASEWB;
+				end
+				
+				$display("LDMSTM: Stage 2: Writing: regs %b, next_regs %b, reg %d, wr_data %08x, addr %08x", regs, next_regs, cur_reg, wr_data, busaddr);
+			end
+			`LSM_BASEWB: begin
+				outstall = 1;
+				next_lsm_state = `LSM_WBFLUSH;
+				$display("LDMSTM: Stage 3: Writing back");
+			end
+			`LSM_WBFLUSH: begin
+				outstall = 0;
+				next_lsm_state = `LSM_SETUP;
+			end
+			default: begin
+				outstall = 1'bx;
+				next_lsm_state = 4'bxxxx;
+			end
+			endcase
+			$display("LDMSTM: Decoded, bubble %d, insn %08x, lsm state %b -> %b, stall %d", inbubble, insn, lsm_state, next_lsm_state, outstall);
+		end
+		`DECODE_LDCSTC: if(!inbubble) begin
+			$display("WARNING: Unimplemented LDCSTC");
+		end
+		`DECODE_CDP: if (!inbubble) begin
+			if (cp_busy) begin
+				outstall = 1;
+			end
+		end
+		`DECODE_MRCMCR: if (!inbubble) begin
+			if (cp_busy) begin
+				outstall = 1;
+			end
+			$display("MRCMCR: ack %d, busy %d", cp_ack, cp_busy);
+		end
+		default: begin end
+		endcase
+	end
 
 	always @(*)
 	begin
@@ -124,7 +305,6 @@ module Memory(
 		wr_data = 32'hxxxxxxxx;
 		busaddr = 32'hxxxxxxxx;
 		data_size = 3'bxxx;
-		outstall = 1'b0;
 		st_read = 4'hx;
 		do_rd_data_latch = 0;
 		next_write_reg = write_reg;
@@ -141,46 +321,21 @@ module Memory(
 		lsrh_rddata = 32'hxxxxxxxx;
 		lsrh_rddata_s1 = 16'hxxxx;
 		lsrh_rddata_s2 = 8'hxx;
-		next_lsm_state = lsm_state;
-		next_lsr_state = lsr_state;
-		next_lsrh_state = lsrh_state;
 		next_swp_oldval = swp_oldval;
-		next_swp_state = swp_state;
 		cur_reg = prev_reg;
-
-`define SWP_READING 2'b01
-`define SWP_WRITING 2'b10
-
-`define LSRH_MEMIO	3'b001
-`define LSRH_BASEWB	3'b010
-`define LSRH_WBFLUSH	3'b100
-
-`define LSR_MEMIO	4'b0001
-`define LSR_STRB_WR	4'b0010
-`define LSR_BASEWB	4'b0100
-`define LSR_WBFLUSH	4'b1000
-
-`define LSM_SETUP	4'b0001
-`define LSM_MEMIO	4'b0010
-`define LSM_BASEWB	4'b0100
-`define LSM_WBFLUSH	4'b1000
 
 		/* XXX shit not given about endianness */
 		casez(insn)
 		`DECODE_ALU_SWP: if(!inbubble) begin
-			outstall = rw_wait;
 			next_outbubble = rw_wait;
 			busaddr = {op0[31:2], 2'b0};
 			data_size = insn[22] ? 3'b001 : 3'b100;
 			case(swp_state)
 			`SWP_READING: begin
 				rd_req = 1'b1;
-				outstall = 1'b1;
 				if(!rw_wait) begin
-					next_swp_state = `SWP_WRITING;
 					next_swp_oldval = rd_data;
 				end
-				$display("SWP: read stage");
 			end
 			`SWP_WRITING: begin
 				wr_req = 1'b1;
@@ -188,9 +343,6 @@ module Memory(
 				next_write_reg = 1'b1;
 				next_write_num = insn[15:12];
 				next_write_data = insn[22] ? {24'b0, swp_oldval[7:0]} : swp_oldval;
-				if(!rw_wait)
-					next_swp_state = `SWP_READING;
-				$display("SWP: write stage");
 			end
 			default: begin end
 			endcase
@@ -199,7 +351,6 @@ module Memory(
 		`DECODE_ALU_HDATA_REG,
 		`DECODE_ALU_HDATA_IMM: if(!inbubble) begin
 			next_outbubble = rw_wait;
-			outstall = rw_wait;
 			addr = insn[23] ? op0 + op1 : op0 - op1; /* up/down select */
 			raddr = insn[24] ? op0 : addr; /* pre/post increment */
 			busaddr = raddr;
@@ -238,36 +389,21 @@ module Memory(
 				if(insn[20]) begin
 					next_write_reg = 1'b1;
 				end
-				if(insn[21] | !insn[24]) begin
-					outstall = 1'b1;
-					if(!rw_wait)
-						next_lsrh_state = `LSRH_BASEWB;
-				end
-				$display("ALU_LDRSTRH: rd_req %d, wr_req %d", rd_req, wr_req);
 			end
 			`LSRH_BASEWB: begin
 				next_outbubble = 1'b0;
 				next_write_reg = 1'b1;
 				next_write_num = insn[19:16];
 				next_write_data = addr;
-				next_lsrh_state = `LSRH_WBFLUSH;
 			end
 			`LSRH_WBFLUSH: begin
-				outstall = 0;
-				next_lsrh_state = `LSRH_MEMIO;
 			end
 			default: begin end
 			endcase
-			
-			if ((lsrh_state == `LSRH_MEMIO) && flush) begin	/* Reject it. */
-				outstall = 1'b0;
-				next_lsrh_state = `LSRH_MEMIO;
-			end
 		end
 		`DECODE_LDRSTR_UNDEFINED: begin end
 		`DECODE_LDRSTR: if(!inbubble) begin
 			next_outbubble = rw_wait;
-			outstall = rw_wait;
 			addr = insn[23] ? op0 + op1 : op0 - op1; /* up/down select */
 			raddr = insn[24] ? addr : op0; /* pre/post increment */
 			busaddr = raddr;
@@ -279,7 +415,6 @@ module Memory(
 			wr_data = insn[22] ? {24'h0, {op2[7:0]}} : op2;
 			data_size = insn[22] ? 3'b001 : 3'b100;
 			case(lsr_state)
-
 			`LSR_MEMIO: begin
 				rd_req = insn[20] /* L */ || insn[22] /* B */;
 				wr_req = !insn[20] /* L */ && !insn[22]/* B */;
@@ -290,19 +425,9 @@ module Memory(
 				end
 				if (insn[22] /* B */ && !insn[20] /* L */) begin
 					do_rd_data_latch = 1;
-					outstall = 1'b1;
-					if (!rw_wait)
-						next_lsr_state = `LSR_STRB_WR;
-				end else if(insn[21] /* W */ | !insn[24] /* P */) begin
-					outstall = 1'b1;
-					if(!rw_wait)
-						next_lsr_state = `LSR_BASEWB;
 				end
-				$display("LDRSTR: rd_req %d, wr_req %d, raddr %08x, wait %d", rd_req, wr_req, raddr, rw_wait);
 			end
 			`LSR_STRB_WR: begin
-				$display("LDRSTR: Handling STRB");
-				outstall = 1;
 				rd_req = 0;
 				wr_req = 1;
 				next_write_reg = 0;
@@ -312,53 +437,35 @@ module Memory(
 				2'b10: wr_data = {rd_data_latch[31:24], op2[7:0], rd_data_latch[15:0]};
 				2'b11: wr_data = {op2[7:0], rd_data_latch[23:0]};
 				endcase
-				if(insn[21] /* W */ | !insn[24] /* P */) begin
-					if(!rw_wait)
-						next_lsr_state = `LSR_BASEWB;
-				end else if (!rw_wait)
-					next_lsr_state = `LSR_WBFLUSH;
 			end
 			`LSR_BASEWB: begin
-				outstall = 1;
 				rd_req = 0;
-				wr_req= 0;
+				wr_req = 0;
 				next_outbubble = 0;
 				next_write_reg = 1'b1;
 				next_write_num = insn[19:16];
 				next_write_data = addr;
-				next_lsr_state = `LSR_WBFLUSH;
 			end
 			`LSR_WBFLUSH: begin
 				rd_req = 0;
-				wr_req= 0;
-				outstall = 0;
-				next_lsr_state = `LSR_MEMIO;
+				wr_req = 0;
 			end
 			default: begin end
 			endcase
-			
-			if ((lsr_state == `LSR_MEMIO) && flush) begin	/* Reject it. */
-				outstall = 1'b0;
-				next_lsr_state = `LSR_MEMIO;
-			end
 		end
 		/* XXX ldm/stm incorrect in that stupid case where one of the listed regs is the base reg */
 		`DECODE_LDMSTM: if(!inbubble) begin
-			outstall = rw_wait;
 			next_outbubble = rw_wait;
 			data_size = 3'b100;
 			case(lsm_state)
 			`LSM_SETUP: begin
 //				next_regs = insn[23] ? op1[15:0] : op1[0:15];
 				/** verilator can suck my dick */
-				$display("LDMSTM: Round 1: base register: %08x, reg list %b", op0, op1[15:0]);
 				next_regs = insn[23] /* U */ ? op1[15:0] : {op1[0], op1[1], op1[2], op1[3], op1[4], op1[5], op1[6], op1[7],
 				                                            op1[8], op1[9], op1[10], op1[11], op1[12], op1[13], op1[14], op1[15]};
 				offset = 6'b0;
-				outstall = 1'b1;
-				next_lsm_state = `LSM_MEMIO;
 			end
-			4'b0010: begin
+			`LSM_MEMIO: begin
 				rd_req = insn[20];
 				wr_req = ~insn[20];
 				casez(regs)
@@ -453,43 +560,21 @@ module Memory(
 				st_read = cur_reg;
 				wr_data = (cur_reg == 4'hF) ? (pc + 12) : st_data;
 				busaddr = raddr;
-				
-				$display("LDMSTM: Stage 2: Writing: regs %b, next_regs %b, reg %d, wr_data %08x, addr %08x", regs, next_regs, cur_reg, wr_data, busaddr);
-
-				outstall = 1'b1;
-
-				if(next_regs == 16'b0) begin
-					next_lsm_state = `LSM_BASEWB;
-				end
 			end
 			`LSM_BASEWB: begin
-				outstall = 1;
 				next_outbubble = 0;
 				next_write_reg = insn[21] /* writeback */;
 				next_write_num = insn[19:16];
 				next_write_data = insn[23] ? op0 + {26'b0, prev_offset} : op0 - {26'b0, prev_offset};
-				next_lsm_state = `LSM_WBFLUSH;
-				$display("LDMSTM: Stage 3: Writing back");
 			end
-			`LSM_WBFLUSH: begin
-				outstall = 0;
-				next_lsm_state = `LSM_SETUP;
-			end
+			`LSM_WBFLUSH: begin end
 			default: $stop;
 			endcase
-			if ((lsm_state == `LSM_SETUP) && flush) begin	/* Reject it. */
-				outstall = 1'b0;
-				next_lsm_state = `LSM_SETUP;
-			end
-			$display("LDMSTM: Decoded, bubble %d, insn %08x, lsm state %b -> %b, stall %d", inbubble, insn, lsm_state, next_lsm_state, outstall);
 		end
-		`DECODE_LDCSTC: if(!inbubble) begin
-			$display("WARNING: Unimplemented LDCSTC");
-		end
+		`DECODE_LDCSTC: begin end
 		`DECODE_CDP: if(!inbubble) begin
 			cp_req = 1;
 			if (cp_busy) begin
-				outstall = 1;
 				next_outbubble = 1;
 			end
 			if (!cp_ack) begin
@@ -513,13 +598,11 @@ module Memory(
 				end
 			end
 			if (cp_busy) begin
-				outstall = 1;
 				next_outbubble = 1;
 			end
 			if (!cp_ack) begin
 				$display("WARNING: Possible MRCMCR undefined instruction: cp_ack %d, cp_busy %d",cp_ack, cp_busy);
 			end
-			$display("MRCMCR: ack %d, busy %d", cp_ack, cp_busy);
 		end
 		default: begin end
 		endcase
