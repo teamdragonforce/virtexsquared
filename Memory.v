@@ -583,7 +583,7 @@ module Memory(
 	
 	/* LDM/STM register control logic. */
 	always @(posedge clk)
-		if (!rw_wait)
+		if (!rw_wait || lsm_state != `LSM_MEMIO)
 		begin
 			prev_reg <= cur_reg;
 			regs <= next_regs;
