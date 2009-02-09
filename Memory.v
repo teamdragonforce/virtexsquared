@@ -258,7 +258,7 @@ module Memory(
 					next_lsm_state = `LSM_BASEWB;
 				end
 				
-				$display("LDMSTM: Stage 2: Writing: regs %b, next_regs %b, reg %d, wr_data %08x, addr %08x", regs, next_regs, cur_reg, wr_data, busaddr);
+				$display("LDMSTM: Stage 2: Writing: regs %b, next_regs %b, reg %d, wr_data %08x, addr %08x", regs, next_regs, cur_reg, st_data, busaddr);
 			end
 			`LSM_BASEWB: begin
 				outstall = 1;
@@ -480,7 +480,6 @@ module Memory(
 			2'b11: /* signed half */
 				data_size = 3'b010;
 			default: begin
-				wr_data = 32'hxxxxxxxx;
 				data_size = 3'bxxx;
 			end
 			endcase
@@ -500,7 +499,6 @@ module Memory(
 			addr = insn[23] ? op0 + op1 : op0 - op1; /* up/down select */
 			raddr = insn[24] ? addr : op0; /* pre/post increment */
 			busaddr = raddr;
-			wr_data = insn[22] ? {24'h0, {op2[7:0]}} : op2;
 			data_size = insn[22] ? 3'b001 : 3'b100;
 			case (lsr_state)
 			`LSR_MEMIO: begin
@@ -572,7 +570,7 @@ module Memory(
 				endcase
 		end
 		`DECODE_LDMSTM: if (!inbubble)
-			if (lsr_state == `LSM_MEMIO)
+			if (lsm_state == `LSM_MEMIO)
 				wr_data = (cur_reg == 4'hF) ? (pc + 12) : st_data;
 		`DECODE_LDCSTC: begin end
 		`DECODE_CDP: begin end
@@ -591,6 +589,7 @@ module Memory(
 	
 	always @(*)
 	begin
+		st_read = 4'hx;
 		offset = prev_offset;
 		cur_reg = prev_reg;
 		next_regs = regs;
@@ -686,7 +685,6 @@ module Memory(
 	
 	always @(*)
 	begin
-		st_read = 4'hx;
 		do_rd_data_latch = 0;
 		
 		next_outbubble = inbubble;
