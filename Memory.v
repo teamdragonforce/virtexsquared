@@ -590,7 +590,6 @@ module Memory(
 	always @(*)
 	begin
 		st_read = 4'hx;
-		offset = prev_offset;
 		cur_reg = prev_reg;
 		next_regs = regs;
 		
