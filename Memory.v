@@ -254,7 +254,7 @@ module Memory(
 			end
 			`LSM_MEMIO: begin
 				outstall = 1'b1;
-				if(next_regs == 16'b0) begin
+				if(next_regs == 16'b0 && !rw_wait) begin
 					next_lsm_state = `LSM_BASEWB;
 				end
 				
@@ -402,7 +402,7 @@ module Memory(
 			`LSM_SETUP:
 				next_write_reg = 1'b0;
 			`LSM_MEMIO: begin
-				if(insn[20]) begin
+				if(insn[20] /* L */) begin
 					next_write_reg = !rw_wait;
 					next_write_num = cur_reg;
 					next_write_data = rd_data;
