@@ -121,6 +121,7 @@ module Memory(
 		lsrh_state <= next_lsrh_state;
 		if (do_rd_data_latch)
 			rd_data_latch <= rd_data;
+		swp_oldval <= next_swp_oldval;
 		prevaddr <= addr;
 	end
 	
@@ -692,6 +693,10 @@ module Memory(
 		lsrh_rddata_s1 = 16'hxxxx;
 		lsrh_rddata_s2 = 8'hxx;
 		next_swp_oldval = swp_oldval;
+		
+		align_s1 = 32'hxxxxxxxx;
+		align_s2 = 32'hxxxxxxxx;
+		align_rddata = 32'hxxxxxxxx;
 
 		/* XXX shit not given about endianness */
 		casez(insn)
