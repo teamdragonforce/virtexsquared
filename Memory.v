@@ -161,7 +161,10 @@ module Memory(
 			end
 			endcase
 		end
-		`DECODE_ALU_MULT: begin end
+		`DECODE_ALU_MULT: begin
+			outstall = 1'b0;	/* XXX work around for Xilinx bug */
+			next_lsrh_state = lsrh_state;
+		end
 		`DECODE_ALU_HDATA_REG,
 		`DECODE_ALU_HDATA_IMM: if(!inbubble) begin
 			case(lsrh_state)
@@ -346,7 +349,13 @@ module Memory(
 			default: begin end
 			endcase
 		end
-		`DECODE_ALU_MULT: begin end
+		`DECODE_ALU_MULT: begin
+			next_write_reg = write_reg;	/* XXX workaround for ISE 10.1 bug */
+			next_write_num = write_num;
+			next_write_data = write_data;
+			next_outcpsr = lsm_state == 4'b0010 ? outcpsr : cpsr;
+			next_outcpsrup = cpsrup;
+		end
 		`DECODE_ALU_HDATA_REG,
 		`DECODE_ALU_HDATA_IMM: if(!inbubble) begin
 			next_write_reg = 1'bx;
@@ -466,7 +475,12 @@ module Memory(
 			default: begin end
 			endcase
 		end
-		`DECODE_ALU_MULT: begin end
+		`DECODE_ALU_MULT: begin
+			rd_req = 1'b0;	/* XXX workaround for Xilinx bug */
+			wr_req = 1'b0;
+			offset = prev_offset;
+			addr = prevaddr;
+		end
 		`DECODE_ALU_HDATA_REG,
 		`DECODE_ALU_HDATA_IMM: if(!inbubble) begin
 			addr = insn[23] ? op0 + op1 : op0 - op1; /* up/down select */
@@ -710,7 +724,9 @@ module Memory(
 			default: begin end
 			endcase
 		end
-		`DECODE_ALU_MULT: begin end
+		`DECODE_ALU_MULT: begin
+			next_outbubble = inbubble;	/* XXX workaround for Xilinx bug */
+		end
 		`DECODE_ALU_HDATA_REG,
 		`DECODE_ALU_HDATA_IMM: if(!inbubble) begin
 			next_outbubble = rw_wait;
