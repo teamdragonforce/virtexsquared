@@ -25,30 +25,30 @@ module Fetch(
 			{qjmp,qjmppc} <= {1'b0, 32'hxxxxxxxx};
 	
 	reg [31:0] reqpc;
-	always @(*)
-		if (stall)
-			reqpc = pc;
-		else if (qjmp)
-			reqpc = qjmppc;
-		else if (jmp)
-			reqpc = jmppc;
-		else
-			reqpc = pc + 4;
 	
+	/* Output latch logic */
 	assign rd_addr = reqpc;
 	assign rd_req = 1;
+	always @(posedge clk or negedge Nrst)
+		if (!Nrst) begin
+			bubble <= 1;
+			insn <= 0;
+			pc <= 32'h00000000;
+		end else if (!stall) begin
+			bubble <= (jmp || qjmp || rd_wait);
+			insn <= rd_data;
+			pc <= reqpc;
+		end
 	
 	always @(posedge clk or negedge Nrst)
-	begin
-		if (!Nrst) begin
-			pc <= 32'hFFFFFFFC;
-			bubble <= 1;
-		end else if (!stall)
-		begin
-			bubble <= rd_wait;
-			insn <= rd_data;
-			if (!rd_wait)
-				pc <= reqpc;
+		if (!Nrst)
+			reqpc <= 0;
+		else if (!stall && !rd_wait) begin
+			if (qjmp)
+				reqpc <= qjmppc;
+			else if (jmp)
+				reqpc <= jmppc;
+			else
+				reqpc <= reqpc + 4;
 		end
-	end
 endmodule
