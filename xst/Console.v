@@ -57,17 +57,21 @@ module Console(
 	
 	assign dvi_reset_b = 1'b1;
 	
-	wire clk25, clk25_90;
+	wire pixclk, pixclk_90, coreclk, coreclk_90;
 
 	wire [11:0] x, y;
 	wire border;
 
-	MulDivDCM dcm25(xtal, clk25, clk25_90);
-	defparam dcm25.div = 16;
-	defparam dcm25.mul = 5;
+	MulDivDCM dcm31_25(xtal, pixclk, pixclk_90);
+	defparam dcm31_25.div = 16;
+	defparam dcm31_25.mul = 5;
+	
+	MulDivDCM dcmcore(xtal, coreclk, coreclk_90);	/* 50MHz */
+	defparam dcmcore.div = 2;
+	defparam dcmcore.mul = 1;
 	
 	wire vs, hs;
-	SyncGen sync(clk25, vs, hs, x, y, border);
+	SyncGen sync(pixclk, vs, hs, x, y, border);
 	
 	wire [7:0] cschar;
 	wire [2:0] csrow;
@@ -88,7 +92,7 @@ module Console(
 	wire [4:0] vcursy;
 	
 	reg [16:0] rsttimer = 17'h3FFFF;
-	always @(posedge clk25)
+	always @(posedge coreclk)
 		if (~rst)
 			rsttimer <= 17'h3FFFF;
 		else if (rsttimer)
@@ -102,13 +106,13 @@ module Console(
 	wire [7:0] sertxdata;
 	
 	CharSet cs(cschar, csrow, csdata);
-	VideoRAM vram(clk25, vraddr + vscroll, vrdata, clk25, vwaddr, vwdata, vwr);
-	VDisplay dpy(clk25, x, y, vraddr, vrdata, cschar, csrow, csdata, vcursx, vcursy, odata);
-	RXState rxsm(clk25, vwr, vwaddr, vwdata, vscroll, vcursx, vcursy, serwr, serdata);
-	PS2 ps2(clk25, ps2c, ps2d, sertxwr, sertxdata);
-	System sys(.clk(clk25), .rst(rstact), .sys_odata({serwr, serdata}), .sys_idata({ps2_hasd, ps2_d}), .sys_tookdata(tookdata));
+	VideoRAM vram(pixclk, vraddr + vscroll, vrdata, coreclk, vwaddr, vwdata, vwr);
+	VDisplay dpy(pixclk, x, y, vraddr, vrdata, cschar, csrow, csdata, vcursx, vcursy, odata);
+	RXState rxsm(coreclk, vwr, vwaddr, vwdata, vscroll, vcursx, vcursy, serwr, serdata);
+	PS2 ps2(coreclk, ps2c, ps2d, sertxwr, sertxdata);
+	System sys(.clk(coreclk), .rst(rstact), .sys_odata({serwr, serdata}), .sys_idata({ps2_hasd, ps2_d}), .sys_tookdata(tookdata));
 	
-	always @(posedge clk25)
+	always @(posedge coreclk)
 		if (sertxwr)
 			{ps2_hasd, ps2_d} <= {1'b1, sertxdata};
 		else if (tookdata)
@@ -116,8 +120,8 @@ module Console(
 	
 	/* FUCK! ASS! BALLS! EAT MY SHORT DICK! FUCKING XST */
 	/* EMSD stands for Eat My Short Dick.  Because XST should. */
-`define MAKE_DDR(n,q,d1,d2) ODDR n (.C(clk25), .Q(q), .D1(d1), .D2(d2), .R(0), .S(0), .CE(1))
-`define MAKE_DDR90(n,q,d1,d2) ODDR n (.C(clk25_90), .Q(q), .D1(d1), .D2(d2), .R(0), .S(0), .CE(1))
+`define MAKE_DDR(n,q,d1,d2) ODDR n (.C(pixclk), .Q(q), .D1(d1), .D2(d2), .R(0), .S(0), .CE(1))
+`define MAKE_DDR90(n,q,d1,d2) ODDR n (.C(pixclk_90), .Q(q), .D1(d1), .D2(d2), .R(0), .S(0), .CE(1))
 	
 	wire [7:0] red, green, blue;
 	assign red   = (odata ? 8'hFF : 0) | (x[8:2] ^ y[7:1]);
@@ -143,7 +147,7 @@ module Console(
 	`MAKE_DDR(EMSD_dvi_d_11, dvi_d[11], green[3], red[7]);
 	
 	wire wee;
-	iic_init #(.CLK_RATE_MHZ(31)) init (clk25, 1'b1, 1'b0, dvi_sda, dvi_scl, wee);
+	iic_init #(.CLK_RATE_MHZ(31)) init (pixclk, 1'b1, 1'b0, dvi_sda, dvi_scl, wee);
 
 endmodule
 
