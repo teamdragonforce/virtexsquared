@@ -1,6 +1,21 @@
 TARGET = FireARM
-VLOGS = Console.v  ARM_Constants.v  BigBlockRAM.v  BlockRAM.v  BusArbiter.v  DCache.v  Decode.v  Execute.v  Fetch.v  ICache.v  Issue.v  Memory.v  RegFile.v  system.v  Terminal.v  Writeback.v
-VLOGS_ALL = $(VLOGS) ram.hex
+VLOGS = Console.v \
+        ../ARM_Constants.v \
+        ../BigBlockRAM.v \
+        ../BlockRAM.v \
+        ../BusArbiter.v \
+        ../DCache.v \
+        ../Decode.v \
+        ../Execute.v \
+        ../Fetch.v \
+        ../ICache.v \
+        ../Issue.v \
+        ../Memory.v \
+        ../RegFile.v \
+        ../system.v \
+        ../Terminal.v \
+        ../Writeback.v
+VLOGS_ALL = $(VLOGS) ram.hex ibmpc1.mem scancodes.unshifted.hex scancodes.shifted.hex
 
 all: fpga_target
 
