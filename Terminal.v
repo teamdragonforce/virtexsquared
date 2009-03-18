@@ -47,17 +47,17 @@ module Terminal(
 		if (towrite)
 			$c("{extern void term_output(unsigned char d); term_output(",data,");}");
 		else if (didread || !indata[8])
-			indata = $c("({extern unsigned int term_input(); term_input();})");
+			indata <= $c("({extern unsigned int term_input(); term_input();})");
 `else
 	always @(posedge clk)
 	begin
-		sys_odata = {towrite,data};
+		sys_odata <= {towrite,data};
 		if (didread || !indata[8])
 		begin
-			indata = sys_idata;
-			sys_tookdata = 1;
+			indata <= sys_idata;
+			sys_tookdata <= 1;
 		end else
-			sys_tookdata = 0;
+			sys_tookdata <= 0;
 	end
 `endif
 endmodule
