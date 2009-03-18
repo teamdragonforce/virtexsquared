@@ -1,5 +1,14 @@
 extern void putc(unsigned char c);
 
+int serial_getc (void)
+{
+	int c;
+	do
+		asm volatile("mrc 5, 0, %0, c1, c1, 1" : "=r"(c));
+	while (!(c & 0x100));
+	return c & 0xFF;
+}
+
 void puts(unsigned char *s)
 {
 	while (*s)
@@ -115,7 +124,9 @@ int main()
 		puts(": ");
 		t->test();
 	}
-	puts("Done!\n");
+	puts("Done! Echoing characters.\n");
 	
+	while (1)
+		putc(serial_getc());
 	return 0;
 }
