@@ -20,7 +20,7 @@ void openpty()
 	tcgetattr(fd, &kbdios);
 	kbdios.c_lflag &= ~(ECHO|ECHONL|ICANON|ISIG|IEXTEN);
 	tcsetattr(fd, TCSANOW, &kbdios);
-	sprintf(b, "rxvt -pty-fd %d -bg black -fg white -title \"Output terminal\" &", fd);
+	sprintf(b, "urxvt -pty-fd %d -bg black -fg white -title \"Output terminal\" &", fd);
 	system(b);
 	unlockpt(fd);
 	ptyfd = open(ptsname(fd), O_RDWR | O_NONBLOCK);
