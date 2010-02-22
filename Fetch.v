@@ -47,7 +47,6 @@ module Fetch(
 	assign ic__rd_addr_0a = reqpc_0a;
 	assign ic__rd_req_0a = 1;
 	
-	
 	always @(posedge clk or negedge Nrst)
 		if (!Nrst) begin
 			bubble_1a <= 1;

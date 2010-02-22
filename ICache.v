@@ -39,7 +39,7 @@ module ICache(
 	
 	reg cache_valid [15:0];
 	reg [21:0] cache_tags [15:0];
-	reg [31:0] cache_data [255:0 /* {line, word} */];	//synthesis attribute ram_style of cache_data is distributed
+	reg [31:0] cache_data [255:0 /* {line, word} */];	//synthesis attribute ram_style of cache_data is block
 	
 	integer i;
 	initial
