@@ -110,21 +110,48 @@ module System(input clk, input rst
 	wire [31:0] pc_out_issue;
 	wire [31:0] pc_out_execute;
 	wire [31:0] pc_out_memory;
+	
+	/*AUTOWIRE*/
+	// Beginning of automatic wires (for undeclared instantiated-module outputs)
+	wire [31:0]	ic__rd_addr_0a;		// From fetch of Fetch.v
+	wire [31:0]	ic__rd_data_0a;		// From icache of ICache.v
+	wire		ic__rd_req_0a;		// From fetch of Fetch.v
+	wire		ic__rd_wait_0a;		// From icache of ICache.v
+	// End of automatics
 
 	wire execute_out_backflush;
 	wire writeback_out_backflush;
 
 	BusArbiter busarbiter(.bus_req(bus_req), .bus_ack(bus_ack));
 
-	ICache icache(
+	/* XXX reset? */
+	/* ICache AUTO_TEMPLATE (
 		.clk(clk),
-		/* XXX reset? */
-		.rd_addr(icache_rd_addr), .rd_req(icache_rd_req),
-		.rd_wait(icache_rd_wait), .rd_data(icache_rd_data),
-		.bus_req(bus_req_icache), .bus_ack(bus_ack_icache),
-		.bus_addr(bus_addr_icache), .bus_rdata(bus_rdata),
-		.bus_wdata(bus_wdata_icache), .bus_rd(bus_rd_icache),
-		.bus_wr(bus_wr_icache), .bus_ready(bus_ready));
+		.bus_req(bus_req_icache),
+		.bus_ack(bus_ack_icache),
+		.bus_addr(bus_addr_icache),
+		.bus_rdata(bus_rdata),
+		.bus_wdata(bus_wdata_icache),
+		.bus_rd(bus_rd_icache),
+		.bus_wr(bus_wr_icache),
+		.bus_ready(bus_ready),
+		); */
+	ICache icache(/*AUTOINST*/
+		      // Outputs
+		      .ic__rd_wait_0a	(ic__rd_wait_0a),
+		      .ic__rd_data_0a	(ic__rd_data_0a[31:0]),
+		      .bus_req		(bus_req_icache),	 // Templated
+		      .bus_addr		(bus_addr_icache),	 // Templated
+		      .bus_wdata	(bus_wdata_icache),	 // Templated
+		      .bus_rd		(bus_rd_icache),	 // Templated
+		      .bus_wr		(bus_wr_icache),	 // Templated
+		      // Inputs
+		      .clk		(clk),			 // Templated
+		      .ic__rd_addr_0a	(ic__rd_addr_0a[31:0]),
+		      .ic__rd_req_0a	(ic__rd_req_0a),
+		      .bus_ack		(bus_ack_icache),	 // Templated
+		      .bus_rdata	(bus_rdata),		 // Templated
+		      .bus_ready	(bus_ready));		 // Templated
 	
 	DCache dcache(
 		.clk(clk),
@@ -146,14 +173,33 @@ module System(input clk, input rst
 		.bus_wdata(bus_wdata), .bus_rd(bus_rd), .bus_wr(bus_wr),
 		.bus_ready(bus_ready_blockram));
 
-	Fetch fetch(
+	/* Fetch AUTO_TEMPLATE (
 		.clk(clk),
 		.Nrst(~rst),
-		.rd_addr(icache_rd_addr), .rd_req(icache_rd_req),
-		.rd_wait(icache_rd_wait), .rd_data(icache_rd_data),
-		.stall(stall_cause_issue), .jmp(jmp), .jmppc(jmppc),
-		.bubble(bubble_out_fetch), .insn(insn_out_fetch),
-		.pc(pc_out_fetch));
+		.stall_0a(stall_cause_issue),
+		.jmp_0a(jmp),
+		.jmppc_0a(jmppc),
+		.bubble_1a(bubble_out_fetch),
+		.insn_1a(insn_out_fetch),
+		.pc_1a(pc_out_fetch),
+		);
+	*/
+	Fetch fetch(
+		/*AUTOINST*/
+		    // Outputs
+		    .ic__rd_addr_0a	(ic__rd_addr_0a[31:0]),
+		    .ic__rd_req_0a	(ic__rd_req_0a),
+		    .bubble_1a		(bubble_out_fetch),	 // Templated
+		    .insn_1a		(insn_out_fetch),	 // Templated
+		    .pc_1a		(pc_out_fetch),		 // Templated
+		    // Inputs
+		    .clk		(clk),			 // Templated
+		    .Nrst		(~rst),			 // Templated
+		    .ic__rd_wait_0a	(ic__rd_wait_0a),
+		    .ic__rd_data_0a	(ic__rd_data_0a[31:0]),
+		    .stall_0a		(stall_cause_issue),	 // Templated
+		    .jmp_0a		(jmp),			 // Templated
+		    .jmppc_0a		(jmppc));		 // Templated
 	
 	Issue issue(
 		.clk(clk),
