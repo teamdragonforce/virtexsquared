@@ -9,4 +9,7 @@ obj_dir/Vsystem.mk: $(VLOGS)
 	mkdir -p obj_dir
 	verilator --cc system.v testbench.cpp --exe
 
+auto: .DUMMY
+	emacs -l ~/elisp/verilog-mode.el --batch system.v -f verilog-batch-auto
+
 .DUMMY:
