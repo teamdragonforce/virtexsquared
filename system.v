@@ -114,7 +114,7 @@ module System(input clk, input rst
 	/*AUTOWIRE*/
 	// Beginning of automatic wires (for undeclared instantiated-module outputs)
 	wire [31:0]	ic__rd_addr_0a;		// From fetch of Fetch.v
-	wire [31:0]	ic__rd_data_0a;		// From icache of ICache.v
+	wire [31:0]	ic__rd_data_1a;		// From icache of ICache.v
 	wire		ic__rd_req_0a;		// From fetch of Fetch.v
 	wire		ic__rd_wait_0a;		// From icache of ICache.v
 	// End of automatics
@@ -139,7 +139,7 @@ module System(input clk, input rst
 	ICache icache(/*AUTOINST*/
 		      // Outputs
 		      .ic__rd_wait_0a	(ic__rd_wait_0a),
-		      .ic__rd_data_0a	(ic__rd_data_0a[31:0]),
+		      .ic__rd_data_1a	(ic__rd_data_1a[31:0]),
 		      .bus_req		(bus_req_icache),	 // Templated
 		      .bus_addr		(bus_addr_icache),	 // Templated
 		      .bus_wdata	(bus_wdata_icache),	 // Templated
@@ -196,7 +196,7 @@ module System(input clk, input rst
 		    .clk		(clk),			 // Templated
 		    .Nrst		(~rst),			 // Templated
 		    .ic__rd_wait_0a	(ic__rd_wait_0a),
-		    .ic__rd_data_0a	(ic__rd_data_0a[31:0]),
+		    .ic__rd_data_1a	(ic__rd_data_1a[31:0]),
 		    .stall_0a		(stall_cause_issue),	 // Templated
 		    .jmp_0a		(jmp),			 // Templated
 		    .jmppc_0a		(jmppc));		 // Templated

@@ -7,17 +7,17 @@ module ICache(
 	input       [31:0] ic__rd_addr_0a,
 	input              ic__rd_req_0a,
 	output wire        ic__rd_wait_0a,
-	output wire [31:0] ic__rd_data_0a,
+	output wire [31:0] ic__rd_data_1a,
 	
 	/* bus interface */
-	output wire bus_req,
-	input bus_ack,
-	output reg [31:0] bus_addr,
-	input [31:0] bus_rdata,
+	output wire        bus_req,
+	input              bus_ack,
+	output reg  [31:0] bus_addr,
+	input       [31:0] bus_rdata,
 	output wire [31:0] bus_wdata,
-	output reg bus_rd,
-	output wire bus_wr,
-	input bus_ready);
+	output reg         bus_rd,
+	output wire        bus_wr,
+	input              bus_ready);
 	
 	assign bus_wr = 0;
 	assign bus_wdata = 0;
@@ -25,9 +25,9 @@ module ICache(
 	wire [31:0] rd_addr_0a;
 	wire        rd_req_0a;
 	reg         rd_wait_0a;
-	reg  [31:0] rd_data_0a;
+	reg  [31:0] rd_data_1a;
 	assign ic__rd_wait_0a = rd_wait_0a;
-	assign ic__rd_data_0a = rd_data_0a;
+	assign ic__rd_data_1a = rd_data_1a;
 	assign rd_addr_0a = ic__rd_addr_0a;
 	assign rd_req_0a = ic__rd_req_0a;
 	
@@ -49,46 +49,47 @@ module ICache(
 			cache_tags[i[3:0]] = 0;
 		end
 	
-	wire [5:0] rd_didx = rd_addr_0a[5:0];
-	wire [3:0] rd_didx_word = rd_didx[5:2];
-	wire [3:0] rd_idx = rd_addr_0a[9:6];
-	wire [21:0] rd_tag = rd_addr_0a[31:10];
+	wire  [5:0] rd_didx_0a      = rd_addr_0a[5:0];
+	wire  [3:0] rd_didx_word_0a = rd_didx_0a[5:2];
+	wire  [3:0] rd_idx_0a       = rd_addr_0a[9:6];
+	wire [21:0] rd_tag_0a       = rd_addr_0a[31:10];
 	
-	reg [31:0] prev_rd_addr = 32'hFFFFFFFF;
+	reg  [31:0] rd_addr_1a = 32'hFFFFFFFF;
 	
-	wire cache_hit = cache_valid[rd_idx] && (cache_tags[rd_idx] == rd_tag);
+	wire cache_hit_0a = cache_valid[rd_idx_0a] && (cache_tags[rd_idx_0a] == rd_tag_0a);
 	
-	reg [3:0] cache_fill_pos = 0;
-	assign bus_req = rd_req_0a && !cache_hit; /* xxx, needed for Verilator */
+	reg [3:0] cache_fill_pos_0a = 0;
+	assign bus_req = rd_req_0a && !cache_hit_0a; /* xxx, needed for Verilator */
 	always @(*)
-		if (rd_req_0a && !cache_hit && bus_ack) begin
-			bus_addr = {rd_addr_0a[31:6], cache_fill_pos[3:0], 2'b00 /* reads are 32-bits */};
+		if (rd_req_0a && !cache_hit_0a && bus_ack) begin
+			bus_addr = {rd_addr_0a[31:6], cache_fill_pos_0a[3:0], 2'b00 /* reads are 32-bits */};
 			bus_rd = 1;
 		end else begin
 			bus_addr = 0;
 			bus_rd = 0;
 		end
 
-	wire [31:0] curdata = cache_data[{rd_idx,rd_didx_word}];
 	always @(*) begin
-		rd_wait_0a = rd_req_0a && !cache_hit;
-		rd_data_0a = curdata;
+		rd_wait_0a = rd_req_0a && !cache_hit_0a;
 	end
 	
 	always @(posedge clk) begin
-		prev_rd_addr <= {rd_addr_0a[31:6], 6'b0};
-		if (cache_fill_pos != 0 && ((prev_rd_addr != {rd_addr_0a[31:6], 6'b0}) || cache_hit))	/* If this wasn't from the same line, or we've moved on somehow, reset the fill circuitry. */
-			cache_fill_pos <= 0;
-		else if (rd_req_0a && !cache_hit && bus_ack && bus_ready) begin
+		// Do the actual read.
+		rd_data_1a <= cache_data[{rd_idx_0a,rd_didx_word_0a}];
+		
+		rd_addr_1a <= {rd_addr_0a[31:6], 6'b0};
+		if (cache_fill_pos_0a != 0 && ((rd_addr_1a != {rd_addr_0a[31:6], 6'b0}) || cache_hit_0a))	/* If this wasn't from the same line, or we've moved on somehow, reset the fill circuitry. */
+			cache_fill_pos_0a <= 0;
+		else if (rd_req_0a && !cache_hit_0a && bus_ack && bus_ready) begin
 			$display("ICACHE: FILL: rd addr %08x; bus addr %08x; bus data %08x", rd_addr_0a, bus_addr, bus_rdata);
-			cache_data[{rd_idx,cache_fill_pos}] <= bus_rdata;
-			cache_fill_pos <= cache_fill_pos + 1;
-			if (cache_fill_pos == 15) begin	/* Done? */
-				cache_tags[rd_idx] <= rd_tag;
-				cache_valid[rd_idx] <= 1;
-				$display("ICACHE: Fill complete for line %x, tag %x", rd_idx, rd_tag);
+			cache_data[{rd_idx_0a,cache_fill_pos_0a}] <= bus_rdata;
+			cache_fill_pos_0a <= cache_fill_pos_0a + 1;
+			if (cache_fill_pos_0a == 15) begin	/* Done? */
+				cache_tags[rd_idx_0a] <= rd_tag_0a;
+				cache_valid[rd_idx_0a] <= 1;
+				$display("ICACHE: Fill complete for line %x, tag %x", rd_idx_0a, rd_tag_0a);
 			end else
-				cache_valid[rd_idx] <= 0;
+				cache_valid[rd_idx_0a] <= 0;
 		end
 	end
 endmodule

@@ -5,7 +5,7 @@ module Fetch(
 	output wire [31:0] ic__rd_addr_0a,
 	output wire        ic__rd_req_0a,
 	input              ic__rd_wait_0a,
-	input       [31:0] ic__rd_data_0a,
+	input       [31:0] ic__rd_data_1a,
 	
 	input              stall_0a,
 	input              jmp_0a,
@@ -27,16 +27,33 @@ module Fetch(
 	reg [31:0] reqpc_0a;
 	
 	/* Output latch logic */
+	reg [31:0] insn_2a;
+	reg stall_1a;
+	always @(posedge clk or negedge Nrst)
+		if (!Nrst) begin
+			insn_2a <= 32'h00000000;
+			stall_1a <= 0;
+		end else begin
+			insn_2a <= insn_1a;
+			stall_1a <= stall_0a;
+		end
+	
+	always @(*)
+		if (stall_1a)
+			insn_1a = insn_2a;
+		else
+			insn_1a = ic__rd_data_1a;
+	
 	assign ic__rd_addr_0a = reqpc_0a;
 	assign ic__rd_req_0a = 1;
+	
+	
 	always @(posedge clk or negedge Nrst)
 		if (!Nrst) begin
 			bubble_1a <= 1;
-			insn_1a <= 32'h00000000;
 			pc_1a <= 32'h00000000;
 		end else if (!stall_0a) begin
 			bubble_1a <= (jmp_0a || qjmp || ic__rd_wait_0a);
-			insn_1a <= ic__rd_data_0a;
 			pc_1a <= reqpc_0a;
 		end
 	
