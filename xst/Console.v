@@ -67,8 +67,8 @@ module Console(
 	defparam dcm31_25.mul = 5;
 	
 	MulDivDCM dcmcore(xtal, coreclk, coreclk_90);	/* 50MHz */
-	defparam dcmcore.div = 2;
-	defparam dcmcore.mul = 1;
+	defparam dcmcore.div = 4;
+	defparam dcmcore.mul = 2;
 	
 	wire vs, hs;
 	SyncGen sync(pixclk, vs, hs, x, y, border);
