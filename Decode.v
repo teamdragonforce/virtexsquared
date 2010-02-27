@@ -3,8 +3,8 @@
 module Decode(
 	input clk,
 	input stall,
-	input [31:0] insn,
-	input [31:0] inpc,
+	input [31:0] insn_1a,
+	input [31:0] pc_1a,
 	input [31:0] incpsr,
 	input [31:0] inspsr,
 	output reg [31:0] op0,
@@ -14,12 +14,12 @@ module Decode(
 	output reg [31:0] outcpsr,
 	output reg [31:0] outspsr,
 
-	output reg [3:0] read_0,
-	output reg [3:0] read_1,
-	output reg [3:0] read_2,
-	input [31:0] rdata_0,
-	input [31:0] rdata_1,
-	input [31:0] rdata_2
+	output reg [3:0] rf__read_0_1a,
+	output reg [3:0] rf__read_1_1a,
+	output reg [3:0] rf__read_2_1a,
+	input [31:0] rf__rdata_0_1a,
+	input [31:0] rf__rdata_1_1a,
+	input [31:0] rf__rdata_2_1a
 	);
 
 	wire [31:0] regs0, regs1, regs2;
@@ -33,23 +33,23 @@ module Decode(
 	wire shift_cflag_out;
 	wire [31:0] rotate_res;
 
-	assign regs0 = (read_0 == 4'b1111) ? rpc : rdata_0;
-	assign regs1 = (read_1 == 4'b1111) ? rpc : rdata_1;
-	assign regs2 = rdata_2; /* use regs2 for things that cannot be r15 */
+	assign regs0 = (rf__read_0_1a == 4'b1111) ? rpc : rf__rdata_0_1a;
+	assign regs1 = (rf__read_1_1a == 4'b1111) ? rpc : rf__rdata_1_1a;
+	assign regs2 = rf__rdata_2_1a; /* use regs2 for things that cannot be r15 */
 
-	IREALLYHATEARMSHIFT shift(.insn(insn),
+	IREALLYHATEARMSHIFT shift(.insn(insn_1a),
 	                          .operand(regs1),
 	                          .reg_amt(regs2),
 	                          .cflag_in(incpsr[`CPSR_C]),
 	                          .res(shift_res),
 	                          .cflag_out(shift_cflag_out));
 
-	SuckLessRotator whirr(.oper({24'b0, insn[7:0]}),
-	                      .amt(insn[11:8]),
+	SuckLessRotator whirr(.oper({24'b0, insn_1a[7:0]}),
+	                      .amt(insn_1a[11:8]),
 	                      .res(rotate_res));
 
 	always @(*)
-		casez (insn)
+		casez (insn_1a)
 		`DECODE_ALU_MULT,		/* Multiply -- must come before ALU, because it pattern matches a specific case of ALU */
 //		`DECODE_ALU_MUL_LONG,		/* Multiply long */
 		`DECODE_ALU_MRS,		/* MRS (Transfer PSR to register) */
@@ -66,75 +66,75 @@ module Decode(
 		`DECODE_LDCSTC,			/* Coprocessor data transfer */
 		`DECODE_CDP,			/* Coprocessor data op */
 		`DECODE_SWI:			/* SWI */
-			rpc = inpc + 8;
+			rpc = pc_1a + 8;
 		`DECODE_MRCMCR:			/* Coprocessor register transfer */
-			rpc = inpc + 12;
+			rpc = pc_1a + 12;
 		`DECODE_ALU:			/* ALU */
-			rpc = inpc + (insn[25] ? 8 : (insn[4] ? 12 : 8));
+			rpc = pc_1a + (insn_1a[25] ? 8 : (insn_1a[4] ? 12 : 8));
 		default:			/* X everything else out */
 			rpc = 32'hxxxxxxxx;
 		endcase
 	
 	always @(*) begin
-		read_0 = 4'hx;
-		read_1 = 4'hx;
-		read_2 = 4'hx;
+		rf__read_0_1a = 4'hx;
+		rf__read_1_1a = 4'hx;
+		rf__read_2_1a = 4'hx;
 		
-		casez (insn)
+		casez (insn_1a)
 		`DECODE_ALU_MULT:	/* Multiply -- must come before ALU, because it pattern matches a specific case of ALU */
 		begin
-			read_0 = insn[15:12]; /* Rn */
-			read_1 = insn[3:0];   /* Rm */
-			read_2 = insn[11:8];  /* Rs */
+			rf__read_0_1a = insn_1a[15:12]; /* Rn */
+			rf__read_1_1a = insn_1a[3:0];   /* Rm */
+			rf__read_2_1a = insn_1a[11:8];  /* Rs */
 		end
 		`DECODE_ALU_MRS:	/* MRS (Transfer PSR to register) */
 		begin end
 		`DECODE_ALU_MSR:	/* MSR (Transfer register to PSR) */
-			read_0 = insn[3:0];	/* Rm */
+			rf__read_0_1a = insn_1a[3:0];	/* Rm */
 		`DECODE_ALU_MSR_FLAGS:	/* MSR (Transfer register or immediate to PSR, flag bits only) */
-			read_0 = insn[3:0];	/* Rm */
+			rf__read_0_1a = insn_1a[3:0];	/* Rm */
 		`DECODE_ALU_SWP:	/* Atomic swap */
 		begin
-			read_0 = insn[19:16]; /* Rn */
-			read_1 = insn[3:0];   /* Rm */
+			rf__read_0_1a = insn_1a[19:16]; /* Rn */
+			rf__read_1_1a = insn_1a[3:0];   /* Rm */
 		end
 		`DECODE_ALU_BX:		/* Branch and exchange */
-			read_0 = insn[3:0];   /* Rn */
+			rf__read_0_1a = insn_1a[3:0];   /* Rn */
 		`DECODE_ALU_HDATA_REG:	/* Halfword transfer - register offset */
 		begin
-			read_0 = insn[19:16];
-			read_1 = insn[3:0];
-			read_2 = insn[15:12];
+			rf__read_0_1a = insn_1a[19:16];
+			rf__read_1_1a = insn_1a[3:0];
+			rf__read_2_1a = insn_1a[15:12];
 		end
 		`DECODE_ALU_HDATA_IMM:	/* Halfword transfer - immediate offset */
 		begin
-			read_0 = insn[19:16];
-			read_1 = insn[15:12];
+			rf__read_0_1a = insn_1a[19:16];
+			rf__read_1_1a = insn_1a[15:12];
 		end
 		`DECODE_ALU:		/* ALU */
 		begin
-			read_0 = insn[19:16]; /* Rn */
-			read_1 = insn[3:0];   /* Rm */
-			read_2 = insn[11:8];  /* Rs for shift */
+			rf__read_0_1a = insn_1a[19:16]; /* Rn */
+			rf__read_1_1a = insn_1a[3:0];   /* Rm */
+			rf__read_2_1a = insn_1a[11:8];  /* Rs for shift */
 		end
 		`DECODE_LDRSTR_UNDEFINED:	/* Undefined. I hate ARM */
 		begin end
 		`DECODE_LDRSTR:		/* Single data transfer */
 		begin
-			read_0 = insn[19:16]; /* Rn */
-			read_1 = insn[3:0];   /* Rm */
-			read_2 = insn[15:12];
+			rf__read_0_1a = insn_1a[19:16]; /* Rn */
+			rf__read_1_1a = insn_1a[3:0];   /* Rm */
+			rf__read_2_1a = insn_1a[15:12];
 		end
 		`DECODE_LDMSTM:		/* Block data transfer */
-			read_0 = insn[19:16];
+			rf__read_0_1a = insn_1a[19:16];
 		`DECODE_BRANCH:		/* Branch */
 		begin end
 		`DECODE_LDCSTC:		/* Coprocessor data transfer */
-			read_0 = insn[19:16];
+			rf__read_0_1a = insn_1a[19:16];
 		`DECODE_CDP:		/* Coprocessor data op */
 		begin end
 		`DECODE_MRCMCR:		/* Coprocessor register transfer */
-			read_0 = insn[15:12];
+			rf__read_0_1a = insn_1a[15:12];
 		`DECODE_SWI:		/* SWI */
 		begin end
 		default:
@@ -148,7 +148,7 @@ module Decode(
 		op2_out = 32'hxxxxxxxx;
 		carry_out = 1'bx;
 		
-		casez (insn)
+		casez (insn_1a)
 		`DECODE_ALU_MULT:	/* Multiply -- must come before ALU, because it pattern matches a specific case of ALU */
 		begin
 			op0_out = regs0;
@@ -160,7 +160,7 @@ module Decode(
 		`DECODE_ALU_MSR:	/* MSR (Transfer register to PSR) */
 			op0_out = regs0;
 		`DECODE_ALU_MSR_FLAGS:	/* MSR (Transfer register or immediate to PSR, flag bits only) */
-			if(insn[25]) begin     /* the constant case */
+			if(insn_1a[25]) begin     /* the constant case */
 				op0_out = rotate_res;
 			end else begin
 				op0_out = regs0;
@@ -181,13 +181,13 @@ module Decode(
 		`DECODE_ALU_HDATA_IMM:	/* Halfword transfer - immediate offset */
 		begin
 			op0_out = regs0;
-			op1_out = {24'b0, insn[11:8], insn[3:0]};
+			op1_out = {24'b0, insn_1a[11:8], insn_1a[3:0]};
 			op2_out = regs1;
 		end
 		`DECODE_ALU:		/* ALU */
 		begin
 			op0_out = regs0;
-			if(insn[25]) begin     /* the constant case */
+			if(insn_1a[25]) begin     /* the constant case */
 				carry_out = incpsr[`CPSR_C];
 				op1_out = rotate_res;
 			end else begin
@@ -198,8 +198,8 @@ module Decode(
 		`DECODE_LDRSTR:		/* Single data transfer */
 		begin
 			op0_out = regs0;
-			if(!insn[25] /* immediate */) begin
-				op1_out = {20'b0, insn[11:0]};
+			if(!insn_1a[25] /* immediate */) begin
+				op1_out = {20'b0, insn_1a[11:0]};
 				carry_out = incpsr[`CPSR_C];
 			end else begin
 				op1_out = shift_res;
@@ -210,14 +210,14 @@ module Decode(
 		`DECODE_LDMSTM:		/* Block data transfer */
 		begin
 			op0_out = regs0;
-			op1_out = {16'b0, insn[15:0]};
+			op1_out = {16'b0, insn_1a[15:0]};
 		end
 		`DECODE_BRANCH:		/* Branch */
-			op0_out = {{6{insn[23]}}, insn[23:0], 2'b0};
+			op0_out = {{6{insn_1a[23]}}, insn_1a[23:0], 2'b0};
 		`DECODE_LDCSTC:		/* Coprocessor data transfer */
 		begin
 			op0_out = regs0;
-			op1_out = {24'b0, insn[7:0]};
+			op1_out = {24'b0, insn_1a[7:0]};
 		end
 		`DECODE_CDP:		/* Coprocessor data op */
 		begin end

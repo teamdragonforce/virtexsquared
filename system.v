@@ -111,12 +111,24 @@ module System(input clk, input rst
 	wire [31:0] pc_out_execute;
 	wire [31:0] pc_out_memory;
 	
+	wire Nrst = ~rst;
+	
 	/*AUTOWIRE*/
 	// Beginning of automatic wires (for undeclared instantiated-module outputs)
+	wire		bubble_1a;		// From fetch of Fetch.v
 	wire [31:0]	ic__rd_addr_0a;		// From fetch of Fetch.v
 	wire [31:0]	ic__rd_data_1a;		// From icache of ICache.v
 	wire		ic__rd_req_0a;		// From fetch of Fetch.v
 	wire		ic__rd_wait_0a;		// From icache of ICache.v
+	wire [31:0]	insn_1a;		// From fetch of Fetch.v
+	wire [31:0]	pc_1a;			// From fetch of Fetch.v
+	wire [31:0]	rf__rdata_0_1a;		// From regfile of RegFile.v
+	wire [31:0]	rf__rdata_1_1a;		// From regfile of RegFile.v
+	wire [31:0]	rf__rdata_2_1a;		// From regfile of RegFile.v
+	wire [31:0]	rf__rdata_3_4a;		// From regfile of RegFile.v
+	wire [3:0]	rf__read_0_1a;		// From decode of Decode.v
+	wire [3:0]	rf__read_1_1a;		// From decode of Decode.v
+	wire [3:0]	rf__read_2_1a;		// From decode of Decode.v
 	// End of automatics
 
 	wire execute_out_backflush;
@@ -174,14 +186,9 @@ module System(input clk, input rst
 		.bus_ready(bus_ready_blockram));
 
 	/* Fetch AUTO_TEMPLATE (
-		.clk(clk),
-		.Nrst(~rst),
 		.stall_0a(stall_cause_issue),
 		.jmp_0a(jmp),
 		.jmppc_0a(jmppc),
-		.bubble_1a(bubble_out_fetch),
-		.insn_1a(insn_out_fetch),
-		.pc_1a(pc_out_fetch),
 		);
 	*/
 	Fetch fetch(
@@ -189,42 +196,106 @@ module System(input clk, input rst
 		    // Outputs
 		    .ic__rd_addr_0a	(ic__rd_addr_0a[31:0]),
 		    .ic__rd_req_0a	(ic__rd_req_0a),
-		    .bubble_1a		(bubble_out_fetch),	 // Templated
-		    .insn_1a		(insn_out_fetch),	 // Templated
-		    .pc_1a		(pc_out_fetch),		 // Templated
+		    .bubble_1a		(bubble_1a),
+		    .insn_1a		(insn_1a[31:0]),
+		    .pc_1a		(pc_1a[31:0]),
 		    // Inputs
-		    .clk		(clk),			 // Templated
-		    .Nrst		(~rst),			 // Templated
+		    .clk		(clk),
+		    .Nrst		(Nrst),
 		    .ic__rd_wait_0a	(ic__rd_wait_0a),
 		    .ic__rd_data_1a	(ic__rd_data_1a[31:0]),
 		    .stall_0a		(stall_cause_issue),	 // Templated
 		    .jmp_0a		(jmp),			 // Templated
 		    .jmppc_0a		(jmppc));		 // Templated
 	
-	Issue issue(
-		.clk(clk),
-		.Nrst(~rst),
-		.stall(stall_cause_execute), .flush(execute_out_backflush | writeback_out_backflush),
-		.inbubble(bubble_out_fetch), .insn(insn_out_fetch),
-		.inpc(pc_out_fetch), .cpsr(writeback_out_cpsr),
-		.outstall(stall_cause_issue), .outbubble(bubble_out_issue),
-		.outpc(pc_out_issue), .outinsn(insn_out_issue));
-	
-	RegFile regfile(
-		.clk(clk), .Nrst(~rst),
-		.read_0(regfile_read_0), .read_1(regfile_read_1), .read_2(regfile_read_2), .read_3(regfile_read_3),
-		.rdata_0(regfile_rdata_0), .rdata_1(regfile_rdata_1), .rdata_2(regfile_rdata_2), .rdata_3(regfile_rdata_3),
-		.spsr(regfile_spsr),
-		.write(regfile_write), .write_reg(regfile_write_reg), .write_data(regfile_write_data));
-	
-	Decode decode(
-		.clk(clk),
+	/* Issue AUTO_TEMPLATE (
 		.stall(stall_cause_execute),
-		.insn(insn_out_fetch), .inpc(pc_out_fetch), .incpsr(writeback_out_cpsr), .inspsr(writeback_out_spsr),
-		.op0(decode_out_op0), .op1(decode_out_op1), .op2(decode_out_op2),
-		.carry(decode_out_carry), .outcpsr(decode_out_cpsr), .outspsr(decode_out_spsr),
-		.read_0(regfile_read_0), .read_1(regfile_read_1), .read_2(regfile_read_2), 
-		.rdata_0(regfile_rdata_0), .rdata_1(regfile_rdata_1), .rdata_2(regfile_rdata_2));
+		.flush(execute_out_backflush | writeback_out_backflush),
+		.cpsr(writeback_out_cpsr),
+		.outstall(stall_cause_issue),
+		.outbubble(bubble_out_issue),
+		.outpc(pc_out_issue),
+		.outinsn(insn_out_issue),
+		);
+	*/
+	Issue issue(
+		/*AUTOINST*/
+		    // Outputs
+		    .outstall		(stall_cause_issue),	 // Templated
+		    .outbubble		(bubble_out_issue),	 // Templated
+		    .outpc		(pc_out_issue),		 // Templated
+		    .outinsn		(insn_out_issue),	 // Templated
+		    // Inputs
+		    .clk		(clk),
+		    .Nrst		(Nrst),
+		    .stall		(stall_cause_execute),	 // Templated
+		    .flush		(execute_out_backflush | writeback_out_backflush), // Templated
+		    .bubble_1a		(bubble_1a),
+		    .insn_1a		(insn_1a[31:0]),
+		    .pc_1a		(pc_1a[31:0]),
+		    .cpsr		(writeback_out_cpsr));	 // Templated
+	
+	/* RegFile AUTO_TEMPLATE (
+		.spsr(regfile_spsr),
+		.write(regfile_write),
+		.write_reg(regfile_write_reg),
+		.write_data(regfile_write_data),
+		);
+	*/
+	wire [3:0] rf__read_3_4a;
+	RegFile regfile(
+		/*AUTOINST*/
+			// Outputs
+			.rf__rdata_0_1a	(rf__rdata_0_1a[31:0]),
+			.rf__rdata_1_1a	(rf__rdata_1_1a[31:0]),
+			.rf__rdata_2_1a	(rf__rdata_2_1a[31:0]),
+			.rf__rdata_3_4a	(rf__rdata_3_4a[31:0]),
+			.spsr		(regfile_spsr),		 // Templated
+			// Inputs
+			.clk		(clk),
+			.Nrst		(Nrst),
+			.rf__read_0_1a	(rf__read_0_1a[3:0]),
+			.rf__read_1_1a	(rf__read_1_1a[3:0]),
+			.rf__read_2_1a	(rf__read_2_1a[3:0]),
+			.rf__read_3_4a	(rf__read_3_4a[3:0]),
+			.write		(regfile_write),	 // Templated
+			.write_reg	(regfile_write_reg),	 // Templated
+			.write_data	(regfile_write_data));	 // Templated
+	
+	/* Decode AUTO_TEMPLATE (
+		.stall(stall_cause_execute),
+		.incpsr(writeback_out_cpsr),
+		.inspsr(writeback_out_spsr),
+		.op0(decode_out_op0),
+		.op1(decode_out_op1),
+		.op2(decode_out_op2),
+		.carry(decode_out_carry),
+		.outcpsr(decode_out_cpsr),
+		.outspsr(decode_out_spsr),
+		);
+	*/
+	Decode decode(
+		/*AUTOINST*/
+		      // Outputs
+		      .op0		(decode_out_op0),	 // Templated
+		      .op1		(decode_out_op1),	 // Templated
+		      .op2		(decode_out_op2),	 // Templated
+		      .carry		(decode_out_carry),	 // Templated
+		      .outcpsr		(decode_out_cpsr),	 // Templated
+		      .outspsr		(decode_out_spsr),	 // Templated
+		      .rf__read_0_1a	(rf__read_0_1a[3:0]),
+		      .rf__read_1_1a	(rf__read_1_1a[3:0]),
+		      .rf__read_2_1a	(rf__read_2_1a[3:0]),
+		      // Inputs
+		      .clk		(clk),
+		      .stall		(stall_cause_execute),	 // Templated
+		      .insn_1a		(insn_1a[31:0]),
+		      .pc_1a		(pc_1a[31:0]),
+		      .incpsr		(writeback_out_cpsr),	 // Templated
+		      .inspsr		(writeback_out_spsr),	 // Templated
+		      .rf__rdata_0_1a	(rf__rdata_0_1a[31:0]),
+		      .rf__rdata_1_1a	(rf__rdata_1_1a[31:0]),
+		      .rf__rdata_2_1a	(rf__rdata_2_1a[31:0]));
 	
 	Execute execute(
 		.clk(clk), .Nrst(~rst),
@@ -247,7 +318,7 @@ module System(input clk, input rst
 		/* stall? */ .flush(writeback_out_backflush),
 		.busaddr(dcache_addr), .rd_req(dcache_rd_req), .wr_req(dcache_wr_req),
 		.rw_wait(dcache_rw_wait), .wr_data(dcache_wr_data), .rd_data(dcache_rd_data),
-		.st_read(regfile_read_3), .st_data(regfile_rdata_3),
+		.st_read(rf__read_3_4a), .st_data(rf__rdata_3_4a),
 		.inbubble(bubble_out_execute), .pc(pc_out_execute), .insn(insn_out_execute),
 		.op0(execute_out_op0), .op1(execute_out_op1), .op2(execute_out_op2),
 		.spsr(execute_out_spsr), .cpsr(execute_out_cpsr), .cpsrup(execute_out_cpsrup),
@@ -284,7 +355,7 @@ module System(input clk, input rst
 	begin
 		clockno <= clockno + 1;
 		$display("------------------------------------------------------------------------------");
-		$display("%3d: FETCH:            Bubble: %d, Instruction: %08x, PC: %08x", clockno, bubble_out_fetch, insn_out_fetch, pc_out_fetch);
+		$display("%3d: FETCH:            Bubble: %d, Instruction: %08x, PC: %08x", clockno, bubble_1a, insn_1a, pc_1a);
 		$display("%3d: ISSUE:  Stall: %d, Bubble: %d, Instruction: %08x, PC: %08x", clockno, stall_cause_issue, bubble_out_issue, insn_out_issue, pc_out_issue);
 		$display("%3d: DECODE:                      op0 %08x, op1 %08x, op2 %08x, carry %d", clockno, decode_out_op0, decode_out_op1, decode_out_op2, decode_out_carry);
 		$display("%3d: EXEC:   Stall: %d, Bubble: %d, Instruction: %08x, PC: %08x, Reg: %d, [%08x -> %d], Jmp: %d [%08x]", clockno, stall_cause_execute, bubble_out_execute, insn_out_execute, pc_out_execute, execute_out_write_reg, execute_out_write_data, execute_out_write_num, jmp_out_execute, jmppc_out_execute);

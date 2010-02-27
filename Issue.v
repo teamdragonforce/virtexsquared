@@ -7,9 +7,9 @@ module Issue(
 	input stall,	/* pipeline control */
 	input flush,	/* XXX not used yet */
 	
-	input inbubble,	/* stage inputs */
-	input [31:0] insn,
-	input [31:0] inpc,
+	input bubble_1a,	/* stage inputs */
+	input [31:0] insn_1a,
+	input [31:0] pc_1a,
 	input [31:0] cpsr,
 	
 	output wire outstall,	/* stage outputs */
@@ -21,7 +21,7 @@ module Issue(
 	
 `ifdef COPY_PASTA_FODDER
 	/* from page 2 of ARM7TDMIvE2.pdf */
-	casex (insn)
+	casex (insn_1a)
 	`DECODE_ALU_MULT:	/* Multiply -- must come before ALU, because it pattern matches a specific case of ALU */
 //	`DECODE_ALU_MUL_LONG:	/* Multiply long */
 	`DECODE_ALU_MRS:	/* MRS (Transfer PSR to register) */
@@ -58,17 +58,17 @@ module Issue(
 			idxbit = (16'b1) << r;
 	endfunction
 	
-	wire [3:0] rn = insn[19:16];
-	wire [3:0] rd = insn[15:12];
-	wire [3:0] rs = insn[11:8];
-	wire [3:0] rm = insn[3:0];
-	wire [3:0] cond = insn[31:28];
+	wire [3:0] rn = insn_1a[19:16];
+	wire [3:0] rd = insn_1a[15:12];
+	wire [3:0] rs = insn_1a[11:8];
+	wire [3:0] rm = insn_1a[3:0];
+	wire [3:0] cond = insn_1a[31:28];
 	
-	wire [3:0] rd_mul = insn[19:16];
-	wire [3:0] rn_mul = insn[15:12];
-	wire [3:0] rs_mul = insn[11:8];
+	wire [3:0] rd_mul = insn_1a[19:16];
+	wire [3:0] rn_mul = insn_1a[15:12];
+	wire [3:0] rs_mul = insn_1a[11:8];
 	
-	wire [3:0] alu_opc = insn[24:21];
+	wire [3:0] alu_opc = insn_1a[24:21];
 	
 	function alu_is_logical;
 		input [3:0] op;
@@ -100,18 +100,18 @@ module Issue(
 	endfunction
 	
 	always @(*)
-		casez (insn)
+		casez (insn_1a)
 		`DECODE_ALU_MULT:	/* Multiply -- must come before ALU, because it pattern matches a specific case of ALU */
 		begin
 			use_cpsr = `COND_MATTERS(cond);
-			use_regs = (insn[21] /* accum */ ? idxbit(rn_mul) : 0) | idxbit(rs_mul) | idxbit(rm);
-			def_cpsr = insn[20] /* setcc */;
+			use_regs = (insn_1a[21] /* accum */ ? idxbit(rn_mul) : 0) | idxbit(rs_mul) | idxbit(rm);
+			def_cpsr = insn_1a[20] /* setcc */;
 			def_regs = idxbit(rd_mul);
 		end
 //		`DECODE_ALU_MUL_LONG:	/* Multiply long */
 		`DECODE_ALU_MRS:	/* MRS (Transfer PSR to register) */
 		begin
-			use_cpsr = `COND_MATTERS(cond) || (insn[22] == 0) /* Source = CPSR */;
+			use_cpsr = `COND_MATTERS(cond) || (insn_1a[22] == 0) /* Source = CPSR */;
 			use_regs = 0;
 			def_cpsr = 0;
 			def_regs = idxbit(rd);
@@ -126,7 +126,7 @@ module Issue(
 		`DECODE_ALU_MSR_FLAGS:	/* MSR (Transfer register or immediate to PSR, flag bits only) */
 		begin
 			use_cpsr = `COND_MATTERS(cond);
-			use_regs = insn[25] ? 0 : idxbit(rm);
+			use_regs = insn_1a[25] ? 0 : idxbit(rm);
 			def_cpsr = 1;
 			def_regs = 0;
 		end
@@ -147,27 +147,27 @@ module Issue(
 		`DECODE_ALU_HDATA_REG:	/* Halfword transfer - register offset */
 		begin
 			use_cpsr = `COND_MATTERS(cond);
-			use_regs = idxbit(rn) | idxbit(rm) | (insn[20] /* L */ ? 0 : idxbit(rd));
+			use_regs = idxbit(rn) | idxbit(rm) | (insn_1a[20] /* L */ ? 0 : idxbit(rd));
 			def_cpsr = 0;
-			def_regs = insn[20] /* L */ ? idxbit(rd) : 0;
+			def_regs = insn_1a[20] /* L */ ? idxbit(rd) : 0;
 		end
 		`DECODE_ALU_HDATA_IMM:	/* Halfword transfer - immediate offset */
 		begin
 			use_cpsr = `COND_MATTERS(cond);
-			use_regs = idxbit(rn) | (insn[20] /* L */ ? 0 : idxbit(rd));
+			use_regs = idxbit(rn) | (insn_1a[20] /* L */ ? 0 : idxbit(rd));
 			def_cpsr = 0;
-			def_regs = insn[20] /* L */ ? idxbit(rd) : 0;
+			def_regs = insn_1a[20] /* L */ ? idxbit(rd) : 0;
 		end
 		`DECODE_ALU:	/* ALU */
 		begin
-			use_cpsr = `COND_MATTERS(cond) | (!insn[25] /* I */ && shift_requires_carry(insn[11:4]));
+			use_cpsr = `COND_MATTERS(cond) | (!insn_1a[25] /* I */ && shift_requires_carry(insn_1a[11:4]));
 			use_regs =
-				(insn[25] /* I */ ? 0 :
-					(insn[4] /* shift by reg */ ?
+				(insn_1a[25] /* I */ ? 0 :
+					(insn_1a[4] /* shift by reg */ ?
 						(idxbit(rs) | idxbit(rm)) :
 						(idxbit(rm)))) |
 				(((alu_opc != `ALU_MOV) && (alu_opc != `ALU_MVN)) ? idxbit(rn) : 0);
-			def_cpsr = insn[20] /* S */;
+			def_cpsr = insn_1a[20] /* S */;
 			def_regs = alu_flags_only(alu_opc) ? 0 : idxbit(rd);
 		end
 		`DECODE_LDRSTR_UNDEFINED:	/* Undefined. I hate ARM */
@@ -180,30 +180,30 @@ module Issue(
 		`DECODE_LDRSTR:
 		begin
 			use_cpsr = `COND_MATTERS(cond);
-			use_regs = idxbit(rn) | (insn[25] /* I */ ? idxbit(rm) : 0) | (insn[20] /* L */ ? 0 : idxbit(rd));
+			use_regs = idxbit(rn) | (insn_1a[25] /* I */ ? idxbit(rm) : 0) | (insn_1a[20] /* L */ ? 0 : idxbit(rd));
 			def_cpsr = 0;
-			def_regs = insn[20] /* L */ ? idxbit(rd) : 0;
+			def_regs = insn_1a[20] /* L */ ? idxbit(rd) : 0;
 		end
 		`DECODE_LDMSTM:		/* Block data transfer */
 		begin
 			use_cpsr = `COND_MATTERS(cond);
-			use_regs = idxbit(rn) | (insn[20] /* L */ ? 0 : insn[15:0]);
-			def_cpsr = insn[22];	/* This is a superset of all cases, anyway. */
-			def_regs = (insn[21] /* W */ ? idxbit(rn) : 0) | (insn[20] /* L */ ? insn[15:0] : 0);
+			use_regs = idxbit(rn) | (insn_1a[20] /* L */ ? 0 : insn_1a[15:0]);
+			def_cpsr = insn_1a[22];	/* This is a superset of all cases, anyway. */
+			def_regs = (insn_1a[21] /* W */ ? idxbit(rn) : 0) | (insn_1a[20] /* L */ ? insn_1a[15:0] : 0);
 		end
 		`DECODE_BRANCH:	/* Branch */
 		begin
 			use_cpsr = `COND_MATTERS(cond);
 			use_regs = 0;
 			def_cpsr = 0;
-			def_regs = insn[24] /* L */ ? (16'b1 << 14) : 0;
+			def_regs = insn_1a[24] /* L */ ? (16'b1 << 14) : 0;
 		end
 		`DECODE_LDCSTC:	/* Coprocessor data transfer */
 		begin
 			use_cpsr = `COND_MATTERS(cond);
 			use_regs = idxbit(rn);
 			def_cpsr = 0;
-			def_regs = insn[21] /* W */ ? idxbit(rn) : 0;
+			def_regs = insn_1a[21] /* W */ ? idxbit(rn) : 0;
 		end
 		`DECODE_CDP:	/* Coprocessor data op */
 		begin
@@ -215,9 +215,9 @@ module Issue(
 		`DECODE_MRCMCR:		/* Coprocessor register transfer */
 		begin
 			use_cpsr = `COND_MATTERS(cond);
-			use_regs = insn[20] /* L */ ? 0 : idxbit(rd);
+			use_regs = insn_1a[20] /* L */ ? 0 : idxbit(rd);
 			def_cpsr = 0;
-			def_regs = insn[20] /* L */ ? idxbit(rd) : 0;
+			def_regs = insn_1a[20] /* L */ ? idxbit(rd) : 0;
 		end
 		`DECODE_SWI:	/* SWI */
 		begin
@@ -238,7 +238,7 @@ module Issue(
 	/* Condition checking logic */
 	reg condition_met;
 	always @(*)
-		casez(insn[31:28])
+		casez(insn_1a[31:28])
 		`COND_EQ:	condition_met = cpsr[`CPSR_Z];
 		`COND_NE:	condition_met = !cpsr[`CPSR_Z];
 		`COND_CS:	condition_met = cpsr[`CPSR_C];
@@ -276,7 +276,7 @@ module Issue(
 	wire waiting_cpsr = use_cpsr & (cpsr_inflight[0] | cpsr_inflight[1]);
 	wire waiting_regs = |(use_regs & (regs_inflight[0] | regs_inflight[1]));
 	wire waiting = waiting_cpsr | waiting_regs;
-	assign outstall = (waiting && !inbubble && !flush) || stall;
+	assign outstall = (waiting && !bubble_1a && !flush) || stall;
 
 	reg delayedflush = 0;
 	always @(posedge clk/* or negedge Nrst*/)
@@ -291,7 +291,7 @@ module Issue(
 	always @(posedge clk or negedge Nrst)
 	begin
 		if (waiting)
-			$display("ISSUE: Stalling instruction %08x because %d/%d", insn, waiting_cpsr, waiting_regs);
+			$display("ISSUE: Stalling instruction %08x because %d/%d", insn_1a, waiting_cpsr, waiting_regs);
 
 		if (!Nrst) begin
 			cpsr_inflight[0] <= 0;
@@ -302,13 +302,13 @@ module Issue(
 		end else if (!stall)
 		begin
 			cpsr_inflight[0] <= cpsr_inflight[1];	/* I'm not sure how well selects work with arrays, and that seems like a dumb thing to get anusulated by. */
-			cpsr_inflight[1] <= (waiting || inbubble || !condition_met) ? 0 : def_cpsr;
+			cpsr_inflight[1] <= (waiting || bubble_1a || !condition_met) ? 0 : def_cpsr;
 			regs_inflight[0] <= regs_inflight[1];
-			regs_inflight[1] <= (waiting || inbubble || !condition_met) ? 0 : def_regs;
+			regs_inflight[1] <= (waiting || bubble_1a || !condition_met) ? 0 : def_regs;
 			
-			outbubble <= inbubble | waiting | !condition_met | flush | delayedflush;
-			outpc <= inpc;
-			outinsn <= insn;
+			outbubble <= bubble_1a | waiting | !condition_met | flush | delayedflush;
+			outpc <= pc_1a;
+			outinsn <= insn_1a;
 		end
 	end
 endmodule

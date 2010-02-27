@@ -1,18 +1,18 @@
 module RegFile(
-	input clk,
-	input Nrst,
-	input [3:0] read_0,
-	output wire [31:0] rdata_0,
-	input [3:0] read_1,
-	output wire [31:0] rdata_1,
-	input [3:0] read_2,
-	output wire [31:0] rdata_2,
-	input [3:0] read_3,
-	output wire [31:0] rdata_3,
+	input              clk,
+	input              Nrst,
+	input        [3:0] rf__read_0_1a,
+	output wire [31:0] rf__rdata_0_1a,
+	input        [3:0] rf__read_1_1a,
+	output wire [31:0] rf__rdata_1_1a,
+	input        [3:0] rf__read_2_1a,
+	output wire [31:0] rf__rdata_2_1a,
+	input        [3:0] rf__read_3_4a,
+	output wire [31:0] rf__rdata_3_4a,
 	output wire [31:0] spsr,
-	input write,
-	input [3:0] write_reg,
-	input [31:0] write_data
+	input              write,
+	input        [3:0] write_reg,
+	input       [31:0] write_data
 	);
 	
 	reg [31:0] regfile [0:15];
@@ -23,10 +23,10 @@ module RegFile(
 			regfile[i] = 0;
 	end
 	
-	assign rdata_0 = ((read_0 == write_reg) && write) ? write_data : regfile[read_0];
-	assign rdata_1 = ((read_1 == write_reg) && write) ? write_data : regfile[read_1];
-	assign rdata_2 = ((read_2 == write_reg) && write) ? write_data : regfile[read_2];
-	assign rdata_3 = ((read_3 == write_reg) && write) ? write_data : regfile[read_3];
+	assign rf__rdata_0_1a = ((rf__read_0_1a == write_reg) && write) ? write_data : regfile[rf__read_0_1a];
+	assign rf__rdata_1_1a = ((rf__read_1_1a == write_reg) && write) ? write_data : regfile[rf__read_1_1a];
+	assign rf__rdata_2_1a = ((rf__read_2_1a == write_reg) && write) ? write_data : regfile[rf__read_2_1a];
+	assign rf__rdata_3_4a = ((rf__read_3_4a == write_reg) && write) ? write_data : regfile[rf__read_3_4a];
 	assign spsr = regfile[4'hF];
 	
 	always @(posedge clk or negedge Nrst)
