@@ -4,18 +4,18 @@ module Issue(
 	input clk,
 	input Nrst,	/* XXX not used yet */
 	
-	input stall,	/* pipeline control */
+	input stall_1a,	/* pipeline control */
 	input flush,	/* XXX not used yet */
 	
 	input bubble_1a,	/* stage inputs */
 	input [31:0] insn_1a,
 	input [31:0] pc_1a,
-	input [31:0] cpsr,
+	input [31:0] cpsr_1a,
 	
-	output wire outstall,	/* stage outputs */
-	output reg outbubble = 1,
-	output reg [31:0] outpc = 0,
-	output reg [31:0] outinsn = 0
+	output wire stall_0a,	/* stage outputs */
+	output reg bubble_2a = 1,
+	output reg [31:0] pc_2a = 0,
+	output reg [31:0] insn_2a = 0
 	/* XXX other? */
 	);
 	
@@ -236,79 +236,74 @@ module Issue(
 		endcase
 	
 	/* Condition checking logic */
-	reg condition_met;
+	reg condition_met_1a;
 	always @(*)
 		casez(insn_1a[31:28])
-		`COND_EQ:	condition_met = cpsr[`CPSR_Z];
-		`COND_NE:	condition_met = !cpsr[`CPSR_Z];
-		`COND_CS:	condition_met = cpsr[`CPSR_C];
-		`COND_CC:	condition_met = !cpsr[`CPSR_C];
-		`COND_MI:	condition_met = cpsr[`CPSR_N];
-		`COND_PL:	condition_met = !cpsr[`CPSR_N];
-		`COND_VS:	condition_met = cpsr[`CPSR_V];
-		`COND_VC:	condition_met = !cpsr[`CPSR_V];
-		`COND_HI:	condition_met = cpsr[`CPSR_C] && !cpsr[`CPSR_Z];
-		`COND_LS:	condition_met = !cpsr[`CPSR_C] || cpsr[`CPSR_Z];
-		`COND_GE:	condition_met = cpsr[`CPSR_N] == cpsr[`CPSR_V];
-		`COND_LT:	condition_met = cpsr[`CPSR_N] != cpsr[`CPSR_V];
-		`COND_GT:	condition_met = !cpsr[`CPSR_Z] && (cpsr[`CPSR_N] == cpsr[`CPSR_V]);
-		`COND_LE:	condition_met = cpsr[`CPSR_Z] || (cpsr[`CPSR_N] != cpsr[`CPSR_V]);
-		`COND_AL:	condition_met = 1;
-		`COND_NV:	condition_met = 0;
-		default:	condition_met = 1'bx;
+		`COND_EQ:	condition_met_1a = cpsr_1a[`CPSR_Z];
+		`COND_NE:	condition_met_1a = !cpsr_1a[`CPSR_Z];
+		`COND_CS:	condition_met_1a = cpsr_1a[`CPSR_C];
+		`COND_CC:	condition_met_1a = !cpsr_1a[`CPSR_C];
+		`COND_MI:	condition_met_1a = cpsr_1a[`CPSR_N];
+		`COND_PL:	condition_met_1a = !cpsr_1a[`CPSR_N];
+		`COND_VS:	condition_met_1a = cpsr_1a[`CPSR_V];
+		`COND_VC:	condition_met_1a = !cpsr_1a[`CPSR_V];
+		`COND_HI:	condition_met_1a = cpsr_1a[`CPSR_C] && !cpsr_1a[`CPSR_Z];
+		`COND_LS:	condition_met_1a = !cpsr_1a[`CPSR_C] || cpsr_1a[`CPSR_Z];
+		`COND_GE:	condition_met_1a = cpsr_1a[`CPSR_N] == cpsr_1a[`CPSR_V];
+		`COND_LT:	condition_met_1a = cpsr_1a[`CPSR_N] != cpsr_1a[`CPSR_V];
+		`COND_GT:	condition_met_1a = !cpsr_1a[`CPSR_Z] && (cpsr_1a[`CPSR_N] == cpsr_1a[`CPSR_V]);
+		`COND_LE:	condition_met_1a = cpsr_1a[`CPSR_Z] || (cpsr_1a[`CPSR_N] != cpsr_1a[`CPSR_V]);
+		`COND_AL:	condition_met_1a = 1;
+		`COND_NV:	condition_met_1a = 0;
+		default:	condition_met_1a = 1'bx;
 		endcase
 	
 	/* Issue logic */
-`define STAGE_EXECUTE   0
-`define STAGE_MEMORY    1
-/* Once it's hit writeback, it's essentially hit the regfile so you're done. */
-	reg cpsr_inflight [1:0];
-	reg [15:0] regs_inflight [1:0];
+	/* Once it's hit writeback, it's hit the regfile via forwarding so you're done. */
+	reg        cpsr_inflight_2a = 0, cpsr_inflight_3a = 0;
+	reg [15:0] regs_inflight_2a = 0, regs_inflight_3a = 0;
 	
-	initial
-	begin
-		cpsr_inflight[0] = 0;
-		cpsr_inflight[1] = 0;
-		regs_inflight[0] = 0;
-		regs_inflight[1] = 0;
-	end
-	
-	wire waiting_cpsr = use_cpsr & (cpsr_inflight[0] | cpsr_inflight[1]);
-	wire waiting_regs = |(use_regs & (regs_inflight[0] | regs_inflight[1]));
-	wire waiting = waiting_cpsr | waiting_regs;
-	assign outstall = (waiting && !bubble_1a && !flush) || stall;
+	wire waiting_cpsr_1a = use_cpsr & (cpsr_inflight_2a | cpsr_inflight_3a);
+	wire waiting_regs_1a = |(use_regs & (regs_inflight_2a | regs_inflight_3a));
+	wire waiting_1a = waiting_cpsr_1a | waiting_regs_1a;
+	assign stall_0a = (waiting_1a && !bubble_1a && !flush) || stall_1a;
 
 	reg delayedflush = 0;
 	always @(posedge clk/* or negedge Nrst*/)
 		if (!Nrst)
 			delayedflush <= 0;
-		else if (flush && outstall /* halp! I can't do it now, maybe later? */)
+		else if (flush && stall_0a /* halp! I can't do it now, maybe later? */)
 			delayedflush <= 1;
-		else if (!outstall /* anything has been handled this time around */)
+		else if (!stall_0a /* anything has been handled this time around */)
 			delayedflush <= 0;
 
 	/* Actually do the issue. */
 	always @(posedge clk or negedge Nrst)
 	begin
-		if (waiting)
-			$display("ISSUE: Stalling instruction %08x because %d/%d", insn_1a, waiting_cpsr, waiting_regs);
+		if (waiting_1a)
+			$display("ISSUE: Stalling instruction %08x because %d/%d", insn_1a, waiting_cpsr_1a, waiting_regs_1a);
 
 		if (!Nrst) begin
-			cpsr_inflight[0] <= 0;
-			cpsr_inflight[1] <= 0;
-			regs_inflight[0] <= 0;
-			regs_inflight[1] <= 0;
-			outbubble <= 1;
-		end else if (!stall)
+			/*AUTORESET*/
+			cpsr_inflight_2a <= 0;
+			cpsr_inflight_3a <= 0;
+			regs_inflight_2a <= 0;
+			regs_inflight_3a <= 0;
+			bubble_2a <= 1;
+		end else if (!stall_1a)
 		begin
-			cpsr_inflight[0] <= cpsr_inflight[1];	/* I'm not sure how well selects work with arrays, and that seems like a dumb thing to get anusulated by. */
-			cpsr_inflight[1] <= (waiting || bubble_1a || !condition_met) ? 0 : def_cpsr;
-			regs_inflight[0] <= regs_inflight[1];
-			regs_inflight[1] <= (waiting || bubble_1a || !condition_met) ? 0 : def_regs;
+			cpsr_inflight_3a <= cpsr_inflight_2a;	/* I'm not sure how well selects work with arrays, and that seems like a dumb thing to get anusulated by. */
+			cpsr_inflight_2a <= (waiting_1a || bubble_1a || !condition_met_1a) ? 0 : def_cpsr;
+			regs_inflight_3a <= regs_inflight_2a;
+			regs_inflight_2a <= (waiting_1a || bubble_1a || !condition_met_1a) ? 0 : def_regs;
 			
-			outbubble <= bubble_1a | waiting | !condition_met | flush | delayedflush;
-			outpc <= pc_1a;
-			outinsn <= insn_1a;
+			bubble_2a <= bubble_1a | waiting_1a | !condition_met_1a | flush | delayedflush;
+			pc_2a <= pc_1a;
+			insn_2a <= insn_1a;
 		end
 	end
 endmodule
+
+// Local Variables:
+// verilog-active-low-regexp:("^bubble")
+// End:

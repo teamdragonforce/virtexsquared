@@ -129,6 +129,7 @@ module System(input clk, input rst
 	wire [3:0]	rf__read_0_1a;		// From decode of Decode.v
 	wire [3:0]	rf__read_1_1a;		// From decode of Decode.v
 	wire [3:0]	rf__read_2_1a;		// From decode of Decode.v
+	wire		stall_0a;		// From issue of Issue.v
 	// End of automatics
 
 	wire execute_out_backflush;
@@ -209,31 +210,30 @@ module System(input clk, input rst
 		    .jmppc_0a		(jmppc));		 // Templated
 	
 	/* Issue AUTO_TEMPLATE (
-		.stall(stall_cause_execute),
+		.stall_1a(stall_cause_execute),
 		.flush(execute_out_backflush | writeback_out_backflush),
-		.cpsr(writeback_out_cpsr),
-		.outstall(stall_cause_issue),
-		.outbubble(bubble_out_issue),
-		.outpc(pc_out_issue),
-		.outinsn(insn_out_issue),
+		.cpsr_1a(writeback_out_cpsr),
+		.bubble_2a(bubble_out_issue),
+		.pc_2a(pc_out_issue),
+		.insn_2a(insn_out_issue),
 		);
 	*/
 	Issue issue(
 		/*AUTOINST*/
 		    // Outputs
-		    .outstall		(stall_cause_issue),	 // Templated
-		    .outbubble		(bubble_out_issue),	 // Templated
-		    .outpc		(pc_out_issue),		 // Templated
-		    .outinsn		(insn_out_issue),	 // Templated
+		    .stall_0a		(stall_0a),
+		    .bubble_2a		(bubble_out_issue),	 // Templated
+		    .pc_2a		(pc_out_issue),		 // Templated
+		    .insn_2a		(insn_out_issue),	 // Templated
 		    // Inputs
 		    .clk		(clk),
 		    .Nrst		(Nrst),
-		    .stall		(stall_cause_execute),	 // Templated
+		    .stall_1a		(stall_cause_execute),	 // Templated
 		    .flush		(execute_out_backflush | writeback_out_backflush), // Templated
 		    .bubble_1a		(bubble_1a),
 		    .insn_1a		(insn_1a[31:0]),
 		    .pc_1a		(pc_1a[31:0]),
-		    .cpsr		(writeback_out_cpsr));	 // Templated
+		    .cpsr_1a		(writeback_out_cpsr));	 // Templated
 	
 	/* RegFile AUTO_TEMPLATE (
 		.spsr(regfile_spsr),
