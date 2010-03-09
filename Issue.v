@@ -284,12 +284,16 @@ module Issue(
 			$display("ISSUE: Stalling instruction %08x because %d/%d", insn_1a, waiting_cpsr_1a, waiting_regs_1a);
 
 		if (!Nrst) begin
-			/*AUTORESET*/
-			cpsr_inflight_2a <= 0;
-			cpsr_inflight_3a <= 0;
-			regs_inflight_2a <= 0;
-			regs_inflight_3a <= 0;
 			bubble_2a <= 1;
+			/*AUTORESET*/
+			// Beginning of autoreset for uninitialized flops
+			cpsr_inflight_2a <= 1'h0;
+			cpsr_inflight_3a <= 1'h0;
+			insn_2a <= 32'h0;
+			pc_2a <= 32'h0;
+			regs_inflight_2a <= 16'h0;
+			regs_inflight_3a <= 16'h0;
+			// End of automatics
 		end else if (!stall_1a)
 		begin
 			cpsr_inflight_3a <= cpsr_inflight_2a;	/* I'm not sure how well selects work with arrays, and that seems like a dumb thing to get anusulated by. */
@@ -303,7 +307,3 @@ module Issue(
 		end
 	end
 endmodule
-
-// Local Variables:
-// verilog-active-low-regexp:("^bubble")
-// End:
