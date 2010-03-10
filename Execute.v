@@ -2,32 +2,32 @@ module Execute(
 	input clk,
 	input Nrst,	/* XXX not used yet */
 	
-	input stall,
+	input stall_2a,
 	input flush,
 	
-	input inbubble,
-	input [31:0] pc,
-	input [31:0] insn,
-	input [31:0] cpsr,
-	input [31:0] spsr,
-	input [31:0] op0,
-	input [31:0] op1,
-	input [31:0] op2,
-	input carry,
+	input bubble_2a,
+	input [31:0] pc_2a,
+	input [31:0] insn_2a,
+	input [31:0] cpsr_2a,
+	input [31:0] spsr_2a,
+	input [31:0] op0_2a,
+	input [31:0] op1_2a,
+	input [31:0] op2_2a,
+	input carry_2a,
 	
-	output reg outstall = 0,
-	output reg outbubble = 1,
+	output reg outstall_2a = 0,
+	output reg bubble_3a = 1,
 	output reg [31:0] outcpsr = 0,
 	output reg [31:0] outspsr = 0,
 	output reg outcpsrup = 0,
-	output reg write_reg = 1'bx,
-	output reg [3:0] write_num = 4'bxxxx,
-	output reg [31:0] write_data = 32'hxxxxxxxx,
-	output reg [31:0] jmppc,
-	output reg jmp,
-	output reg [31:0] outpc,
-	output reg [31:0] outinsn,
-	output reg [31:0] outop0, outop1, outop2
+	output reg write_reg_3a = 1'bx,
+	output reg [3:0] write_num_3a = 4'bxxxx,
+	output reg [31:0] write_data_3a = 32'hxxxxxxxx,
+	output reg [31:0] jmppc_2a,
+	output reg jmp_2a,
+	output reg [31:0] pc_3a,
+	output reg [31:0] insn_3a,
+	output reg [31:0] op0_3a, op1_3a, op2_3a
 	);
 	
 	reg mult_start;
@@ -35,19 +35,19 @@ module Execute(
 	wire mult_done;
 	wire [31:0] mult_result;
 	
-	reg [31:0] alu_in0, alu_in1;
-	reg [3:0] alu_op;
-	reg alu_setflags;
-	wire [31:0] alu_result, alu_outcpsr;
-	wire alu_setres;
+	reg [31:0] alu_in0_2a, alu_in1_2a;
+	reg [3:0] alu_op_2a;
+	reg alu_setflags_2a;
+	wire [31:0] alu_result_2a, alu_outcpsr_2a;
+	wire alu_setres_2a;
 	
-	reg next_outbubble;
+	reg next_bubble_3a;
 	reg [31:0] next_outcpsr, next_outspsr;
 	reg next_outcpsrup;
-	reg next_write_reg;
-	reg [3:0] next_write_num;
-
-	reg [31:0] next_write_data;
+	
+	reg next_write_reg_3a;
+	reg [3:0] next_write_num_3a;
+	reg [31:0] next_write_data_3a;
 
 	Multiplier multiplier(
 		.clk(clk), .Nrst(Nrst),
@@ -56,101 +56,101 @@ module Execute(
 	
 	ALU alu(
 		.clk(clk), .Nrst(Nrst),
-		.in0(alu_in0), .in1(alu_in1), .cpsr(cpsr), .op(alu_op),
-		.setflags(alu_setflags), .shifter_carry(carry),
-		.result(alu_result), .cpsr_out(alu_outcpsr), .setres(alu_setres));
+		.in0(alu_in0_2a), .in1(alu_in1_2a), .cpsr(cpsr_2a), .op(alu_op_2a),
+		.setflags(alu_setflags_2a), .shifter_carry(carry_2a),
+		.result(alu_result_2a), .cpsr_out(alu_outcpsr_2a), .setres(alu_setres_2a));
 
 	always @(posedge clk)
 	begin
-		if (!stall)
+		if (!stall_2a)
 		begin
-			outbubble <= next_outbubble;
+			bubble_3a <= next_bubble_3a;
 			outcpsr <= next_outcpsr;
 			outspsr <= next_outspsr;
 			outcpsrup <= next_outcpsrup;
-			write_reg <= next_write_reg;
-			write_num <= next_write_num;
-			write_data <= next_write_data;
-			outpc <= pc;
-			outinsn <= insn;
-			outop0 <= op0;
-			outop1 <= op1;
-			outop2 <= op2;
+			write_reg_3a <= next_write_reg_3a;
+			write_num_3a <= next_write_num_3a;
+			write_data_3a <= next_write_data_3a;
+			pc_3a <= pc_2a;
+			insn_3a <= insn_2a;
+			op0_3a <= op0_2a;
+			op1_3a <= op1_2a;
+			op2_3a <= op2_2a;
 		end
 	end
 	
 	reg delayedflush = 0;
 	always @(posedge clk)
-		if (flush && outstall /* halp! I can't do it now, maybe later? */)
+		if (flush && outstall_2a /* halp! I can't do it now, maybe later? */)
 			delayedflush <= 1;
-		else if (!outstall /* anything has been handled this time around */)
+		else if (!outstall_2a /* anything has been handled this time around */)
 			delayedflush <= 0;
 
-	reg prevstall = 0;
+	reg outstall_3a = 0;
 	always @(posedge clk)
-		prevstall <= outstall;
+		outstall_3a <= outstall_2a;
 	
 	always @(*)
 	begin
-		outstall = stall;
+		outstall_2a = stall_2a;
 		
-		casez (insn)
+		casez (insn_2a)
 		`DECODE_ALU_MULT:	/* Multiply -- must come before ALU, because it pattern matches a specific case of ALU */
-			outstall = outstall | ((!prevstall | !mult_done) && !inbubble);
+			outstall_2a = outstall_2a | ((!outstall_3a | !mult_done) && !bubble_2a);
 		endcase
 	end
 	
 	/* ALU inputs */
 	always @(*)
 	begin
-		alu_in0 = op0;
-		alu_in1 = op1;
-		alu_op = insn[24:21];
-		alu_setflags = insn[20] /* S */;
+		alu_in0_2a = op0_2a;
+		alu_in1_2a = op1_2a;
+		alu_op_2a = insn_2a[24:21];
+		alu_setflags_2a = insn_2a[20] /* S */;
 	end
 	
 	/* Register outputs */
 	always @(*)
 	begin
-		next_outcpsr = cpsr;
-		next_outspsr = spsr;
+		next_outcpsr = cpsr_2a;
+		next_outspsr = spsr_2a;
 		next_outcpsrup = 0;
-		next_write_reg = 0;
-		next_write_num = 4'hx;
-		next_write_data = 32'hxxxxxxxx;
+		next_write_reg_3a = 0;
+		next_write_num_3a = 4'hx;
+		next_write_data_3a = 32'hxxxxxxxx;
 		
-		casez(insn)
+		casez(insn_2a)
 		`DECODE_ALU_MULT:	/* Multiply -- must come before ALU, because it pattern matches a specific case of ALU */
 		begin
-			next_outcpsr = insn[20] /* S */ ? {mult_result[31] /* N */, mult_result == 0 /* Z */, 1'b0 /* C */, cpsr[28] /* V */, cpsr[27:0]} : cpsr;
-			next_outcpsrup = insn[20] /* S */;
-			next_write_reg = 1;
-			next_write_num = insn[19:16] /* Rd -- why the fuck isn't this the same place as ALU */;
-			next_write_data = mult_result;
+			next_outcpsr = insn_2a[20] /* S */ ? {mult_result[31] /* N */, mult_result == 0 /* Z */, 1'b0 /* C */, cpsr_2a[28] /* V */, cpsr_2a[27:0]} : cpsr_2a;
+			next_outcpsrup = insn_2a[20] /* S */;
+			next_write_reg_3a = 1;
+			next_write_num_3a = insn_2a[19:16] /* Rd -- why the fuck isn't this the same place as ALU */;
+			next_write_data_3a = mult_result;
 		end
 		`DECODE_ALU_MRS:	/* MRS (Transfer PSR to register) */
 		begin
-			next_write_reg = 1;
-			next_write_num = insn[15:12];
-			if (insn[22] /* Ps */)
-				next_write_data = spsr;
+			next_write_reg_3a = 1;
+			next_write_num_3a = insn_2a[15:12];
+			if (insn_2a[22] /* Ps */)
+				next_write_data_3a = spsr_2a;
 			else
-				next_write_data = cpsr;
+				next_write_data_3a = cpsr_2a;
 		end
 		`DECODE_ALU_MSR,	/* MSR (Transfer register to PSR) */
 		`DECODE_ALU_MSR_FLAGS:	/* MSR (Transfer register or immediate to PSR, flag bits only) */
 		begin
-			if ((cpsr[4:0] == `MODE_USR) || (insn[16] /* that random bit */ == 1'b0))	/* flags only */
+			if ((cpsr_2a[4:0] == `MODE_USR) || (insn_2a[16] /* that random bit */ == 1'b0))	/* flags only */
 			begin
-				if (insn[22] /* Ps */)
-					next_outspsr = {op0[31:29], spsr[28:0]};
+				if (insn_2a[22] /* Ps */)
+					next_outspsr = {op0_2a[31:29], spsr_2a[28:0]};
 				else
-					next_outcpsr = {op0[31:29], cpsr[28:0]};
+					next_outcpsr = {op0_2a[31:29], cpsr_2a[28:0]};
 			end else begin
-				if (insn[22] /* Ps */)
-					next_outspsr = op0;
+				if (insn_2a[22] /* Ps */)
+					next_outspsr = op0_2a;
 				else
-					next_outcpsr = op0;
+					next_outcpsr = op0_2a;
 			end
 			next_outcpsrup = 1;
 		end
@@ -161,15 +161,15 @@ module Execute(
 		begin end
 		`DECODE_ALU:		/* ALU */
 		begin
-			if (alu_setres) begin
-				next_write_reg = 1;
-				next_write_num = insn[15:12] /* Rd */;
-				next_write_data = alu_result;
+			if (alu_setres_2a) begin
+				next_write_reg_3a = 1;
+				next_write_num_3a = insn_2a[15:12] /* Rd */;
+				next_write_data_3a = alu_result_2a;
 			end
 			
-			if (insn[20] /* S */) begin
+			if (insn_2a[20] /* S */) begin
 				next_outcpsrup = 1;
-				next_outcpsr = ((insn[15:12] == 4'b1111) && insn[20]) ? spsr : alu_outcpsr;
+				next_outcpsr = ((insn_2a[15:12] == 4'b1111) && insn_2a[20]) ? spsr_2a : alu_outcpsr_2a;
 			end
 		end
 		`DECODE_LDRSTR_UNDEFINED,	/* Undefined. I hate ARM */
@@ -178,10 +178,10 @@ module Execute(
 		begin end
 		`DECODE_BRANCH:		/* Branch */
 		begin
-			if(insn[24] /* L */) begin
-				next_write_reg = 1;
-				next_write_num = 4'hE; /* link register */
-				next_write_data = pc + 32'h4;
+			if(insn_2a[24] /* L */) begin
+				next_write_reg_3a = 1;
+				next_write_num_3a = 4'hE; /* link register */
+				next_write_data_3a = pc_2a + 32'h4;
 			end
 		end
 		endcase
@@ -195,15 +195,15 @@ module Execute(
 		mult_in0 = 32'hxxxxxxxx;
 		mult_in1 = 32'hxxxxxxxx;
 		
-		casez(insn)
+		casez(insn_2a)
 		`DECODE_ALU_MULT:
 		begin
-			if (!prevstall /* i.e., this is a new one */ && !inbubble /* i.e., this is a real one */)
+			if (!outstall_3a /* i.e., this is a new one */ && !bubble_2a /* i.e., this is a real one */)
 			begin
 				mult_start = 1;
-				mult_acc0 = insn[21] /* A */ ? op0 /* Rn */ : 32'h0;
-				mult_in0 = op1 /* Rm */;
-				mult_in1 = op2 /* Rs */;
+				mult_acc0 = insn_2a[21] /* A */ ? op0_2a /* Rn */ : 32'h0;
+				mult_in0 = op1_2a /* Rm */;
+				mult_in1 = op2_2a /* Rs */;
 				$display("New MUL instruction");
 			end
 		end
@@ -213,14 +213,14 @@ module Execute(
 	/* Miscellaneous cleanup. */
 	always @(*)
 	begin
-		next_outbubble = inbubble | flush | delayedflush;
+		next_bubble_3a = bubble_2a | flush | delayedflush;
 
-		jmp = 1'b0;
-		jmppc = 32'h00000000;
+		jmp_2a = 1'b0;
+		jmppc_2a = 32'h00000000;
 
-		casez (insn)
+		casez (insn_2a)
 		`DECODE_ALU_MULT:	/* Multiply -- must come before ALU, because it pattern matches a specific case of ALU */
-			next_outbubble = next_outbubble | !mult_done | !prevstall;
+			next_bubble_3a = next_bubble_3a | !mult_done | !outstall_3a;
 		`DECODE_ALU_MRS,	/* MRS (Transfer PSR to register) */
 		`DECODE_ALU_MSR,	/* MSR (Transfer register to PSR) */
 		`DECODE_ALU_MSR_FLAGS,	/* MSR (Transfer register or immediate to PSR, flag bits only) */
@@ -235,9 +235,9 @@ module Execute(
 		begin end
 		`DECODE_BRANCH:
 		begin
-			if(!inbubble && !flush && !delayedflush && !outstall /* Let someone else take precedence. */) begin
-				jmppc = pc + op0 + 32'h8;
-				jmp = 1'b1;
+			if(!bubble_2a && !flush && !delayedflush && !outstall_2a /* Let someone else take precedence. */) begin
+				jmppc_2a = pc_2a + op0_2a + 32'h8;
+				jmp_2a = 1'b1;
 			end
 		end                     /* Branch */
 		`DECODE_LDCSTC,		/* Coprocessor data transfer */

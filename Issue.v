@@ -5,7 +5,7 @@ module Issue(
 	input Nrst,	/* XXX not used yet */
 	
 	input stall_1a,	/* pipeline control */
-	input flush,	/* XXX not used yet */
+	input flush_1a,
 	
 	input bubble_1a,	/* stage inputs */
 	input [31:0] insn_1a,
@@ -266,16 +266,16 @@ module Issue(
 	wire waiting_cpsr_1a = use_cpsr & (cpsr_inflight_2a | cpsr_inflight_3a);
 	wire waiting_regs_1a = |(use_regs & (regs_inflight_2a | regs_inflight_3a));
 	wire waiting_1a = waiting_cpsr_1a | waiting_regs_1a;
-	assign stall_0a = (waiting_1a && !bubble_1a && !flush) || stall_1a;
+	assign stall_0a = (waiting_1a && !bubble_1a && !flush_1a) || stall_1a;
 
-	reg delayedflush = 0;
+	reg delayedflush_1a = 0;
 	always @(posedge clk/* or negedge Nrst*/)
 		if (!Nrst)
-			delayedflush <= 0;
-		else if (flush && stall_0a /* halp! I can't do it now, maybe later? */)
-			delayedflush <= 1;
+			delayedflush_1a <= 0;
+		else if (flush_1a && stall_0a /* halp! I can't do it now, maybe later? */)
+			delayedflush_1a <= 1;
 		else if (!stall_0a /* anything has been handled this time around */)
-			delayedflush <= 0;
+			delayedflush_1a <= 0;
 
 	/* Actually do the issue. */
 	always @(posedge clk or negedge Nrst)
@@ -301,7 +301,7 @@ module Issue(
 			regs_inflight_3a <= regs_inflight_2a;
 			regs_inflight_2a <= (waiting_1a || bubble_1a || !condition_met_1a) ? 0 : def_regs;
 			
-			bubble_2a <= bubble_1a | waiting_1a | !condition_met_1a | flush | delayedflush;
+			bubble_2a <= bubble_1a | waiting_1a | !condition_met_1a | flush_1a | delayedflush_1a;
 			pc_2a <= pc_1a;
 			insn_2a <= insn_1a;
 		end

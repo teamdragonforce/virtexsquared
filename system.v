@@ -116,12 +116,20 @@ module System(input clk, input rst
 	/*AUTOWIRE*/
 	// Beginning of automatic wires (for undeclared instantiated-module outputs)
 	wire		bubble_1a;		// From fetch of Fetch.v
+	wire		bubble_2a;		// From issue of Issue.v
+	wire		carry_2a;		// From decode of Decode.v
+	wire [31:0]	cpsr_2a;		// From decode of Decode.v
 	wire [31:0]	ic__rd_addr_0a;		// From fetch of Fetch.v
 	wire [31:0]	ic__rd_data_1a;		// From icache of ICache.v
 	wire		ic__rd_req_0a;		// From fetch of Fetch.v
 	wire		ic__rd_wait_0a;		// From icache of ICache.v
 	wire [31:0]	insn_1a;		// From fetch of Fetch.v
+	wire [31:0]	insn_2a;		// From issue of Issue.v
+	wire [31:0]	op0_2a;			// From decode of Decode.v
+	wire [31:0]	op1_2a;			// From decode of Decode.v
+	wire [31:0]	op2_2a;			// From decode of Decode.v
 	wire [31:0]	pc_1a;			// From fetch of Fetch.v
+	wire [31:0]	pc_2a;			// From issue of Issue.v
 	wire [31:0]	rf__rdata_0_1a;		// From regfile of RegFile.v
 	wire [31:0]	rf__rdata_1_1a;		// From regfile of RegFile.v
 	wire [31:0]	rf__rdata_2_1a;		// From regfile of RegFile.v
@@ -129,6 +137,7 @@ module System(input clk, input rst
 	wire [3:0]	rf__read_0_1a;		// From decode of Decode.v
 	wire [3:0]	rf__read_1_1a;		// From decode of Decode.v
 	wire [3:0]	rf__read_2_1a;		// From decode of Decode.v
+	wire [31:0]	spsr_2a;		// From decode of Decode.v
 	wire		stall_0a;		// From issue of Issue.v
 	// End of automatics
 
@@ -187,7 +196,6 @@ module System(input clk, input rst
 		.bus_ready(bus_ready_blockram));
 
 	/* Fetch AUTO_TEMPLATE (
-		.stall_0a(stall_cause_issue),
 		.jmp_0a(jmp),
 		.jmppc_0a(jmppc),
 		);
@@ -205,31 +213,28 @@ module System(input clk, input rst
 		    .Nrst		(Nrst),
 		    .ic__rd_wait_0a	(ic__rd_wait_0a),
 		    .ic__rd_data_1a	(ic__rd_data_1a[31:0]),
-		    .stall_0a		(stall_cause_issue),	 // Templated
+		    .stall_0a		(stall_0a),
 		    .jmp_0a		(jmp),			 // Templated
 		    .jmppc_0a		(jmppc));		 // Templated
 	
 	/* Issue AUTO_TEMPLATE (
 		.stall_1a(stall_cause_execute),
-		.flush(execute_out_backflush | writeback_out_backflush),
+		.flush_1a(execute_out_backflush | writeback_out_backflush),
 		.cpsr_1a(writeback_out_cpsr),
-		.bubble_2a(bubble_out_issue),
-		.pc_2a(pc_out_issue),
-		.insn_2a(insn_out_issue),
 		);
 	*/
 	Issue issue(
 		/*AUTOINST*/
 		    // Outputs
 		    .stall_0a		(stall_0a),
-		    .bubble_2a		(bubble_out_issue),	 // Templated
-		    .pc_2a		(pc_out_issue),		 // Templated
-		    .insn_2a		(insn_out_issue),	 // Templated
+		    .bubble_2a		(bubble_2a),
+		    .pc_2a		(pc_2a[31:0]),
+		    .insn_2a		(insn_2a[31:0]),
 		    // Inputs
 		    .clk		(clk),
 		    .Nrst		(Nrst),
 		    .stall_1a		(stall_cause_execute),	 // Templated
-		    .flush		(execute_out_backflush | writeback_out_backflush), // Templated
+		    .flush_1a		(execute_out_backflush | writeback_out_backflush), // Templated
 		    .bubble_1a		(bubble_1a),
 		    .insn_1a		(insn_1a[31:0]),
 		    .pc_1a		(pc_1a[31:0]),
@@ -264,25 +269,19 @@ module System(input clk, input rst
 	
 	/* Decode AUTO_TEMPLATE (
 		.stall(stall_cause_execute),
-		.incpsr(writeback_out_cpsr),
-		.inspsr(writeback_out_spsr),
-		.op0(decode_out_op0),
-		.op1(decode_out_op1),
-		.op2(decode_out_op2),
-		.carry(decode_out_carry),
-		.outcpsr(decode_out_cpsr),
-		.outspsr(decode_out_spsr),
+		.cpsr_1a(writeback_out_cpsr),
+		.spsr_1a(writeback_out_spsr),
 		);
 	*/
 	Decode decode(
 		/*AUTOINST*/
 		      // Outputs
-		      .op0		(decode_out_op0),	 // Templated
-		      .op1		(decode_out_op1),	 // Templated
-		      .op2		(decode_out_op2),	 // Templated
-		      .carry		(decode_out_carry),	 // Templated
-		      .outcpsr		(decode_out_cpsr),	 // Templated
-		      .outspsr		(decode_out_spsr),	 // Templated
+		      .op0_2a		(op0_2a[31:0]),
+		      .op1_2a		(op1_2a[31:0]),
+		      .op2_2a		(op2_2a[31:0]),
+		      .carry_2a		(carry_2a),
+		      .cpsr_2a		(cpsr_2a[31:0]),
+		      .spsr_2a		(spsr_2a[31:0]),
 		      .rf__read_0_1a	(rf__read_0_1a[3:0]),
 		      .rf__read_1_1a	(rf__read_1_1a[3:0]),
 		      .rf__read_2_1a	(rf__read_2_1a[3:0]),
@@ -291,25 +290,64 @@ module System(input clk, input rst
 		      .stall		(stall_cause_execute),	 // Templated
 		      .insn_1a		(insn_1a[31:0]),
 		      .pc_1a		(pc_1a[31:0]),
-		      .incpsr		(writeback_out_cpsr),	 // Templated
-		      .inspsr		(writeback_out_spsr),	 // Templated
+		      .cpsr_1a		(writeback_out_cpsr),	 // Templated
+		      .spsr_1a		(writeback_out_spsr),	 // Templated
 		      .rf__rdata_0_1a	(rf__rdata_0_1a[31:0]),
 		      .rf__rdata_1_1a	(rf__rdata_1_1a[31:0]),
 		      .rf__rdata_2_1a	(rf__rdata_2_1a[31:0]));
-	
+
+	/* Execute AUTO_TEMPLATE (
+		.stall_2a(stall_cause_memory),
+		.flush(writeback_out_backflush),
+		.outstall_2a(stall_cause_execute),
+		.bubble_3a(bubble_out_execute),
+		.write_reg_3a(execute_out_write_reg),
+		.write_num_3a(execute_out_write_num),
+		.write_data_3a(execute_out_write_data),
+		.jmp_2a(jmp_out_execute),
+		.jmppc_2a(jmppc_out_execute),
+		.pc_3a(pc_out_execute),
+		.insn_3a(insn_out_execute),
+		.op0_3a(execute_out_op0),
+		.op1_3a(execute_out_op1),
+		.op2_3a(execute_out_op2),
+		.outcpsr(execute_out_cpsr),
+		.outspsr(execute_out_spsr),
+		.outcpsrup(execute_out_cpsrup),
+		);
+	*/	
 	Execute execute(
-		.clk(clk), .Nrst(~rst),
-		.stall(stall_cause_memory), .flush(writeback_out_backflush),
-		.inbubble(bubble_out_issue), .pc(pc_out_issue), .insn(insn_out_issue),
-		.cpsr(decode_out_cpsr), .spsr(decode_out_spsr), .op0(decode_out_op0), .op1(decode_out_op1),
-		.op2(decode_out_op2), .carry(decode_out_carry),
-		.outstall(stall_cause_execute), .outbubble(bubble_out_execute),
-		.write_reg(execute_out_write_reg), .write_num(execute_out_write_num),
-		.write_data(execute_out_write_data),
-		.jmp(jmp_out_execute), .jmppc(jmppc_out_execute),
-		.outpc(pc_out_execute), .outinsn(insn_out_execute),
-		.outop0(execute_out_op0), .outop1(execute_out_op1), .outop2(execute_out_op2),
-		.outcpsr(execute_out_cpsr), .outspsr(execute_out_spsr), .outcpsrup(execute_out_cpsrup));
+		/*AUTOINST*/
+			// Outputs
+			.outstall_2a	(stall_cause_execute),	 // Templated
+			.bubble_3a	(bubble_out_execute),	 // Templated
+			.outcpsr	(execute_out_cpsr),	 // Templated
+			.outspsr	(execute_out_spsr),	 // Templated
+			.outcpsrup	(execute_out_cpsrup),	 // Templated
+			.write_reg_3a	(execute_out_write_reg), // Templated
+			.write_num_3a	(execute_out_write_num), // Templated
+			.write_data_3a	(execute_out_write_data), // Templated
+			.jmppc_2a	(jmppc_out_execute),	 // Templated
+			.jmp_2a		(jmp_out_execute),	 // Templated
+			.pc_3a		(pc_out_execute),	 // Templated
+			.insn_3a	(insn_out_execute),	 // Templated
+			.op0_3a		(execute_out_op0),	 // Templated
+			.op1_3a		(execute_out_op1),	 // Templated
+			.op2_3a		(execute_out_op2),	 // Templated
+			// Inputs
+			.clk		(clk),
+			.Nrst		(Nrst),
+			.stall_2a	(stall_cause_memory),	 // Templated
+			.flush		(writeback_out_backflush), // Templated
+			.bubble_2a	(bubble_2a),
+			.pc_2a		(pc_2a[31:0]),
+			.insn_2a	(insn_2a[31:0]),
+			.cpsr_2a	(cpsr_2a[31:0]),
+			.spsr_2a	(spsr_2a[31:0]),
+			.op0_2a		(op0_2a[31:0]),
+			.op1_2a		(op1_2a[31:0]),
+			.op2_2a		(op2_2a[31:0]),
+			.carry_2a	(carry_2a));
 	assign execute_out_backflush = jmp;
 	
 	assign cp_insn = insn_out_execute;
@@ -356,8 +394,8 @@ module System(input clk, input rst
 		clockno <= clockno + 1;
 		$display("------------------------------------------------------------------------------");
 		$display("%3d: FETCH:            Bubble: %d, Instruction: %08x, PC: %08x", clockno, bubble_1a, insn_1a, pc_1a);
-		$display("%3d: ISSUE:  Stall: %d, Bubble: %d, Instruction: %08x, PC: %08x", clockno, stall_cause_issue, bubble_out_issue, insn_out_issue, pc_out_issue);
-		$display("%3d: DECODE:                      op0 %08x, op1 %08x, op2 %08x, carry %d", clockno, decode_out_op0, decode_out_op1, decode_out_op2, decode_out_carry);
+		$display("%3d: ISSUE:  Stall: %d, Bubble: %d, Instruction: %08x, PC: %08x", clockno, stall_0a, bubble_2a, insn_2a, pc_2a);
+		$display("%3d: DECODE:                      op0 %08x, op1 %08x, op2 %08x, carry %d", clockno, op0_2a, op1_2a, op2_2a, carry_2a);
 		$display("%3d: EXEC:   Stall: %d, Bubble: %d, Instruction: %08x, PC: %08x, Reg: %d, [%08x -> %d], Jmp: %d [%08x]", clockno, stall_cause_execute, bubble_out_execute, insn_out_execute, pc_out_execute, execute_out_write_reg, execute_out_write_data, execute_out_write_num, jmp_out_execute, jmppc_out_execute);
 		$display("%3d: MEMORY: Stall: %d, Bubble: %d, Instruction: %08x, PC: %08x, Reg: %d, [%08x -> %d]", clockno, stall_cause_memory, bubble_out_memory, insn_out_memory, pc_out_memory, memory_out_write_reg, memory_out_write_data, memory_out_write_num);
 		$display("%3d: WRITEB:                      CPSR %08x, SPSR %08x, Reg: %d [%08x -> %d], Jmp: %d [%08x]", clockno, writeback_out_cpsr, writeback_out_spsr, regfile_write, regfile_write_data, regfile_write_reg, jmp_out_writeback, jmppc_out_writeback);

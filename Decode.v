@@ -5,14 +5,14 @@ module Decode(
 	input stall,
 	input [31:0] insn_1a,
 	input [31:0] pc_1a,
-	input [31:0] incpsr,
-	input [31:0] inspsr,
-	output reg [31:0] op0,
-	output reg [31:0] op1,
-	output reg [31:0] op2,
-	output reg carry,
-	output reg [31:0] outcpsr,
-	output reg [31:0] outspsr,
+	input [31:0] cpsr_1a,
+	input [31:0] spsr_1a,
+	output reg [31:0] op0_2a,
+	output reg [31:0] op1_2a,
+	output reg [31:0] op2_2a,
+	output reg carry_2a,
+	output reg [31:0] cpsr_2a,
+	output reg [31:0] spsr_2a,
 
 	output reg [3:0] rf__read_0_1a,
 	output reg [3:0] rf__read_1_1a,
@@ -24,8 +24,8 @@ module Decode(
 
 	wire [31:0] regs0, regs1, regs2;
 	reg [31:0] rpc;
-	reg [31:0] op0_out, op1_out, op2_out;
-	reg carry_out;
+	reg [31:0] op0_1a, op1_1a, op2_1a;
+	reg carry_1a;
 
 	/* shifter stuff */
 	wire [31:0] shift_oper;
@@ -40,7 +40,7 @@ module Decode(
 	IREALLYHATEARMSHIFT shift(.insn(insn_1a),
 	                          .operand(regs1),
 	                          .reg_amt(regs2),
-	                          .cflag_in(incpsr[`CPSR_C]),
+	                          .cflag_in(cpsr_1a[`CPSR_C]),
 	                          .res(shift_res),
 	                          .cflag_out(shift_cflag_out));
 
@@ -143,86 +143,86 @@ module Decode(
 	end
 	
 	always @(*) begin
-		op0_out = 32'hxxxxxxxx;
-		op1_out = 32'hxxxxxxxx;
-		op2_out = 32'hxxxxxxxx;
-		carry_out = 1'bx;
+		op0_1a = 32'hxxxxxxxx;
+		op1_1a = 32'hxxxxxxxx;
+		op2_1a = 32'hxxxxxxxx;
+		carry_1a = 1'bx;
 		
 		casez (insn_1a)
 		`DECODE_ALU_MULT:	/* Multiply -- must come before ALU, because it pattern matches a specific case of ALU */
 		begin
-			op0_out = regs0;
-			op1_out = regs1;
-			op2_out = regs2;
+			op0_1a = regs0;
+			op1_1a = regs1;
+			op2_1a = regs2;
 		end
 		`DECODE_ALU_MRS:	/* MRS (Transfer PSR to register) */
 		begin end
 		`DECODE_ALU_MSR:	/* MSR (Transfer register to PSR) */
-			op0_out = regs0;
+			op0_1a = regs0;
 		`DECODE_ALU_MSR_FLAGS:	/* MSR (Transfer register or immediate to PSR, flag bits only) */
 			if(insn_1a[25]) begin     /* the constant case */
-				op0_out = rotate_res;
+				op0_1a = rotate_res;
 			end else begin
-				op0_out = regs0;
+				op0_1a = regs0;
 			end
 		`DECODE_ALU_SWP:	/* Atomic swap */
 		begin
-			op0_out = regs0;
-			op1_out = regs1;
+			op0_1a = regs0;
+			op1_1a = regs1;
 		end
 		`DECODE_ALU_BX:		/* Branch and exchange */
-			op0_out = regs0;
+			op0_1a = regs0;
 		`DECODE_ALU_HDATA_REG:	/* Halfword transfer - register offset */
 		begin
-			op0_out = regs0;
-			op1_out = regs1;
-			op2_out = regs2;
+			op0_1a = regs0;
+			op1_1a = regs1;
+			op2_1a = regs2;
 		end
 		`DECODE_ALU_HDATA_IMM:	/* Halfword transfer - immediate offset */
 		begin
-			op0_out = regs0;
-			op1_out = {24'b0, insn_1a[11:8], insn_1a[3:0]};
-			op2_out = regs1;
+			op0_1a = regs0;
+			op1_1a = {24'b0, insn_1a[11:8], insn_1a[3:0]};
+			op2_1a = regs1;
 		end
 		`DECODE_ALU:		/* ALU */
 		begin
-			op0_out = regs0;
+			op0_1a = regs0;
 			if(insn_1a[25]) begin     /* the constant case */
-				carry_out = incpsr[`CPSR_C];
-				op1_out = rotate_res;
+				carry_1a = cpsr_1a[`CPSR_C];
+				op1_1a = rotate_res;
 			end else begin
-				carry_out = shift_cflag_out;
-				op1_out = shift_res;
+				carry_1a = shift_cflag_out;
+				op1_1a = shift_res;
 			end
 		end
 		`DECODE_LDRSTR:		/* Single data transfer */
 		begin
-			op0_out = regs0;
+			op0_1a = regs0;
 			if(!insn_1a[25] /* immediate */) begin
-				op1_out = {20'b0, insn_1a[11:0]};
-				carry_out = incpsr[`CPSR_C];
+				op1_1a = {20'b0, insn_1a[11:0]};
+				carry_1a = cpsr_1a[`CPSR_C];
 			end else begin
-				op1_out = shift_res;
-				carry_out = shift_cflag_out;
+				op1_1a = shift_res;
+				carry_1a = shift_cflag_out;
 			end
-			op2_out = regs2;
+			op2_1a = regs2;
 		end
 		`DECODE_LDMSTM:		/* Block data transfer */
 		begin
-			op0_out = regs0;
-			op1_out = {16'b0, insn_1a[15:0]};
+			op0_1a = regs0;
+			op1_1a = {16'b0, insn_1a[15:0]};
 		end
 		`DECODE_BRANCH:		/* Branch */
-			op0_out = {{6{insn_1a[23]}}, insn_1a[23:0], 2'b0};
+			op0_1a = {{6{insn_1a[23]}}, insn_1a[23:0], 2'b0};
 		`DECODE_LDCSTC:		/* Coprocessor data transfer */
 		begin
-			op0_out = regs0;
-			op1_out = {24'b0, insn_1a[7:0]};
+			op0_1a = regs0;
+			op1_1a = {24'b0, insn_1a[7:0]};
 		end
 		`DECODE_CDP:		/* Coprocessor data op */
 		begin end
 		`DECODE_MRCMCR:		/* Coprocessor register transfer */
-			op0_out = regs0;
+			op0_1a = regs0;
 		`DECODE_SWI:		/* SWI */
 		begin end
 		endcase
@@ -231,12 +231,12 @@ module Decode(
 	always @ (posedge clk) begin
 		if (!stall)
 		begin
-			op0 <= op0_out;   /* Rn - always */
-			op1 <= op1_out; /* 'operand 2' - Rm */
-			op2 <= op2_out;   /* thirdedge - Rs */
-			carry <= carry_out;
-			outcpsr <= incpsr;
-			outspsr <= inspsr;
+			op0_2a <= op0_1a;   /* Rn - always */
+			op1_2a <= op1_1a; /* 'operand 2' - Rm */
+			op2_2a <= op2_1a;   /* thirdedge - Rs */
+			carry_2a <= carry_1a;
+			cpsr_2a <= cpsr_1a;
+			spsr_2a <= spsr_1a;
 		end
 	end
 
