@@ -4,6 +4,7 @@ all: Vsystem
 
 Vsystem: obj_dir/Vsystem.mk testbench.cpp
 	make -C obj_dir -f Vsystem.mk
+	ln -sf obj_dir/Vsystem Vsystem
 
 obj_dir/Vsystem.mk: $(VLOGS)
 	mkdir -p obj_dir
@@ -11,5 +12,8 @@ obj_dir/Vsystem.mk: $(VLOGS)
 
 auto: .DUMMY
 	emacs -l ~/elisp/verilog-mode.el --batch system.v -f verilog-batch-auto
+
+tests: .DUMMY
+	make -C tests
 
 .DUMMY:

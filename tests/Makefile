@@ -1,4 +1,4 @@
-all: costas.hex
+all: costas.hex testbench.hex
 
 %.o: %.c
 	arm-elf-gcc $(CFLAGS) -c -o $@ $<
