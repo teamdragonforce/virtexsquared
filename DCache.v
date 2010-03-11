@@ -39,32 +39,32 @@ module DCache(
 			cache_tags[i[3:0]] = 0;
 		end
 	
-	wire [5:0] didx = dc__addr_3a[5:0];
-	wire [3:0] didx_word = didx[5:2];
-	wire [3:0] idx = dc__addr_3a[9:6];
-	wire [21:0] tag = dc__addr_3a[31:10];
+	wire [5:0] didx_3a = dc__addr_3a[5:0];
+	wire [3:0] didx_word_3a = didx_3a[5:2];
+	wire [3:0] idx_3a = dc__addr_3a[9:6];
+	wire [21:0] tag_3a = dc__addr_3a[31:10];
 	
 	reg [31:0] prev_addr = 32'hFFFFFFFF;
 	
-	wire cache_hit = cache_valid[idx] && (cache_tags[idx] == tag);
+	wire cache_hit_3a = cache_valid[idx_3a] && (cache_tags[idx_3a] == tag_3a);
 	
-	wire [31:0] curdata = cache_data[{idx,didx_word}];
+	wire [31:0] curdata_3a = cache_data[{idx_3a,didx_word_3a}];
 	always @(*) begin
-		dc__rw_wait_3a = (dc__rd_req_3a && !cache_hit) || (dc__wr_req_3a && (!bus_ack || !bus_ready));
-		dc__rd_data_3a = curdata;
+		dc__rw_wait_3a = (dc__rd_req_3a && !cache_hit_3a) || (dc__wr_req_3a && (!bus_ack || !bus_ready));
+		dc__rd_data_3a = curdata_3a;
 		if (!dc__rw_wait_3a && dc__rd_req_3a)
 			$display("DCACHE: READ COMPLETE: Addr %08x, data %08x", dc__addr_3a, dc__rd_data_3a);
 	end
 	
 	reg [3:0] cache_fill_pos = 0;
-	assign bus_req = (dc__rd_req_3a && !cache_hit) || dc__wr_req_3a;
+	assign bus_req = (dc__rd_req_3a && !cache_hit_3a) || dc__wr_req_3a;
 	always @(*)
 	begin
 		bus_rd = 0;
 		bus_wr = 0;
 		bus_addr = 0;
 		bus_wdata = 0;
-		if (dc__rd_req_3a && !cache_hit && bus_ack) begin
+		if (dc__rd_req_3a && !cache_hit_3a && bus_ack) begin
 			bus_addr = {dc__addr_3a[31:6], cache_fill_pos[3:0], 2'b00 /* reads are 32-bits */};
 			bus_rd = 1;
 		end else if (dc__wr_req_3a && bus_ack) begin
@@ -77,20 +77,20 @@ module DCache(
 	
 	always @(posedge clk) begin
 		prev_addr <= {dc__addr_3a[31:6], 6'b0};
-		if (dc__rd_req_3a && (cache_fill_pos != 0) && ((prev_addr != {dc__addr_3a[31:6], 6'b0}) || cache_hit))	/* If this wasn't from the same line, or we've moved on somehow, reset the fill circuitry. */
+		if (dc__rd_req_3a && (cache_fill_pos != 0) && ((prev_addr != {dc__addr_3a[31:6], 6'b0}) || cache_hit_3a))	/* If this wasn't from the same line, or we've moved on somehow, reset the fill circuitry. */
 			cache_fill_pos <= 0;
-		else if (dc__rd_req_3a && !cache_hit && bus_ready && bus_ack) begin	/* Started the fill, and we have data. */
+		else if (dc__rd_req_3a && !cache_hit_3a && bus_ready && bus_ack) begin	/* Started the fill, and we have data. */
 			$display("DCACHE: FILL: rd addr %08x; bus addr %08x; bus data %08x, bus_req %d, bus_ack %d", dc__addr_3a, bus_addr, bus_rdata, bus_req, bus_ack);
 			cache_fill_pos <= cache_fill_pos + 1;
 			if (cache_fill_pos == 15) begin	/* Done? */
-				cache_tags[idx] <= tag;
-				cache_valid[idx] <= 1;
+				cache_tags[idx_3a] <= tag_3a;
+				cache_valid[idx_3a] <= 1;
 			end else
-				cache_valid[idx] <= 0;
+				cache_valid[idx_3a] <= 0;
 		end
 		
 		/* Split this out because XST is kind of silly about this sort of thing. */
-		if ((dc__rd_req_3a && !cache_hit && bus_ready && bus_ack) || (dc__wr_req_3a && cache_hit))
-			cache_data[dc__wr_req_3a ? {idx,dc__addr_3a[5:2]} : {idx,cache_fill_pos}] <= dc__wr_req_3a ? dc__wr_data_3a : bus_rdata;
+		if ((dc__rd_req_3a && !cache_hit_3a && bus_ready && bus_ack) || (dc__wr_req_3a && cache_hit_3a))
+			cache_data[dc__wr_req_3a ? {idx_3a,dc__addr_3a[5:2]} : {idx_3a,cache_fill_pos}] <= dc__wr_req_3a ? dc__wr_data_3a : bus_rdata;
 	end
 endmodule
