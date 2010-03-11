@@ -122,7 +122,13 @@ module System(input clk, input rst
 	wire [31:0]	cpsr_2a;		// From decode of Decode.v
 	wire [31:0]	cpsr_3a;		// From execute of Execute.v
 	wire		cpsrup_3a;		// From execute of Execute.v
+	wire [31:0]	dc__addr_3a;		// From memory of Memory.v
 	wire [2:0]	dc__data_size_3a;	// From memory of Memory.v
+	wire [31:0]	dc__rd_data_3a;		// From dcache of DCache.v
+	wire		dc__rd_req_3a;		// From memory of Memory.v
+	wire		dc__rw_wait_3a;		// From dcache of DCache.v
+	wire [31:0]	dc__wr_data_3a;		// From memory of Memory.v
+	wire		dc__wr_req_3a;		// From memory of Memory.v
 	wire [31:0]	ic__rd_addr_0a;		// From fetch of Fetch.v
 	wire [31:0]	ic__rd_data_1a;		// From icache of ICache.v
 	wire		ic__rd_req_0a;		// From fetch of Fetch.v
@@ -172,7 +178,8 @@ module System(input clk, input rst
 		.bus_wr(bus_wr_icache),
 		.bus_ready(bus_ready),
 		); */
-	ICache icache(/*AUTOINST*/
+	ICache icache(
+		/*AUTOINST*/
 		      // Outputs
 		      .ic__rd_wait_0a	(ic__rd_wait_0a),
 		      .ic__rd_data_1a	(ic__rd_data_1a[31:0]),
@@ -189,14 +196,37 @@ module System(input clk, input rst
 		      .bus_rdata	(bus_rdata),		 // Templated
 		      .bus_ready	(bus_ready));		 // Templated
 	
-	DCache dcache(
+	/* DCache AUTO_TEMPLATE (
 		.clk(clk),
-		.addr(dcache_addr), .rd_req(dcache_rd_req), .wr_req(dcache_wr_req),
-		.rw_wait(dcache_rw_wait), .wr_data(dcache_wr_data), .rd_data(dcache_rd_data),
-		.bus_req(bus_req_dcache), .bus_ack(bus_ack_dcache),
-		.bus_addr(bus_addr_dcache), .bus_rdata(bus_rdata),
-		.bus_wdata(bus_wdata_dcache), .bus_rd(bus_rd_dcache),
-		.bus_wr(bus_wr_dcache), .bus_ready(bus_ready));
+		.bus_req(bus_req_dcache),
+		.bus_ack(bus_ack_dcache),
+		.bus_addr(bus_addr_dcache),
+		.bus_rdata(bus_rdata),
+		.bus_wdata(bus_wdata_dcache),
+		.bus_rd(bus_rd_dcache),
+		.bus_wr(bus_wr_dcache),
+		.bus_ready(bus_ready),
+		);
+		*/
+	DCache dcache(
+		/*AUTOINST*/
+		      // Outputs
+		      .dc__rw_wait_3a	(dc__rw_wait_3a),
+		      .dc__rd_data_3a	(dc__rd_data_3a[31:0]),
+		      .bus_req		(bus_req_dcache),	 // Templated
+		      .bus_addr		(bus_addr_dcache),	 // Templated
+		      .bus_wdata	(bus_wdata_dcache),	 // Templated
+		      .bus_rd		(bus_rd_dcache),	 // Templated
+		      .bus_wr		(bus_wr_dcache),	 // Templated
+		      // Inputs
+		      .clk		(clk),			 // Templated
+		      .dc__addr_3a	(dc__addr_3a[31:0]),
+		      .dc__rd_req_3a	(dc__rd_req_3a),
+		      .dc__wr_req_3a	(dc__wr_req_3a),
+		      .dc__wr_data_3a	(dc__wr_data_3a[31:0]),
+		      .bus_ack		(bus_ack_dcache),	 // Templated
+		      .bus_rdata	(bus_rdata),		 // Templated
+		      .bus_ready	(bus_ready));		 // Templated
 
 `ifdef verilator
 	BigBlockRAM
@@ -356,12 +386,6 @@ module System(input clk, input rst
 	/* stall? */
 	/* Memory AUTO_TEMPLATE (
 		.flush(writeback_out_backflush),
-		.dc__addr_3a(dcache_addr),
-		.dc__rd_req_3a(dcache_rd_req),
-		.dc__wr_req_3a(dcache_wr_req),
-		.dc__rw_wait_3a(dcache_rw_wait),
-		.dc__wr_data_3a(dcache_wr_data),
-		.dc__rd_data_3a(dcache_rd_data),
 		.outstall(stall_cause_memory),
 		.outbubble(bubble_out_memory), 
 		.outpc(pc_out_memory),
@@ -383,10 +407,10 @@ module System(input clk, input rst
 	Memory memory(
 		/*AUTOINST*/
 		      // Outputs
-		      .dc__addr_3a	(dcache_addr),		 // Templated
-		      .dc__rd_req_3a	(dcache_rd_req),	 // Templated
-		      .dc__wr_req_3a	(dcache_wr_req),	 // Templated
-		      .dc__wr_data_3a	(dcache_wr_data),	 // Templated
+		      .dc__addr_3a	(dc__addr_3a[31:0]),
+		      .dc__rd_req_3a	(dc__rd_req_3a),
+		      .dc__wr_req_3a	(dc__wr_req_3a),
+		      .dc__wr_data_3a	(dc__wr_data_3a[31:0]),
 		      .dc__data_size_3a	(dc__data_size_3a[2:0]),
 		      .rf__read_3_3a	(rf__read_3_3a[3:0]),
 		      .cp_req		(cp_req),		 // Templated
@@ -406,8 +430,8 @@ module System(input clk, input rst
 		      .clk		(clk),
 		      .Nrst		(Nrst),
 		      .flush		(writeback_out_backflush), // Templated
-		      .dc__rw_wait_3a	(dcache_rw_wait),	 // Templated
-		      .dc__rd_data_3a	(dcache_rd_data),	 // Templated
+		      .dc__rw_wait_3a	(dc__rw_wait_3a),
+		      .dc__rd_data_3a	(dc__rd_data_3a[31:0]),
 		      .rf__rdata_3_3a	(rf__rdata_3_3a[31:0]),
 		      .cp_ack		(cp_ack),		 // Templated
 		      .cp_busy		(cp_busy),		 // Templated
