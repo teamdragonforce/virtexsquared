@@ -1,3 +1,5 @@
+CFLAGS=-mno-thumb-interwork -march=armv4
+
 all: costas.hex testbench.hex
 
 %.o: %.c
