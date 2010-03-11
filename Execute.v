@@ -3,7 +3,7 @@ module Execute(
 	input Nrst,	/* XXX not used yet */
 	
 	input stall_2a,
-	input flush,
+	input flush_2a,
 	
 	input bubble_2a,
 	input [31:0] pc_2a,
@@ -17,9 +17,9 @@ module Execute(
 	
 	output reg outstall_2a = 0,
 	output reg bubble_3a = 1,
-	output reg [31:0] outcpsr = 0,
-	output reg [31:0] outspsr = 0,
-	output reg outcpsrup = 0,
+	output reg [31:0] cpsr_3a = 0,
+	output reg [31:0] spsr_3a = 0,
+	output reg cpsrup_3a = 0,
 	output reg write_reg_3a = 1'bx,
 	output reg [3:0] write_num_3a = 4'bxxxx,
 	output reg [31:0] write_data_3a = 32'hxxxxxxxx,
@@ -42,8 +42,8 @@ module Execute(
 	wire alu_setres_2a;
 	
 	reg next_bubble_3a;
-	reg [31:0] next_outcpsr, next_outspsr;
-	reg next_outcpsrup;
+	reg [31:0] next_cpsr_3a, next_spsr_3a;
+	reg next_cpsrup_3a;
 	
 	reg next_write_reg_3a;
 	reg [3:0] next_write_num_3a;
@@ -65,9 +65,9 @@ module Execute(
 		if (!stall_2a)
 		begin
 			bubble_3a <= next_bubble_3a;
-			outcpsr <= next_outcpsr;
-			outspsr <= next_outspsr;
-			outcpsrup <= next_outcpsrup;
+			cpsr_3a <= next_cpsr_3a;
+			spsr_3a <= next_spsr_3a;
+			cpsrup_3a <= next_cpsrup_3a;
 			write_reg_3a <= next_write_reg_3a;
 			write_num_3a <= next_write_num_3a;
 			write_data_3a <= next_write_data_3a;
@@ -79,12 +79,12 @@ module Execute(
 		end
 	end
 	
-	reg delayedflush = 0;
+	reg delayedflush_2a = 0;
 	always @(posedge clk)
-		if (flush && outstall_2a /* halp! I can't do it now, maybe later? */)
-			delayedflush <= 1;
+		if (flush_2a && outstall_2a /* halp! I can't do it now, maybe later? */)
+			delayedflush_2a <= 1;
 		else if (!outstall_2a /* anything has been handled this time around */)
-			delayedflush <= 0;
+			delayedflush_2a <= 0;
 
 	reg outstall_3a = 0;
 	always @(posedge clk)
@@ -112,9 +112,9 @@ module Execute(
 	/* Register outputs */
 	always @(*)
 	begin
-		next_outcpsr = cpsr_2a;
-		next_outspsr = spsr_2a;
-		next_outcpsrup = 0;
+		next_cpsr_3a = cpsr_2a;
+		next_spsr_3a = spsr_2a;
+		next_cpsrup_3a = 0;
 		next_write_reg_3a = 0;
 		next_write_num_3a = 4'hx;
 		next_write_data_3a = 32'hxxxxxxxx;
@@ -122,8 +122,8 @@ module Execute(
 		casez(insn_2a)
 		`DECODE_ALU_MULT:	/* Multiply -- must come before ALU, because it pattern matches a specific case of ALU */
 		begin
-			next_outcpsr = insn_2a[20] /* S */ ? {mult_result[31] /* N */, mult_result == 0 /* Z */, 1'b0 /* C */, cpsr_2a[28] /* V */, cpsr_2a[27:0]} : cpsr_2a;
-			next_outcpsrup = insn_2a[20] /* S */;
+			next_cpsr_3a = insn_2a[20] /* S */ ? {mult_result[31] /* N */, mult_result == 0 /* Z */, 1'b0 /* C */, cpsr_2a[28] /* V */, cpsr_2a[27:0]} : cpsr_2a;
+			next_cpsrup_3a = insn_2a[20] /* S */;
 			next_write_reg_3a = 1;
 			next_write_num_3a = insn_2a[19:16] /* Rd -- why the fuck isn't this the same place as ALU */;
 			next_write_data_3a = mult_result;
@@ -143,16 +143,16 @@ module Execute(
 			if ((cpsr_2a[4:0] == `MODE_USR) || (insn_2a[16] /* that random bit */ == 1'b0))	/* flags only */
 			begin
 				if (insn_2a[22] /* Ps */)
-					next_outspsr = {op0_2a[31:29], spsr_2a[28:0]};
+					next_spsr_3a = {op0_2a[31:29], spsr_2a[28:0]};
 				else
-					next_outcpsr = {op0_2a[31:29], cpsr_2a[28:0]};
+					next_cpsr_3a = {op0_2a[31:29], cpsr_2a[28:0]};
 			end else begin
 				if (insn_2a[22] /* Ps */)
-					next_outspsr = op0_2a;
+					next_spsr_3a = op0_2a;
 				else
-					next_outcpsr = op0_2a;
+					next_cpsr_3a = op0_2a;
 			end
-			next_outcpsrup = 1;
+			next_cpsrup_3a = 1;
 		end
 		`DECODE_ALU_SWP,	/* Atomic swap */
 		`DECODE_ALU_BX,		/* Branch */
@@ -168,8 +168,8 @@ module Execute(
 			end
 			
 			if (insn_2a[20] /* S */) begin
-				next_outcpsrup = 1;
-				next_outcpsr = ((insn_2a[15:12] == 4'b1111) && insn_2a[20]) ? spsr_2a : alu_outcpsr_2a;
+				next_cpsrup_3a = 1;
+				next_cpsr_3a = ((insn_2a[15:12] == 4'b1111) && insn_2a[20]) ? spsr_2a : alu_outcpsr_2a;
 			end
 		end
 		`DECODE_LDRSTR_UNDEFINED,	/* Undefined. I hate ARM */
@@ -213,7 +213,7 @@ module Execute(
 	/* Miscellaneous cleanup. */
 	always @(*)
 	begin
-		next_bubble_3a = bubble_2a | flush | delayedflush;
+		next_bubble_3a = bubble_2a | flush_2a | delayedflush_2a;
 
 		jmp_2a = 1'b0;
 		jmppc_2a = 32'h00000000;
@@ -235,7 +235,7 @@ module Execute(
 		begin end
 		`DECODE_BRANCH:
 		begin
-			if(!bubble_2a && !flush && !delayedflush && !outstall_2a /* Let someone else take precedence. */) begin
+			if(!bubble_2a && !flush_2a && !delayedflush_2a && !outstall_2a /* Let someone else take precedence. */) begin
 				jmppc_2a = pc_2a + op0_2a + 32'h8;
 				jmp_2a = 1'b1;
 			end

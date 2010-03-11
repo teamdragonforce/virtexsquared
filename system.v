@@ -298,7 +298,7 @@ module System(input clk, input rst
 
 	/* Execute AUTO_TEMPLATE (
 		.stall_2a(stall_cause_memory),
-		.flush(writeback_out_backflush),
+		.flush_2a(writeback_out_backflush),
 		.outstall_2a(stall_cause_execute),
 		.bubble_3a(bubble_out_execute),
 		.write_reg_3a(execute_out_write_reg),
@@ -311,9 +311,9 @@ module System(input clk, input rst
 		.op0_3a(execute_out_op0),
 		.op1_3a(execute_out_op1),
 		.op2_3a(execute_out_op2),
-		.outcpsr(execute_out_cpsr),
-		.outspsr(execute_out_spsr),
-		.outcpsrup(execute_out_cpsrup),
+		.cpsr_3a(execute_out_cpsr),
+		.spsr_3a(execute_out_spsr),
+		.cpsrup_3a(execute_out_cpsrup),
 		);
 	*/	
 	Execute execute(
@@ -321,9 +321,9 @@ module System(input clk, input rst
 			// Outputs
 			.outstall_2a	(stall_cause_execute),	 // Templated
 			.bubble_3a	(bubble_out_execute),	 // Templated
-			.outcpsr	(execute_out_cpsr),	 // Templated
-			.outspsr	(execute_out_spsr),	 // Templated
-			.outcpsrup	(execute_out_cpsrup),	 // Templated
+			.cpsr_3a	(execute_out_cpsr),	 // Templated
+			.spsr_3a	(execute_out_spsr),	 // Templated
+			.cpsrup_3a	(execute_out_cpsrup),	 // Templated
 			.write_reg_3a	(execute_out_write_reg), // Templated
 			.write_num_3a	(execute_out_write_num), // Templated
 			.write_data_3a	(execute_out_write_data), // Templated
@@ -338,7 +338,7 @@ module System(input clk, input rst
 			.clk		(clk),
 			.Nrst		(Nrst),
 			.stall_2a	(stall_cause_memory),	 // Templated
-			.flush		(writeback_out_backflush), // Templated
+			.flush_2a	(writeback_out_backflush), // Templated
 			.bubble_2a	(bubble_2a),
 			.pc_2a		(pc_2a[31:0]),
 			.insn_2a	(insn_2a[31:0]),
