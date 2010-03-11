@@ -25,17 +25,17 @@ module Memory(
 	input flush,
 
 	/* bus interface */
-	output reg [31:0] busaddr,
-	output reg rd_req,
-	output reg wr_req,
-	input rw_wait,
-	output reg [31:0] wr_data,
-	input [31:0] rd_data,
-	output reg [2:0] data_size,
+	output reg [31:0] dc__addr_3a,
+	output reg dc__rd_req_3a,
+	output reg dc__wr_req_3a,
+	input dc__rw_wait_3a,
+	output reg [31:0] dc__wr_data_3a,
+	input [31:0] dc__rd_data_3a,
+	output reg [2:0] dc__data_size_3a,
 
 	/* regfile interface */
-	output reg [3:0] st_read,
-	input [31:0] st_data,
+	output reg [3:0] rf__read_3_3a,
+	input [31:0] rf__rdata_3_3a,
 	
 	/* Coprocessor interface */
 	output reg cp_req,
@@ -46,18 +46,18 @@ module Memory(
 	output reg [31:0] cp_write,
 	
 	/* stage inputs */
-	input inbubble,
-	input [31:0] pc,
-	input [31:0] insn,
-	input [31:0] op0,
-	input [31:0] op1,
-	input [31:0] op2,
-	input [31:0] spsr,
-	input [31:0] cpsr,
-	input cpsrup,
-	input write_reg,
-	input [3:0] write_num,
-	input [31:0] write_data,
+	input bubble_3a,
+	input [31:0] pc_3a,
+	input [31:0] insn_3a,
+	input [31:0] op0_3a,
+	input [31:0] op1_3a,
+	input [31:0] op2_3a,
+	input [31:0] spsr_3a,
+	input [31:0] cpsr_3a,
+	input cpsrup_3a,
+	input write_reg_3a,
+	input [3:0] write_num_3a,
+	input [31:0] write_data_3a,
 
 	/* outputs */
 	output reg outstall,
@@ -103,24 +103,24 @@ module Memory(
 
 	always @(posedge clk)
 	begin
-		outpc <= pc;
-		outinsn <= insn;
+		outpc <= pc_3a;
+		outinsn <= insn_3a;
 		outbubble <= next_outbubble;
 		out_write_reg <= next_write_reg;
 		out_write_num <= next_write_num;
 		out_write_data <= next_write_data;
-		if (!rw_wait)
+		if (!dc__rw_wait_3a)
 			prev_offset <= offset;
 		prev_raddr <= raddr;
 		outcpsr <= next_outcpsr;
-		outspsr <= spsr;
+		outspsr <= spsr_3a;
 		outcpsrup <= next_outcpsrup;
 		swp_state <= next_swp_state;
 		lsm_state <= next_lsm_state;
 		lsr_state <= next_lsr_state;
 		lsrh_state <= next_lsrh_state;
 		if (do_rd_data_latch)
-			rd_data_latch <= rd_data;
+			rd_data_latch <= dc__rd_data_3a;
 		swp_oldval <= next_swp_oldval;
 		prevaddr <= addr;
 	end
@@ -140,18 +140,18 @@ module Memory(
 		next_lsr_state = lsr_state;
 		next_lsrh_state = lsrh_state;
 		next_swp_state = swp_state;
-		casez(insn)
-		`DECODE_ALU_SWP: if(!inbubble) begin
+		casez(insn_3a)
+		`DECODE_ALU_SWP: if(!bubble_3a) begin
 			case(swp_state)
 			`SWP_READING: begin
 				outstall = 1'b1;
-				if (!rw_wait)
+				if (!dc__rw_wait_3a)
 					next_swp_state = `SWP_WRITING;
 				$display("SWP: read stage");
 			end
 			`SWP_WRITING: begin
-				outstall = rw_wait;
-				if(!rw_wait)
+				outstall = dc__rw_wait_3a;
+				if(!dc__rw_wait_3a)
 					next_swp_state = `SWP_READING;
 				$display("SWP: write stage");
 			end
@@ -166,13 +166,13 @@ module Memory(
 			next_lsrh_state = lsrh_state;
 		end
 		`DECODE_ALU_HDATA_REG,
-		`DECODE_ALU_HDATA_IMM: if(!inbubble) begin
+		`DECODE_ALU_HDATA_IMM: if(!bubble_3a) begin
 			case(lsrh_state)
 			`LSRH_MEMIO: begin
-				outstall = rw_wait;
-				if(insn[21] | !insn[24]) begin
+				outstall = dc__rw_wait_3a;
+				if(insn_3a[21] | !insn_3a[24]) begin
 					outstall = 1'b1;
-					if(!rw_wait)
+					if(!dc__rw_wait_3a)
 						next_lsrh_state = `LSRH_BASEWB;
 				end
 				
@@ -181,7 +181,7 @@ module Memory(
 					next_lsrh_state = `LSRH_MEMIO;
 				end
 				
-				$display("ALU_LDRSTRH: rd_req %d, wr_req %d", rd_req, wr_req);
+				$display("ALU_LDRSTRH: rd_req %d, wr_req %d", dc__rd_req_3a, dc__wr_req_3a);
 			end
 			`LSRH_BASEWB: begin
 				outstall = 1'b1;
@@ -198,19 +198,19 @@ module Memory(
 			endcase
 		end
 		`DECODE_LDRSTR_UNDEFINED: begin end
-		`DECODE_LDRSTR: if(!inbubble) begin
-			outstall = rw_wait;
+		`DECODE_LDRSTR: if(!bubble_3a) begin
+			outstall = dc__rw_wait_3a;
 			case(lsr_state)
 			`LSR_MEMIO: begin
-				outstall = rw_wait;
+				outstall = dc__rw_wait_3a;
 				next_lsr_state = `LSR_MEMIO;
-				if (insn[22] /* B */ && !insn[20] /* L */) begin	/* i.e., strb */
+				if (insn_3a[22] /* B */ && !insn_3a[20] /* L */) begin	/* i.e., strb */
 					outstall = 1'b1;
-					if (!rw_wait)
+					if (!dc__rw_wait_3a)
 						next_lsr_state = `LSR_STRB_WR;
-				end else if (insn[21] /* W */ || !insn[24] /* P */) begin	/* writeback needed */
+				end else if (insn_3a[21] /* W */ || !insn_3a[24] /* P */) begin	/* writeback needed */
 					outstall = 1'b1;
-					if (!rw_wait)
+					if (!dc__rw_wait_3a)
 						next_lsr_state = `LSR_BASEWB;
 				end
 				
@@ -218,14 +218,14 @@ module Memory(
 					outstall = 1'b0;
 					next_lsr_state = `LSR_MEMIO;
 				end
-				$display("LDRSTR: rd_req %d, wr_req %d, raddr %08x, wait %d", rd_req, wr_req, raddr, rw_wait);
+				$display("LDRSTR: rd_req %d, wr_req %d, raddr %08x, wait %d", dc__rd_req_3a, dc__wr_req_3a, raddr, dc__rw_wait_3a);
 			end
 			`LSR_STRB_WR: begin
 				outstall = 1;
-				if(insn[21] /* W */ | !insn[24] /* P */) begin
-					if(!rw_wait)
+				if(insn_3a[21] /* W */ | !insn_3a[24] /* P */) begin
+					if(!dc__rw_wait_3a)
 						next_lsr_state = `LSR_BASEWB;
-				end else if (!rw_wait)
+				end else if (!dc__rw_wait_3a)
 					next_lsr_state = `LSR_WBFLUSH;
 				$display("LDRSTR: Handling STRB");
 			end
@@ -242,10 +242,10 @@ module Memory(
 				next_lsr_state = 4'bxxxx;
 			end
 			endcase
-			$display("LDRSTR: Decoded, bubble %d, insn %08x, lsm state %b -> %b, stall %d", inbubble, insn, lsr_state, next_lsr_state, outstall);
+			$display("LDRSTR: Decoded, bubble %d, insn %08x, lsm state %b -> %b, stall %d", bubble_3a, insn_3a, lsr_state, next_lsr_state, outstall);
 		end
-		`DECODE_LDMSTM: if(!inbubble) begin
-			outstall = rw_wait;
+		`DECODE_LDMSTM: if(!bubble_3a) begin
+			outstall = dc__rw_wait_3a;
 			case(lsm_state)
 			`LSM_SETUP: begin
 				outstall = 1'b1;
@@ -254,15 +254,15 @@ module Memory(
 					outstall = 1'b0;
 					next_lsm_state = `LSM_SETUP;
 				end
-				$display("LDMSTM: Round 1: base register: %08x, reg list %b", op0, op1[15:0]);
+				$display("LDMSTM: Round 1: base register: %08x, reg list %b", op0_3a, op1_3a[15:0]);
 			end
 			`LSM_MEMIO: begin
 				outstall = 1'b1;
-				if(next_regs == 16'b0 && !rw_wait) begin
+				if(next_regs == 16'b0 && !dc__rw_wait_3a) begin
 					next_lsm_state = `LSM_BASEWB;
 				end
 				
-				$display("LDMSTM: Stage 2: Writing: regs %b, next_regs %b, reg %d, wr_data %08x, addr %08x", regs, next_regs, cur_reg, st_data, busaddr);
+				$display("LDMSTM: Stage 2: Writing: regs %b, next_regs %b, reg %d, wr_data %08x, addr %08x", regs, next_regs, cur_reg, rf__rdata_3_3a, dc__addr_3a);
 			end
 			`LSM_BASEWB: begin
 				outstall = 1;
@@ -278,12 +278,12 @@ module Memory(
 				next_lsm_state = 4'bxxxx;
 			end
 			endcase
-			$display("LDMSTM: Decoded, bubble %d, insn %08x, lsm state %b -> %b, stall %d", inbubble, insn, lsm_state, next_lsm_state, outstall);
+			$display("LDMSTM: Decoded, bubble %d, insn %08x, lsm state %b -> %b, stall %d", bubble_3a, insn_3a, lsm_state, next_lsm_state, outstall);
 		end
-		`DECODE_LDCSTC: if(!inbubble) begin
+		`DECODE_LDCSTC: if(!bubble_3a) begin
 			$display("WARNING: Unimplemented LDCSTC");
 		end
-		`DECODE_CDP: if (!inbubble) begin
+		`DECODE_CDP: if (!bubble_3a) begin
 			if (cp_busy) begin
 				outstall = 1;
 			end
@@ -292,7 +292,7 @@ module Memory(
 				$display("WARNING: Possible CDP undefined instruction");
 			end
 		end
-		`DECODE_MRCMCR: if (!inbubble) begin
+		`DECODE_MRCMCR: if (!bubble_3a) begin
 			if (cp_busy) begin
 				outstall = 1;
 			end
@@ -311,15 +311,15 @@ module Memory(
 		cp_req = 0;
 		cp_rnw = 1'bx;
 		cp_write = 32'hxxxxxxxx;
-		casez (insn)
-		`DECODE_CDP: if(!inbubble) begin
+		casez (insn_3a)
+		`DECODE_CDP: if(!bubble_3a) begin
 			cp_req = 1;
 		end
-		`DECODE_MRCMCR: if(!inbubble) begin
+		`DECODE_MRCMCR: if(!bubble_3a) begin
 			cp_req = 1;
-			cp_rnw = insn[20] /* L */;
-			if (insn[20] == 0 /* store to coprocessor */)
-				cp_write = op0;
+			cp_rnw = insn_3a[20] /* L */;
+			if (insn_3a[20] == 0 /* store to coprocessor */)
+				cp_write = op0_3a;
 		end
 		endcase
 	end
@@ -327,14 +327,14 @@ module Memory(
 	/* Register output logic. */
 	always @(*)
 	begin
-		next_write_reg = write_reg;
-		next_write_num = write_num;
-		next_write_data = write_data;
-		next_outcpsr = lsm_state == 4'b0010 ? outcpsr : cpsr;
-		next_outcpsrup = cpsrup;
+		next_write_reg = write_reg_3a;
+		next_write_num = write_num_3a;
+		next_write_data = write_data_3a;
+		next_outcpsr = lsm_state == 4'b0010 ? outcpsr : cpsr_3a;
+		next_outcpsrup = cpsrup_3a;
 		
-		casez(insn)
-		`DECODE_ALU_SWP: if (!inbubble) begin
+		casez(insn_3a)
+		`DECODE_ALU_SWP: if (!bubble_3a) begin
 			next_write_reg = 1'bx;
 			next_write_num = 4'bxxxx;
 			next_write_data = 32'hxxxxxxxx;
@@ -343,35 +343,35 @@ module Memory(
 				next_write_reg = 1'b0;
 			`SWP_WRITING: begin
 				next_write_reg = 1'b1;
-				next_write_num = insn[15:12];
-				next_write_data = insn[22] ? {24'b0, swp_oldval[7:0]} : swp_oldval;
+				next_write_num = insn_3a[15:12];
+				next_write_data = insn_3a[22] ? {24'b0, swp_oldval[7:0]} : swp_oldval;
 			end
 			default: begin end
 			endcase
 		end
 		`DECODE_ALU_MULT: begin
-			next_write_reg = write_reg;	/* XXX workaround for ISE 10.1 bug */
-			next_write_num = write_num;
-			next_write_data = write_data;
-			next_outcpsr = lsm_state == 4'b0010 ? outcpsr : cpsr;
-			next_outcpsrup = cpsrup;
+			next_write_reg = write_reg_3a;	/* XXX workaround for ISE 10.1 bug */
+			next_write_num = write_num_3a;
+			next_write_data = write_data_3a;
+			next_outcpsr = lsm_state == 4'b0010 ? outcpsr : cpsr_3a;
+			next_outcpsrup = cpsrup_3a;
 		end
 		`DECODE_ALU_HDATA_REG,
-		`DECODE_ALU_HDATA_IMM: if(!inbubble) begin
+		`DECODE_ALU_HDATA_IMM: if(!bubble_3a) begin
 			next_write_reg = 1'bx;
 			next_write_num = 4'bxxxx;
 			next_write_data = 32'hxxxxxxxx;
 			case(lsrh_state)
 			`LSRH_MEMIO: begin
-				next_write_num = insn[15:12];
+				next_write_num = insn_3a[15:12];
 				next_write_data = lsrh_rddata;
-				if(insn[20]) begin
+				if(insn_3a[20]) begin
 					next_write_reg = 1'b1;
 				end
 			end
 			`LSRH_BASEWB: begin
 				next_write_reg = 1'b1;
-				next_write_num = insn[19:16];
+				next_write_num = insn_3a[19:16];
 				next_write_data = addr;
 			end
 			`LSRH_WBFLUSH:
@@ -380,23 +380,23 @@ module Memory(
 			endcase
 		end
 		`DECODE_LDRSTR_UNDEFINED: begin end
-		`DECODE_LDRSTR: if(!inbubble) begin
+		`DECODE_LDRSTR: if(!bubble_3a) begin
 			next_write_reg = 1'bx;
 			next_write_num = 4'bxxxx;
 			next_write_data = 32'hxxxxxxxx;
 			case(lsr_state)
 			`LSR_MEMIO: begin
-				next_write_reg = insn[20] /* L */;
-				next_write_num = insn[15:12];
-				if(insn[20] /* L */) begin
-					next_write_data = insn[22] /* B */ ? {24'h0, align_rddata[7:0]} : align_rddata;
+				next_write_reg = insn_3a[20] /* L */;
+				next_write_num = insn_3a[15:12];
+				if(insn_3a[20] /* L */) begin
+					next_write_data = insn_3a[22] /* B */ ? {24'h0, align_rddata[7:0]} : align_rddata;
 				end
 			end
 			`LSR_STRB_WR:
 				next_write_reg = 1'b0;
 			`LSR_BASEWB: begin
 				next_write_reg = 1'b1;
-				next_write_num = insn[19:16];
+				next_write_num = insn_3a[19:16];
 				next_write_data = addr;
 			end
 			`LSR_WBFLUSH:
@@ -404,7 +404,7 @@ module Memory(
 			default: begin end
 			endcase
 		end
-		`DECODE_LDMSTM: if(!inbubble) begin
+		`DECODE_LDMSTM: if(!bubble_3a) begin
 			next_write_reg = 1'bx;
 			next_write_num = 4'bxxxx;
 			next_write_data = 32'hxxxxxxxx;
@@ -412,19 +412,19 @@ module Memory(
 			`LSM_SETUP:
 				next_write_reg = 1'b0;
 			`LSM_MEMIO: begin
-				if(insn[20] /* L */) begin
-					next_write_reg = !rw_wait;
+				if(insn_3a[20] /* L */) begin
+					next_write_reg = !dc__rw_wait_3a;
 					next_write_num = cur_reg;
-					next_write_data = rd_data;
+					next_write_data = dc__rd_data_3a;
 				end else
 					next_write_reg = 1'b0;
 			end
 			`LSM_BASEWB: begin
-				next_write_reg = insn[21] /* writeback */;
-				next_write_num = insn[19:16];
-				next_write_data = insn[23] ? op0 + {26'b0, prev_offset} : op0 - {26'b0, prev_offset};
-				if(cur_reg == 4'hF && insn[22]) begin
-					next_outcpsr = spsr;
+				next_write_reg = insn_3a[21] /* writeback */;
+				next_write_num = insn_3a[19:16];
+				next_write_data = insn_3a[23] ? op0_3a + {26'b0, prev_offset} : op0_3a - {26'b0, prev_offset};
+				if(cur_reg == 4'hF && insn_3a[22]) begin
+					next_outcpsr = spsr_3a;
 					next_outcpsrup = 1;
 				end
 			end
@@ -433,19 +433,19 @@ module Memory(
 			default: begin end
 			endcase
 		end
-		`DECODE_MRCMCR: if(!inbubble) begin
+		`DECODE_MRCMCR: if(!bubble_3a) begin
 			next_write_reg = 1'bx;
 			next_write_num = 4'bxxxx;
 			next_write_data = 32'hxxxxxxxx;
 			next_outcpsr = 32'hxxxxxxxx;
 			next_outcpsrup = 1'bx;
-			if (insn[20] == 1 /* load from coprocessor */)
-				if (insn[15:12] != 4'hF /* Fuck you ARM */) begin
+			if (insn_3a[20] == 1 /* load from coprocessor */)
+				if (insn_3a[15:12] != 4'hF /* Fuck you ARM */) begin
 					next_write_reg = 1'b1;
-					next_write_num = insn[15:12];
+					next_write_num = insn_3a[15:12];
 					next_write_data = cp_read;
 				end else begin
-					next_outcpsr = {cp_read[31:28], cpsr[27:0]};
+					next_outcpsr = {cp_read[31:28], cpsr_3a[27:0]};
 					next_outcpsrup = 1;
 				end
 		end
@@ -455,54 +455,54 @@ module Memory(
 	/* Bus/address control logic. */
 	always @(*)
 	begin
-		rd_req = 1'b0;
-		wr_req = 1'b0;
+		dc__rd_req_3a = 1'b0;
+		dc__wr_req_3a = 1'b0;
 		offset = prev_offset;
 		addr = prevaddr;
 		raddr = 32'hxxxxxxxx;
-		busaddr = 32'hxxxxxxxx;
-		data_size = 3'bxxx;
+		dc__addr_3a = 32'hxxxxxxxx;
+		dc__data_size_3a = 3'bxxx;
 		
-		casez(insn)
-		`DECODE_ALU_SWP: if(!inbubble) begin
-			busaddr = {op0[31:2], 2'b0};
-			data_size = insn[22] ? 3'b001 : 3'b100;
+		casez(insn_3a)
+		`DECODE_ALU_SWP: if(!bubble_3a) begin
+			dc__addr_3a = {op0_3a[31:2], 2'b0};
+			dc__data_size_3a = insn_3a[22] ? 3'b001 : 3'b100;
 			case(swp_state)
 			`SWP_READING:
-				rd_req = 1'b1;
+				dc__rd_req_3a = 1'b1;
 			`SWP_WRITING:
-				wr_req = 1'b1;
+				dc__wr_req_3a = 1'b1;
 			default: begin end
 			endcase
 		end
 		`DECODE_ALU_MULT: begin
-			rd_req = 1'b0;	/* XXX workaround for Xilinx bug */
-			wr_req = 1'b0;
+			dc__rd_req_3a = 1'b0;	/* XXX workaround for Xilinx bug */
+			dc__wr_req_3a = 1'b0;
 			offset = prev_offset;
 			addr = prevaddr;
 		end
 		`DECODE_ALU_HDATA_REG,
-		`DECODE_ALU_HDATA_IMM: if(!inbubble) begin
-			addr = insn[23] ? op0 + op1 : op0 - op1; /* up/down select */
-			raddr = insn[24] ? op0 : addr; /* pre/post increment */
-			busaddr = raddr;
+		`DECODE_ALU_HDATA_IMM: if(!bubble_3a) begin
+			addr = insn_3a[23] ? op0_3a + op1_3a : op0_3a - op1_3a; /* up/down select */
+			raddr = insn_3a[24] ? op0_3a : addr; /* pre/post increment */
+			dc__addr_3a = raddr;
 			/* rotate to correct position */
-			case(insn[6:5])
+			case(insn_3a[6:5])
 			2'b01: /* unsigned half */
-				data_size = 3'b010;
+				dc__data_size_3a = 3'b010;
 			2'b10: /* signed byte */
-				data_size = 3'b001;
+				dc__data_size_3a = 3'b001;
 			2'b11: /* signed half */
-				data_size = 3'b010;
+				dc__data_size_3a = 3'b010;
 			default: begin
-				data_size = 3'bxxx;
+				dc__data_size_3a = 3'bxxx;
 			end
 			endcase
 			
 			case(lsrh_state)
 			`LSRH_MEMIO: begin
-				rd_req = insn[20];
-				wr_req = ~insn[20];
+				dc__rd_req_3a = insn_3a[20];
+				dc__wr_req_3a = ~insn_3a[20];
 			end
 			`LSRH_BASEWB: begin end
 			`LSRH_WBFLUSH: begin end
@@ -510,35 +510,35 @@ module Memory(
 			endcase
 		end
 		`DECODE_LDRSTR_UNDEFINED: begin end
-		`DECODE_LDRSTR: if(!inbubble) begin
-			addr = insn[23] ? op0 + op1 : op0 - op1; /* up/down select */
-			raddr = insn[24] ? addr : op0; /* pre/post increment */
-			busaddr = raddr;
-			data_size = insn[22] ? 3'b001 : 3'b100;
+		`DECODE_LDRSTR: if(!bubble_3a) begin
+			addr = insn_3a[23] ? op0_3a + op1_3a : op0_3a - op1_3a; /* up/down select */
+			raddr = insn_3a[24] ? addr : op0_3a; /* pre/post increment */
+			dc__addr_3a = raddr;
+			dc__data_size_3a = insn_3a[22] ? 3'b001 : 3'b100;
 			case (lsr_state)
 			`LSR_MEMIO: begin
-				rd_req = insn[20] /* L */ || insn[22] /* B */;
-				wr_req = !insn[20] /* L */ && !insn[22]/* B */;
+				dc__rd_req_3a = insn_3a[20] /* L */ || insn_3a[22] /* B */;
+				dc__wr_req_3a = !insn_3a[20] /* L */ && !insn_3a[22]/* B */;
 			end
 			`LSR_STRB_WR:
-				wr_req = 1;
+				dc__wr_req_3a = 1;
 			`LSR_BASEWB: begin end
 			`LSR_WBFLUSH: begin end
 			default: begin end
 			endcase
 		end
-		`DECODE_LDMSTM: if (!inbubble) begin
-			data_size = 3'b100;
+		`DECODE_LDMSTM: if (!bubble_3a) begin
+			dc__data_size_3a = 3'b100;
 			case (lsm_state)
 			`LSM_SETUP:
 				offset = 6'b0;
 			`LSM_MEMIO: begin
-				rd_req = insn[20];
-				wr_req = ~insn[20];
+				dc__rd_req_3a = insn_3a[20];
+				dc__wr_req_3a = ~insn_3a[20];
 				offset = prev_offset + 6'h4;
-				offset_sel = insn[24] ? offset : prev_offset;
-				raddr = insn[23] ? op0 + {26'b0, offset_sel} : op0 - {26'b0, offset_sel};
-				busaddr = raddr;
+				offset_sel = insn_3a[24] ? offset : prev_offset;
+				raddr = insn_3a[23] ? op0_3a + {26'b0, offset_sel} : op0_3a - {26'b0, offset_sel};
+				dc__addr_3a = raddr;
 			end
 			`LSM_BASEWB: begin end
 			`LSM_WBFLUSH: begin end
@@ -555,38 +555,38 @@ module Memory(
 	/* Bus data control logic. */
 	always @(*)
 	begin
-		wr_data = 32'hxxxxxxxx;
+		dc__wr_data_3a = 32'hxxxxxxxx;
 		
-		casez(insn)
-		`DECODE_ALU_SWP: if(!inbubble)
+		casez(insn_3a)
+		`DECODE_ALU_SWP: if(!bubble_3a)
 			if (swp_state == `SWP_WRITING)
-				wr_data = insn[22] ? {4{op1[7:0]}} : op1;
+				dc__wr_data_3a = insn_3a[22] ? {4{op1_3a[7:0]}} : op1_3a;
 		`DECODE_ALU_MULT: begin end
 		`DECODE_ALU_HDATA_REG,
-		`DECODE_ALU_HDATA_IMM: if(!inbubble)
-			case(insn[6:5])
+		`DECODE_ALU_HDATA_IMM: if(!bubble_3a)
+			case(insn_3a[6:5])
 			2'b01: /* unsigned half */
-				wr_data = {2{op2[15:0]}}; /* XXX need to store halfword */
+				dc__wr_data_3a = {2{op2_3a[15:0]}}; /* XXX need to store halfword */
 			2'b10: /* signed byte */
-				wr_data = {4{op2[7:0]}};
+				dc__wr_data_3a = {4{op2_3a[7:0]}};
 			2'b11: /* signed half */
-				wr_data = {2{op2[15:0]}};
+				dc__wr_data_3a = {2{op2_3a[15:0]}};
 			default: begin end
 			endcase
 		`DECODE_LDRSTR_UNDEFINED: begin end
-		`DECODE_LDRSTR: if(!inbubble) begin
-			wr_data = insn[22] ? {24'h0, {op2[7:0]}} : op2;
+		`DECODE_LDRSTR: if(!bubble_3a) begin
+			dc__wr_data_3a = insn_3a[22] ? {24'h0, {op2_3a[7:0]}} : op2_3a;
 			if (lsr_state == `LSR_STRB_WR)
-				case (busaddr[1:0])
-				2'b00: wr_data = {rd_data_latch[31:8], op2[7:0]};
-				2'b01: wr_data = {rd_data_latch[31:16], op2[7:0], rd_data_latch[7:0]};
-				2'b10: wr_data = {rd_data_latch[31:24], op2[7:0], rd_data_latch[15:0]};
-				2'b11: wr_data = {op2[7:0], rd_data_latch[23:0]};
+				case (dc__addr_3a[1:0])
+				2'b00: dc__wr_data_3a = {rd_data_latch[31:8], op2_3a[7:0]};
+				2'b01: dc__wr_data_3a = {rd_data_latch[31:16], op2_3a[7:0], rd_data_latch[7:0]};
+				2'b10: dc__wr_data_3a = {rd_data_latch[31:24], op2_3a[7:0], rd_data_latch[15:0]};
+				2'b11: dc__wr_data_3a = {op2_3a[7:0], rd_data_latch[23:0]};
 				endcase
 		end
-		`DECODE_LDMSTM: if (!inbubble)
+		`DECODE_LDMSTM: if (!bubble_3a)
 			if (lsm_state == `LSM_MEMIO)
-				wr_data = (cur_reg == 4'hF) ? (pc + 12) : st_data;
+				dc__wr_data_3a = (cur_reg == 4'hF) ? (pc_3a + 12) : rf__rdata_3_3a;
 		`DECODE_LDCSTC: begin end
 		`DECODE_CDP: begin end
 		`DECODE_MRCMCR: begin end
@@ -596,7 +596,7 @@ module Memory(
 	
 	/* LDM/STM register control logic. */
 	always @(posedge clk)
-		if (!rw_wait || lsm_state != `LSM_MEMIO)
+		if (!dc__rw_wait_3a || lsm_state != `LSM_MEMIO)
 		begin
 			prev_reg <= cur_reg;
 			regs <= next_regs;
@@ -604,16 +604,16 @@ module Memory(
 	
 	always @(*)
 	begin
-		st_read = 4'hx;
+		rf__read_3_3a = 4'hx;
 		cur_reg = prev_reg;
 		next_regs = regs;
 		
-		casez(insn)
-		`DECODE_LDMSTM: if(!inbubble) begin
+		casez(insn_3a)
+		`DECODE_LDMSTM: if(!bubble_3a) begin
 			case(lsm_state)
 			`LSM_SETUP:
-				next_regs = insn[23] /* U */ ? op1[15:0] : {op1[0], op1[1], op1[2], op1[3], op1[4], op1[5], op1[6], op1[7],
-				                                            op1[8], op1[9], op1[10], op1[11], op1[12], op1[13], op1[14], op1[15]};
+				next_regs = insn_3a[23] /* U */ ? op1_3a[15:0] : {op1_3a[0], op1_3a[1], op1_3a[2], op1_3a[3], op1_3a[4], op1_3a[5], op1_3a[6], op1_3a[7],
+				                                               op1_3a[8], op1_3a[9], op1_3a[10], op1_3a[11], op1_3a[12], op1_3a[13], op1_3a[14], op1_3a[15]};
 			`LSM_MEMIO: begin
 				casez(regs)
 				16'b???????????????1: begin
@@ -685,9 +685,9 @@ module Memory(
 					next_regs = 16'b0;
 				end
 				endcase
-				cur_reg = insn[23] ? cur_reg : 4'hF - cur_reg;
+				cur_reg = insn_3a[23] ? cur_reg : 4'hF - cur_reg;
 				
-				st_read = cur_reg;
+				rf__read_3_3a = cur_reg;
 			end
 			`LSM_BASEWB: begin end
 			`LSM_WBFLUSH: begin end
@@ -701,7 +701,7 @@ module Memory(
 	begin
 		do_rd_data_latch = 0;
 		
-		next_outbubble = inbubble;
+		next_outbubble = bubble_3a;
 		
 		lsrh_rddata = 32'hxxxxxxxx;
 		lsrh_rddata_s1 = 16'hxxxx;
@@ -713,36 +713,36 @@ module Memory(
 		align_rddata = 32'hxxxxxxxx;
 
 		/* XXX shit not given about endianness */
-		casez(insn)
-		`DECODE_ALU_SWP: if(!inbubble) begin
-			next_outbubble = rw_wait;
+		casez(insn_3a)
+		`DECODE_ALU_SWP: if(!bubble_3a) begin
+			next_outbubble = dc__rw_wait_3a;
 			case(swp_state)
 			`SWP_READING:
-				if(!rw_wait)
-					next_swp_oldval = rd_data;
+				if(!dc__rw_wait_3a)
+					next_swp_oldval = dc__rd_data_3a;
 			`SWP_WRITING: begin end
 			default: begin end
 			endcase
 		end
 		`DECODE_ALU_MULT: begin
-			next_outbubble = inbubble;	/* XXX workaround for Xilinx bug */
+			next_outbubble = bubble_3a;	/* XXX workaround for Xilinx bug */
 		end
 		`DECODE_ALU_HDATA_REG,
-		`DECODE_ALU_HDATA_IMM: if(!inbubble) begin
-			next_outbubble = rw_wait;
+		`DECODE_ALU_HDATA_IMM: if(!bubble_3a) begin
+			next_outbubble = dc__rw_wait_3a;
 			
 			/* rotate to correct position */
-			case(insn[6:5])
+			case(insn_3a[6:5])
 			2'b01: begin /* unsigned half */
-				lsrh_rddata = {16'b0, raddr[1] ? rd_data[31:16] : rd_data[15:0]};
+				lsrh_rddata = {16'b0, raddr[1] ? dc__rd_data_3a[31:16] : dc__rd_data_3a[15:0]};
 			end
 			2'b10: begin /* signed byte */
-				lsrh_rddata_s1 = raddr[1] ? rd_data[31:16] : rd_data[15:0];
+				lsrh_rddata_s1 = raddr[1] ? dc__rd_data_3a[31:16] : dc__rd_data_3a[15:0];
 				lsrh_rddata_s2 = raddr[0] ? lsrh_rddata_s1[15:8] : lsrh_rddata_s1[7:0];
 				lsrh_rddata = {{24{lsrh_rddata_s2[7]}}, lsrh_rddata_s2};
 			end
 			2'b11: begin /* signed half */
-				lsrh_rddata = raddr[1] ? {{16{rd_data[31]}}, rd_data[31:16]} : {{16{rd_data[15]}}, rd_data[15:0]};
+				lsrh_rddata = raddr[1] ? {{16{dc__rd_data_3a[31]}}, dc__rd_data_3a[31:16]} : {{16{dc__rd_data_3a[15]}}, dc__rd_data_3a[15:0]};
 			end
 			default: begin
 				lsrh_rddata = 32'hxxxxxxxx;
@@ -758,16 +758,16 @@ module Memory(
 			endcase
 		end
 		`DECODE_LDRSTR_UNDEFINED: begin end
-		`DECODE_LDRSTR: if(!inbubble) begin
-			next_outbubble = rw_wait;
+		`DECODE_LDRSTR: if(!bubble_3a) begin
+			next_outbubble = dc__rw_wait_3a;
 			/* rotate to correct position */
-			align_s1 = raddr[1] ? {rd_data[15:0], rd_data[31:16]} : rd_data;
+			align_s1 = raddr[1] ? {dc__rd_data_3a[15:0], dc__rd_data_3a[31:16]} : dc__rd_data_3a;
 			align_s2 = raddr[0] ? {align_s1[7:0], align_s1[31:8]} : align_s1;
 			/* select byte or word */
-			align_rddata = insn[22] ? {24'b0, align_s2[7:0]} : align_s2;
+			align_rddata = insn_3a[22] ? {24'b0, align_s2[7:0]} : align_s2;
 			case(lsr_state)
 			`LSR_MEMIO:
-				if (insn[22] /* B */ && !insn[20] /* L */)
+				if (insn_3a[22] /* B */ && !insn_3a[20] /* L */)
 					do_rd_data_latch = 1;
 			`LSR_STRB_WR: begin end
 			`LSR_BASEWB:
@@ -777,8 +777,8 @@ module Memory(
 			endcase
 		end
 		/* XXX ldm/stm incorrect in that stupid case where one of the listed regs is the base reg */
-		`DECODE_LDMSTM: if(!inbubble) begin
-			next_outbubble = rw_wait;
+		`DECODE_LDMSTM: if(!bubble_3a) begin
+			next_outbubble = dc__rw_wait_3a;
 			case(lsm_state)
 			`LSM_SETUP: begin end
 			`LSM_MEMIO: begin end
@@ -789,12 +789,12 @@ module Memory(
 			endcase
 		end
 		`DECODE_LDCSTC: begin end
-		`DECODE_CDP: if(!inbubble) begin
+		`DECODE_CDP: if(!bubble_3a) begin
 			if (cp_busy) begin
 				next_outbubble = 1;
 			end
 		end
-		`DECODE_MRCMCR: if(!inbubble) begin
+		`DECODE_MRCMCR: if(!bubble_3a) begin
 			if (cp_busy) begin
 				next_outbubble = 1;
 			end

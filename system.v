@@ -117,28 +117,42 @@ module System(input clk, input rst
 	// Beginning of automatic wires (for undeclared instantiated-module outputs)
 	wire		bubble_1a;		// From fetch of Fetch.v
 	wire		bubble_2a;		// From issue of Issue.v
+	wire		bubble_3a;		// From execute of Execute.v
 	wire		carry_2a;		// From decode of Decode.v
 	wire [31:0]	cpsr_2a;		// From decode of Decode.v
+	wire [31:0]	cpsr_3a;		// From execute of Execute.v
+	wire		cpsrup_3a;		// From execute of Execute.v
+	wire [2:0]	dc__data_size_3a;	// From memory of Memory.v
 	wire [31:0]	ic__rd_addr_0a;		// From fetch of Fetch.v
 	wire [31:0]	ic__rd_data_1a;		// From icache of ICache.v
 	wire		ic__rd_req_0a;		// From fetch of Fetch.v
 	wire		ic__rd_wait_0a;		// From icache of ICache.v
 	wire [31:0]	insn_1a;		// From fetch of Fetch.v
 	wire [31:0]	insn_2a;		// From issue of Issue.v
+	wire [31:0]	insn_3a;		// From execute of Execute.v
 	wire [31:0]	op0_2a;			// From decode of Decode.v
+	wire [31:0]	op0_3a;			// From execute of Execute.v
 	wire [31:0]	op1_2a;			// From decode of Decode.v
+	wire [31:0]	op1_3a;			// From execute of Execute.v
 	wire [31:0]	op2_2a;			// From decode of Decode.v
+	wire [31:0]	op2_3a;			// From execute of Execute.v
 	wire [31:0]	pc_1a;			// From fetch of Fetch.v
 	wire [31:0]	pc_2a;			// From issue of Issue.v
+	wire [31:0]	pc_3a;			// From execute of Execute.v
 	wire [31:0]	rf__rdata_0_1a;		// From regfile of RegFile.v
 	wire [31:0]	rf__rdata_1_1a;		// From regfile of RegFile.v
 	wire [31:0]	rf__rdata_2_1a;		// From regfile of RegFile.v
-	wire [31:0]	rf__rdata_3_4a;		// From regfile of RegFile.v
+	wire [31:0]	rf__rdata_3_3a;		// From regfile of RegFile.v
 	wire [3:0]	rf__read_0_1a;		// From decode of Decode.v
 	wire [3:0]	rf__read_1_1a;		// From decode of Decode.v
 	wire [3:0]	rf__read_2_1a;		// From decode of Decode.v
+	wire [3:0]	rf__read_3_3a;		// From memory of Memory.v
 	wire [31:0]	spsr_2a;		// From decode of Decode.v
+	wire [31:0]	spsr_3a;		// From execute of Execute.v
 	wire		stall_0a;		// From issue of Issue.v
+	wire [31:0]	write_data_3a;		// From execute of Execute.v
+	wire [3:0]	write_num_3a;		// From execute of Execute.v
+	wire		write_reg_3a;		// From execute of Execute.v
 	// End of automatics
 
 	wire execute_out_backflush;
@@ -254,7 +268,7 @@ module System(input clk, input rst
 			.rf__rdata_0_1a	(rf__rdata_0_1a[31:0]),
 			.rf__rdata_1_1a	(rf__rdata_1_1a[31:0]),
 			.rf__rdata_2_1a	(rf__rdata_2_1a[31:0]),
-			.rf__rdata_3_4a	(rf__rdata_3_4a[31:0]),
+			.rf__rdata_3_3a	(rf__rdata_3_3a[31:0]),
 			.spsr		(regfile_spsr),		 // Templated
 			// Inputs
 			.clk		(clk),
@@ -262,7 +276,7 @@ module System(input clk, input rst
 			.rf__read_0_1a	(rf__read_0_1a[3:0]),
 			.rf__read_1_1a	(rf__read_1_1a[3:0]),
 			.rf__read_2_1a	(rf__read_2_1a[3:0]),
-			.rf__read_3_4a	(rf__read_3_4a[3:0]),
+			.rf__read_3_3a	(rf__read_3_3a[3:0]),
 			.write		(regfile_write),	 // Templated
 			.write_reg	(regfile_write_reg),	 // Templated
 			.write_data	(regfile_write_data));	 // Templated
@@ -300,40 +314,28 @@ module System(input clk, input rst
 		.stall_2a(stall_cause_memory),
 		.flush_2a(writeback_out_backflush),
 		.outstall_2a(stall_cause_execute),
-		.bubble_3a(bubble_out_execute),
-		.write_reg_3a(execute_out_write_reg),
-		.write_num_3a(execute_out_write_num),
-		.write_data_3a(execute_out_write_data),
 		.jmp_2a(jmp_out_execute),
 		.jmppc_2a(jmppc_out_execute),
-		.pc_3a(pc_out_execute),
-		.insn_3a(insn_out_execute),
-		.op0_3a(execute_out_op0),
-		.op1_3a(execute_out_op1),
-		.op2_3a(execute_out_op2),
-		.cpsr_3a(execute_out_cpsr),
-		.spsr_3a(execute_out_spsr),
-		.cpsrup_3a(execute_out_cpsrup),
 		);
 	*/	
 	Execute execute(
 		/*AUTOINST*/
 			// Outputs
 			.outstall_2a	(stall_cause_execute),	 // Templated
-			.bubble_3a	(bubble_out_execute),	 // Templated
-			.cpsr_3a	(execute_out_cpsr),	 // Templated
-			.spsr_3a	(execute_out_spsr),	 // Templated
-			.cpsrup_3a	(execute_out_cpsrup),	 // Templated
-			.write_reg_3a	(execute_out_write_reg), // Templated
-			.write_num_3a	(execute_out_write_num), // Templated
-			.write_data_3a	(execute_out_write_data), // Templated
+			.bubble_3a	(bubble_3a),
+			.cpsr_3a	(cpsr_3a[31:0]),
+			.spsr_3a	(spsr_3a[31:0]),
+			.cpsrup_3a	(cpsrup_3a),
+			.write_reg_3a	(write_reg_3a),
+			.write_num_3a	(write_num_3a[3:0]),
+			.write_data_3a	(write_data_3a[31:0]),
 			.jmppc_2a	(jmppc_out_execute),	 // Templated
 			.jmp_2a		(jmp_out_execute),	 // Templated
-			.pc_3a		(pc_out_execute),	 // Templated
-			.insn_3a	(insn_out_execute),	 // Templated
-			.op0_3a		(execute_out_op0),	 // Templated
-			.op1_3a		(execute_out_op1),	 // Templated
-			.op2_3a		(execute_out_op2),	 // Templated
+			.pc_3a		(pc_3a[31:0]),
+			.insn_3a	(insn_3a[31:0]),
+			.op0_3a		(op0_3a[31:0]),
+			.op1_3a		(op1_3a[31:0]),
+			.op2_3a		(op2_3a[31:0]),
 			// Inputs
 			.clk		(clk),
 			.Nrst		(Nrst),
@@ -351,22 +353,77 @@ module System(input clk, input rst
 	assign execute_out_backflush = jmp;
 	
 	assign cp_insn = insn_out_execute;
-	Memory memory(
-		.clk(clk), .Nrst(~rst),
-		/* stall? */ .flush(writeback_out_backflush),
-		.busaddr(dcache_addr), .rd_req(dcache_rd_req), .wr_req(dcache_wr_req),
-		.rw_wait(dcache_rw_wait), .wr_data(dcache_wr_data), .rd_data(dcache_rd_data),
-		.st_read(rf__read_3_4a), .st_data(rf__rdata_3_4a),
-		.inbubble(bubble_out_execute), .pc(pc_out_execute), .insn(insn_out_execute),
-		.op0(execute_out_op0), .op1(execute_out_op1), .op2(execute_out_op2),
-		.spsr(execute_out_spsr), .cpsr(execute_out_cpsr), .cpsrup(execute_out_cpsrup),
-		.write_reg(execute_out_write_reg), .write_num(execute_out_write_num), .write_data(execute_out_write_data),
-		.outstall(stall_cause_memory), .outbubble(bubble_out_memory), 
-		.outpc(pc_out_memory), .outinsn(insn_out_memory),
-		.out_write_reg(memory_out_write_reg), .out_write_num(memory_out_write_num), 
+	/* stall? */
+	/* Memory AUTO_TEMPLATE (
+		.flush(writeback_out_backflush),
+		.dc__addr_3a(dcache_addr),
+		.dc__rd_req_3a(dcache_rd_req),
+		.dc__wr_req_3a(dcache_wr_req),
+		.dc__rw_wait_3a(dcache_rw_wait),
+		.dc__wr_data_3a(dcache_wr_data),
+		.dc__rd_data_3a(dcache_rd_data),
+		.outstall(stall_cause_memory),
+		.outbubble(bubble_out_memory), 
+		.outpc(pc_out_memory),
+		.outinsn(insn_out_memory),
+		.out_write_reg(memory_out_write_reg),
+		.out_write_num(memory_out_write_num), 
 		.out_write_data(memory_out_write_data),
-		.cp_req(cp_req), .cp_ack(cp_ack), .cp_busy(cp_busy), .cp_rnw(cp_rnw), .cp_read(cp_read), .cp_write(cp_write),
-		.outcpsr(memory_out_cpsr), .outspsr(memory_out_spsr), .outcpsrup(memory_out_cpsrup) /* XXX data_size */);
+		.cp_req(cp_req),
+		.cp_ack(cp_ack),
+		.cp_busy(cp_busy),
+		.cp_rnw(cp_rnw),
+		.cp_read(cp_read),
+		.cp_write(cp_write),
+		.outcpsr(memory_out_cpsr),
+		.outspsr(memory_out_spsr),
+		.outcpsrup(memory_out_cpsrup),
+		);
+		*/
+	Memory memory(
+		/*AUTOINST*/
+		      // Outputs
+		      .dc__addr_3a	(dcache_addr),		 // Templated
+		      .dc__rd_req_3a	(dcache_rd_req),	 // Templated
+		      .dc__wr_req_3a	(dcache_wr_req),	 // Templated
+		      .dc__wr_data_3a	(dcache_wr_data),	 // Templated
+		      .dc__data_size_3a	(dc__data_size_3a[2:0]),
+		      .rf__read_3_3a	(rf__read_3_3a[3:0]),
+		      .cp_req		(cp_req),		 // Templated
+		      .cp_rnw		(cp_rnw),		 // Templated
+		      .cp_write		(cp_write),		 // Templated
+		      .outstall		(stall_cause_memory),	 // Templated
+		      .outbubble	(bubble_out_memory),	 // Templated
+		      .outpc		(pc_out_memory),	 // Templated
+		      .outinsn		(insn_out_memory),	 // Templated
+		      .out_write_reg	(memory_out_write_reg),	 // Templated
+		      .out_write_num	(memory_out_write_num),	 // Templated
+		      .out_write_data	(memory_out_write_data), // Templated
+		      .outspsr		(memory_out_spsr),	 // Templated
+		      .outcpsr		(memory_out_cpsr),	 // Templated
+		      .outcpsrup	(memory_out_cpsrup),	 // Templated
+		      // Inputs
+		      .clk		(clk),
+		      .Nrst		(Nrst),
+		      .flush		(writeback_out_backflush), // Templated
+		      .dc__rw_wait_3a	(dcache_rw_wait),	 // Templated
+		      .dc__rd_data_3a	(dcache_rd_data),	 // Templated
+		      .rf__rdata_3_3a	(rf__rdata_3_3a[31:0]),
+		      .cp_ack		(cp_ack),		 // Templated
+		      .cp_busy		(cp_busy),		 // Templated
+		      .cp_read		(cp_read),		 // Templated
+		      .bubble_3a	(bubble_3a),
+		      .pc_3a		(pc_3a[31:0]),
+		      .insn_3a		(insn_3a[31:0]),
+		      .op0_3a		(op0_3a[31:0]),
+		      .op1_3a		(op1_3a[31:0]),
+		      .op2_3a		(op2_3a[31:0]),
+		      .spsr_3a		(spsr_3a[31:0]),
+		      .cpsr_3a		(cpsr_3a[31:0]),
+		      .cpsrup_3a	(cpsrup_3a),
+		      .write_reg_3a	(write_reg_3a),
+		      .write_num_3a	(write_num_3a[3:0]),
+		      .write_data_3a	(write_data_3a[31:0]));
 	
 	Terminal terminal(	
 		.clk(clk),
