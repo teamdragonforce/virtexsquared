@@ -1,4 +1,4 @@
-VLOGS = ARM_Constants.v BigBlockRAM.v BlockRAM.v BusArbiter.v DCache.v Decode.v Execute.v Fetch.v ICache.v Issue.v Memory.v Minishift.v RegFile.v Terminal.v Writeback.v system.v
+VLOGS = ARM_Constants.v BigBlockRAM.v BlockRAM.v BusArbiter.v DCache.v Decode.v Execute.v Fetch.v ICache.v Issue.v Memory.v Minishift.v RegFile.v Terminal.v Writeback.v system.v CellularRAM.v
 
 all: Vsystem
 

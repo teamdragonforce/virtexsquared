@@ -102,10 +102,30 @@ void ldm_tester()
 		puts("PASS\n");
 }
 
+void cellularram()
+{
+	volatile int *p = 0x80010000;
+	
+	puts("[writing] ");
+	p[0] = 0x12345678;
+	p[1] = 0x87654321;
+	p[2] = 0xAAAA5555;
+	p[3] = 0x5555AAAA;
+	puts("[cache flush] ");
+	p[0x1000] = 0x00000000;
+	puts("[reading: ");
+	puthex(p[0]);
+	puthex(p[1]);
+	puthex(p[2]);
+	puthex(p[3]);
+	puts("]\n");
+}
+
 struct tests tlist[] = {
 	{"ldm pc/mul", ldm_tester},
 	{"fact", facttest},
 	{"j4cbo", j4cbo},
+	{"cellularram", cellularram},
 	{"ack", acktest},
 	{"miniblarg", testmain},
 	{"corecurse", corecurse},

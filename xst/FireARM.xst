@@ -5,7 +5,7 @@ run
 -ifmt mixed
 -ofn FireARM
 -ofmt NGC
--p xc5vlx110t-1-ff1136
+-p xc3s1200e-5-fg320
 -top Console
 -opt_mode Speed
 -opt_level 1

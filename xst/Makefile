@@ -1,8 +1,9 @@
 TARGET = FireARM
-VLOGS = Console.v \
+VLOGS = Console.nexys2.v \
         ../ARM_Constants.v \
         ../BigBlockRAM.v \
         ../BlockRAM.v \
+        ../CellularRAM.v \
         ../BusArbiter.v \
         ../DCache.v \
         ../Decode.v \
@@ -41,7 +42,7 @@ BITGEN_OPTS = \
 	-g Match_cycle:2 \
 	-g DriveDone:No
 
-fpga_target: $(TARGET).bit
+fpga_target: $(TARGET).svf
 
 $(TARGET).ngc: $(TARGET).xst $(VLOGS_ALL)
 	@mkdir -p xst/projnav.tmp
@@ -71,10 +72,10 @@ sim/%.v: %.ngc
 	netgen -ofmt verilog -w -dir sim $<
 
 $(TARGET).ngd: $(TARGET).ngc $(TARGET).ucf
-	ngdbuild -dd _ngo -uc $(TARGET).ucf -nt timestamp -p xc5vlx110t-ff1136-1 "$(TARGET).ngc" $(TARGET).ngd
+	ngdbuild -dd _ngo -uc $(TARGET).ucf -nt timestamp -p xc3s1200e-fg320-5 "$(TARGET).ngc" $(TARGET).ngd
 
 $(TARGET)_map.ncd: $(TARGET).ngd
-	map -w -p xc5vlx110t-ff1136-1 -cm area -pr off -k 4 -c 100 -o $(TARGET)_map.ncd $(TARGET).ngd $(TARGET).pcf
+	map -w -p xc3s1200e-fg320-5 -cm area -pr off -k 4 -c 100 -o $(TARGET)_map.ncd $(TARGET).ngd $(TARGET).pcf
 
 $(TARGET).ncd: $(TARGET)_map.ncd
 	par -w -ol std -t 1 $(TARGET)_map.ncd $(TARGET).ncd $(TARGET).pcf

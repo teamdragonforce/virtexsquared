@@ -10,9 +10,10 @@ module BigBlockRAM(
 	
 	/* This module is mapped in physical memory from 0x00000000 to
 	 * 0x00800000.  rdata and ready must be driven to zero if the
-	 * address is not within the range of this module.
+	 * address is not within the range of this module.  There also
+	 * exists a shadow up at 0x80000000.
 	 */
-	wire decode = bus_addr[31:23] == 9'b0;
+	wire decode = bus_addr[30:23] == 8'b0;
 	wire [22:0] ramaddr = {bus_addr[22:2], 2'b0};	/* mask off lower two bits
 							 * for word alignment */
 

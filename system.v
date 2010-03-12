@@ -6,7 +6,12 @@ module System(input clk, input rst
 `else
 	, output wire [8:0] sys_odata,
 	input [8:0] sys_idata,
-	output wire sys_tookdata
+	output wire sys_tookdata,
+
+	output wire cr_nADV, cr_nCE, cr_nOE, cr_nWE, cr_CRE, cr_nLB, cr_nUB, cr_CLK,
+	inout wire [15:0] cr_DQ,
+	output wire [22:0] cr_A,
+	output wire st_nCE
 `endif
 	);
 	
@@ -34,15 +39,15 @@ module System(input clk, input rst
 	wire bus_rd_dcache;
 	wire bus_wr_dcache;
 	
-	wire [31:0] bus_rdata_blockram;
-	wire bus_ready_blockram;
+	wire [31:0] bus_rdata_blockram, bus_rdata_cellularram;
+	wire bus_ready_blockram, bus_ready_cellularram;
 	
 	assign bus_addr = bus_addr_icache | bus_addr_dcache;
-	assign bus_rdata = bus_rdata_blockram;
+	assign bus_rdata = bus_rdata_blockram | bus_rdata_cellularram;
 	assign bus_wdata = bus_wdata_icache | bus_wdata_dcache;
 	assign bus_rd = bus_rd_icache | bus_rd_dcache;
 	assign bus_wr = bus_wr_icache | bus_wr_dcache;
-	assign bus_ready = bus_ready_blockram;
+	assign bus_ready = bus_ready_blockram | bus_ready_cellularram;
 
 	wire [31:0] icache_rd_addr;
 	wire icache_rd_req;
@@ -238,6 +243,40 @@ module System(input clk, input rst
 		.bus_addr(bus_addr), .bus_rdata(bus_rdata_blockram),
 		.bus_wdata(bus_wdata), .bus_rd(bus_rd), .bus_wr(bus_wr),
 		.bus_ready(bus_ready_blockram));
+
+`ifdef verilator
+	assign bus_rdata_cellularram = 32'h00000000;
+	assign bus_ready_cellularram = 0;
+`else
+	/* CellularRAM AUTO_TEMPLATE (
+		.bus_rdata(bus_rdata_cellularram),
+		.bus_ready(bus_ready_cellularram),
+		);
+	*/
+	CellularRAM cellularram(
+		/*AUTOINST*/
+				// Outputs
+				.bus_rdata	(bus_rdata_cellularram), // Templated
+				.bus_ready	(bus_ready_cellularram), // Templated
+				.cr_nADV	(cr_nADV),
+				.cr_nCE		(cr_nCE),
+				.cr_nOE		(cr_nOE),
+				.cr_nWE		(cr_nWE),
+				.cr_CRE		(cr_CRE),
+				.cr_nLB		(cr_nLB),
+				.cr_nUB		(cr_nUB),
+				.cr_CLK		(cr_CLK),
+				.cr_A		(cr_A[22:0]),
+				.st_nCE		(st_nCE),
+				// Inouts
+				.cr_DQ		(cr_DQ[15:0]),
+				// Inputs
+				.clk		(clk),
+				.bus_addr	(bus_addr[31:0]),
+				.bus_wdata	(bus_wdata[31:0]),
+				.bus_rd		(bus_rd),
+				.bus_wr		(bus_wr));
+`endif
 
 	/* Fetch AUTO_TEMPLATE (
 		.jmp_0a(jmp),
