@@ -40,7 +40,7 @@ module CellularRAM(
 	
 	assign st_nCE = 0;
 	assign cr_nADV = ~decode;
-	assign cr_nCE = 0;
+	assign cr_nCE = ~active;
 	assign cr_nOE = ~bus_rd;
 	assign cr_nWE = ~bus_wr;
 	assign cr_CRE = 0;
