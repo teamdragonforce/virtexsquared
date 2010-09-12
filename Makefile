@@ -14,9 +14,9 @@ default:
 	@echo "error: you must specify a valid target"
 	@exit 1
 
-sim: .DUMMY $(RUNDIR)/stamps/sim
+###############################################################################
 
-fpga: .DUMMY $(RUNDIR)/stamps/fpga
+sim: .DUMMY $(RUNDIR)/stamps/sim
 
 $(RUNDIR)/stamps/sim-genrtl:
 	@echo "Copying RTL for simulation to $(RUNDIR)/sim/rtl..."
@@ -42,6 +42,53 @@ $(RUNDIR)/stamps/sim-build: $(RUNDIR)/stamps/sim-verilate
 $(RUNDIR)/stamps/sim: $(RUNDIR)/stamps/sim-build
 	@echo "Simulator built in $(RUNDIR)/sim."
 	@touch $(RUNDIR)/stamps/sim
+
+###############################################################################
+
+FPGA_TARGET = FireARM
+PART = xc3s1200e-fg320-5
+
+fpga: .DUMMY $(RUNDIR)/stamps/fpga
+
+# XXX: should we generate the .xst file?
+$(RUNDIR)/stamps/fpga-genrtl:
+	@echo "Copying RTL for synthesis to $(RUNDIR)/fpga/xst..."
+	@mkdir -p $(RUNDIR)/stamps
+	@mkdir -p $(RUNDIR)/fpga/xst
+	@cp `find rtl -iname '*.v' | grep -v sim/` $(RUNDIR)/fpga/xst
+	@echo "Copying XST configuration to $(RUNDIR)/fpga/xst..."
+	@mkdir -p $(RUNDIR)/fpga/xst/xst/projnav.tmp
+	@echo work > $(RUNDIR)/fpga/xst/$(FPGA_TARGET).lso
+	@rm -rf $(RUNDIR)/fpga/xst/$(FPGA_TARGET).prj
+	@cd $(RUNDIR)/fpga/xst; for i in *.v; do echo verilog work '"'$$i'"' >> $(FPGA_TARGET).prj; done
+	@cp fpga/xst/* $(RUNDIR)/fpga/xst
+	@touch $(RUNDIR)/stamps/fpga-genrtl
+
+$(RUNDIR)/stamps/fpga-synth: $(RUNDIR)/stamps/fpga-genrtl
+	@echo "Synthesizing in $(RUNDIR)/fpga/xst..."
+	@touch $(RUNDIR)/stamps/fpga-synth-start
+	cd $(RUNDIR)/fpga/xst; xst -ifn $(FPGA_TARGET).xst -ofn $(FPGA_TARGET).syr
+	@touch $(RUNDIR)/stamps/fpga-synth
+
+$(RUNDIR)/stamps/fpga-xflow-prep: $(RUNDIR)/stamps/fpga-synth
+	@echo "Copying files for back-end flow to $(RUNDIR)/fpga/xflow..."
+	@mkdir -p $(RUNDIR)/fpga/xflow
+	@cp fpga/xflow/* $(RUNDIR)/fpga/xflow
+	@cp $(RUNDIR)/fpga/xst/$(FPGA_TARGET).ngc $(RUNDIR)/fpga/xflow
+	@touch $(RUNDIR)/stamps/fpga-xflow-prep
+
+$(RUNDIR)/stamps/fpga-xflow: $(RUNDIR)/stamps/fpga-xflow-prep
+	@echo "Running back-end flow in $(RUNDIR)/fpga/xflow..."
+	@touch $(RUNDIR)/stamps/fpga-xflow-start
+	cd $(RUNDIR)/fpga/xflow; xflow -p xc3s1200e-fg320-5 -implement balanced.opt -config bitgen.opt $(FPGA_TARGET).ngc
+	@touch $(RUNDIR)/stamps/fpga-xflow
+	@ln -s xflow/$(FPGA_TARGET).bit $(RUNDIR)/fpga/
+
+$(RUNDIR)/stamps/fpga: $(RUNDIR)/stamps/fpga-xflow
+	@echo "Bit file generated in $(RUNDIR)/fpga/xflow."
+	@touch $(RUNDIR)/stamps/fpga
+
+###############################################################################
 
 auto: .DUMMY
 	@echo "XXX: this does not autoize enough!"
