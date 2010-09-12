@@ -2,6 +2,7 @@
 #include <stdio.h>
 #define _XOPEN_SOURCE
 #include <stdlib.h>
+#include <unistd.h>
 #include <fcntl.h>
 #include <termios.h>
 
