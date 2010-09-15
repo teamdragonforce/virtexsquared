@@ -1,3 +1,5 @@
+`include "fsab_defines.vh"
+
 /* 16 cache entries, 64-byte long cache lines */
 
 module DCache(
@@ -10,7 +12,18 @@ module DCache(
 	output reg dc__rw_wait_3a,
 	input [31:0] dc__wr_data_3a,
 	output reg [31:0] dc__rd_data_3a,
-	
+
+	wire valid;
+	wire [FSAB_REQ_HI:0] mode;
+	wire [FSAB_DID_HI:0] did;
+	wire [FSAB_DID_HI:0] subdid;
+  	wire [FSAB_ADDR_HI:0] addr;
+   	wire [FSAB_LEN_HI:0]  len;
+   	wire [FSAB_DATA_HI:0] data;
+   	wire [FSAB_MASK_HI:0] mask;
+        wire                  credit;	
+
+
 	/* bus interface */
 	output wire bus_req,
 	input bus_ack,
