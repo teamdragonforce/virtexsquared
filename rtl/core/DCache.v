@@ -13,15 +13,15 @@ module DCache(
 	input [31:0] dc__wr_data_3a,
 	output reg [31:0] dc__rd_data_3a,
 
-	wire valid;
-	wire [FSAB_REQ_HI:0] mode;
-	wire [FSAB_DID_HI:0] did;
-	wire [FSAB_DID_HI:0] subdid;
-  	wire [FSAB_ADDR_HI:0] addr;
-   	wire [FSAB_LEN_HI:0]  len;
-   	wire [FSAB_DATA_HI:0] data;
-   	wire [FSAB_MASK_HI:0] mask;
-        wire                  credit;	
+	inout valid,
+	output [FSAB_REQ_HI:0] mode,
+	inout [FSAB_DID_HI:0] did,
+	inout [FSAB_DID_HI:0] subdid,
+  	output [FSAB_ADDR_HI:0] addr,
+   	output [FSAB_LEN_HI:0]  len,
+   	inout [FSAB_DATA_HI:0] data,
+   	output [FSAB_MASK_HI:0] mask,
+        input                  credit,	
 
 
 	/* bus interface */
