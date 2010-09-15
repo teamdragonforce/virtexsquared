@@ -23,6 +23,7 @@ $(RUNDIR)/stamps/sim-genrtl:
 	@mkdir -p $(RUNDIR)/stamps
 	@mkdir -p $(RUNDIR)/sim/rtl
 	@cp `find rtl -iname '*.v' | grep -v fpga/` $(RUNDIR)/sim/rtl
+	@cp `find rtl -iname '*.vh' | grep -v fpga/` $(RUNDIR)/sim/rtl
 	@echo "Copying testbench for simulation to $(RUNDIR)/sim..."
 	@cp sim/* $(RUNDIR)/sim
 	@touch $(RUNDIR)/stamps/sim-genrtl
