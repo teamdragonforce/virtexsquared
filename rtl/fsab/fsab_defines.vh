@@ -14,4 +14,7 @@ parameter FSAB_LEN_HI = 3;
 parameter FSAB_DATA_HI = 63;
 parameter FSAB_MASK_HI = 7;
 
+parameter FSAB_LEN_MAX = 8;
 
+parameter FSAB_INITIAL_CREDITS = 4;
+parameter FSAB_CREDITS_HI = 2;
