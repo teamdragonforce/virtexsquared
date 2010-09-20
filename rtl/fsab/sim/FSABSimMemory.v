@@ -18,6 +18,8 @@ module FSABSimMemory(
 	output wire [FSAB_DATA_HI:0] fsabi_data
 	);
 
+	parameter SIMMEM_SIZE = 8 * 1024 * 1024;
+
 `include "fsab_defines.vh"
 
 	/*** Inbound request FIFO (RFIF) ***/
@@ -79,7 +81,7 @@ module FSABSimMemory(
 		if (Nrst) begin
 			fsabo_cur_req_len_rem_1a <= 0;
 		end else begin
-			if (fsabo_valid && fsabo_cur_req_done_1a)
+			if (fsabo_valid && fsabo_cur_req_done_1a && (fsabo_mode == FSAB_WRITE))
 				fsabo_cur_req_len_rem_1a <= fsabo_len;
 			else if (fsabo_valid && fsabo_cur_req_len_rem_1a != 0)
 				fsabo_cur_req_len_rem_1a <= fsabo_cur_req_len_rem_1a - 1;
@@ -97,6 +99,7 @@ module FSABSimMemory(
 	reg [FSAB_DATA_HI+1 + FSAB_MASK_HI:0] dfif_rdat_1a;
 	wire dfif_empty_0a = (dfif_rpos_0a == dfif_wpos_0a);
 	wire dfif_full_0a = (dfif_wpos_0a == (dfif_rpos_0a + `SIMMEM_DFIF_MAX));
+	wire [`SIMMEM_DFIF_HI:0] dfif_avail_0a = dfif_wpos_0a - dfif_rpos_0a;
 	
 	always @(posedge clk or negedge Nrst)
 		if (!Nrst) begin
@@ -118,8 +121,8 @@ module FSABSimMemory(
 		end
 	
 	always @(posedge clk) begin
-		if (dfif_empty_0a && dfif_rd_0a) $error("RFIF rd while empty");
-		if (dfif_full_0a  && dfif_wr_0a) $error("RFIF wr while full");
+		if (dfif_empty_0a && dfif_rd_0a) $error("DFIF rd while empty");
+		if (dfif_full_0a  && dfif_wr_0a) $error("DFIF wr while full");
 	end
 	
 	/*** DFIF demux & control */
@@ -130,7 +133,65 @@ module FSABSimMemory(
 	assign {dfif_data_1a,dfif_mask_1a} = dfif_rdat_1a;
 	assign dfif_wdat_0a = {fsabo_data,fsabo_mask};
 	assign dfif_wr_0a = fsabo_valid;
+	/* NOTE: this means that dfif_rd must ALWAYS be asserted along with
+	 * rfif_rd...  even if len is 0, and even if the request was a read!
+	 */
+	
+	/*** Pipe-throughs ***/
+	reg rfif_rd_1a = 0;
+	reg dfif_rd_1a = 0;
+	always @(posedge clk or negedge Nrst)
+		if (!Nrst) begin
+			rfif_rd_1a <= 0;
+			dfif_rd_1a <= 0;
+		end else begin
+			rfif_rd_1a <= rfif_rd_0a;
+			dfif_rd_1a <= dfif_rd_0a;
+		end
 	
 	/*** Memory control logic ***/
+	reg [FSAB_DATA_HI:0] simmem [(SIMMEM_SIZE / ((FSAB_DATA_HI + 1) / 8)):0];
+	
+	/* Pending determines whether we have a request waiting at all
+	 * (i.e., we did an RFIF read).  The request might not be passed to
+	 * the memory since we might not have enough data in the DFIF to
+	 * serve it all at once.
+	 *
+	 * If we're actually serving a request, that assertion is made
+	 * through 'active'.
+	 */
+	reg                 mem_cur_req_pending_0a = 0;
+	reg [FSAB_LEN_HI:0] mem_cur_req_len_rem_0a = 'h0;
+	wire                mem_cur_req_active_0a = 0;
+	
+	/* TODO: This means that dfif does one read, then pauses one cycle,
+	 * then continues doing the read until we run out of data.  Can the
+	 * one-cycle pause be removed easily?
+	 */
+	assign rfif_rd_0a = !rfif_empty_0a && !mem_cur_req_pending_0a && !rfif_rd_1a;
+	assign dfif_rd_0a = rfif_rd_0a || /* We must always do a read from dfif on rfif. */
+	                    ((mem_cur_req_active_0a) &&
+	                     (rfif_mode == FSAB_WRITE) &&
+	                     (mem_cur_req_len_rem_0a != 'h1) &&
+	                     (mem_cur_req_len_rem_0a != 'h0));
+	
+	always @(posedge clk or negedge Nrst)
+		if (!Nrst) begin
+			mem_cur_req_len_rem <= 'h0;
+			mem_cur_req_pending_0a <= 0;
+			mem_cur_req_active_0a <= 0;
+		end else begin
+			if (rfif_rd_1a) begin
+				mem_cur_req_pending_0a <= 1;
+				mem_cur_req_active_0a <= 1;
+				mem_cur_req_len_rem_0a <= rfif_len_1a;
+			end else if (dfif_rd_0a) begin
+				mem_cur_req_len_rem_0a <= mem_cur_req_len_rem_0a - 1;
+				if (mem_cur_req_len_rem_0a == 'h1 || mem_cur_req_len_rem_0a == 'h0) begin
+					mem_cur_req_pending_0a <= 0;
+					mem_cur_req_active_0a <= 0;
+				end
+			end
+		end
 	
 endmodule
