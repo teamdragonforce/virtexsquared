@@ -40,14 +40,14 @@ module FSABSimMemory(
 			rfif_rpos_0a <= 'h0;
 		end else begin
 			if (rfif_rd_0a) begin
-				$display("SIMMEM: reading from rfif");
+				$display("SIMMEM: %5d: reading from rfif", $time);
 				/* NOTE: this FIFO style will NOT port to Xilinx! */
 				rfif_rdat_1a <= rfif_fifo[rfif_rpos_0a[1:0]];
 				rfif_rpos_0a <= rfif_rpos_0a + 'h1;
 			end
 			
 			if (rfif_wr_0a) begin
-				$display("SIMMEM: writing to rfif");
+				$display("SIMMEM: %5d: writing to rfif (%d word %s)", $time, fsabo_len, (fsabo_mode == FSAB_WRITE) ? "write" : "read");
 				rfif_fifo[rfif_wpos_0a[1:0]] <= rfif_wdat_0a;
 				rfif_wpos_0a <= rfif_wpos_0a + 'h1;
 			end
@@ -88,8 +88,13 @@ module FSABSimMemory(
 		end
 	
 	/*** Inbound data FIFO (DFIF) ***/
-`define SIMMEM_DFIF_MAX (((FSAB_CREDITS_HI+1) * FSAB_LEN_MAX) - 1)
-`define SIMMEM_DFIF_HI ($clog2(`SIMMEM_DFIF_MAX) - 1)
+/*
+ * Should be as follows, but that's not a power of 2:
+ * `define SIMMEM_DFIF_MAX (((FSAB_CREDITS_HI+1) * FSAB_LEN_MAX) - 1)
+ * `define SIMMEM_DFIF_HI ($clog2(`SIMMEM_DFIF_MAX) - 1)
+ */
+`define SIMMEM_DFIF_MAX 31
+`define SIMMEM_DFIF_HI 4
 	reg [`SIMMEM_DFIF_HI:0] dfif_wpos_0a = 'h0;
 	reg [`SIMMEM_DFIF_HI:0] dfif_rpos_0a = 'h0;
 	reg [FSAB_DATA_HI+1 + FSAB_MASK_HI:0] dfif_fifo [`SIMMEM_DFIF_MAX:0];
@@ -107,6 +112,7 @@ module FSABSimMemory(
 			dfif_rpos_0a <= 'h0;
 		end else begin
 			if (dfif_rd_0a) begin
+				$display("SIMMEM: %5d: reading from dfif (ad %d, da %x)", $time, dfif_rpos_0a, dfif_fifo[dfif_rpos_0a]);
 				/* NOTE: this FIFO style will NOT port to Xilinx! */
 				dfif_rdat_1a <= dfif_fifo[dfif_rpos_0a];
 				dfif_rpos_0a <= dfif_rpos_0a + 'h1;
@@ -115,6 +121,7 @@ module FSABSimMemory(
 			end
 			
 			if (dfif_wr_0a) begin
+				$display("SIMMEM: %5d: writing to dfif (ad %d, %08b mask, %08x data)", $time, dfif_wpos_0a, fsabo_mask, fsabo_data);
 				dfif_fifo[dfif_wpos_0a] <= dfif_wdat_0a;
 				dfif_wpos_0a <= dfif_wpos_0a + 'h1;
 			end
@@ -214,7 +221,7 @@ module FSABSimMemory(
 			mem_cur_req_addr_1a_r <= 0;
 		end else begin
 			if (rfif_rd_1a) begin
-				$display("SIMMEM: RFIF was just read; it was a %d word %s", rfif_len_1a, (rfif_mode_1a == FSAB_WRITE) ? "WRITE" : "READ");
+				$display("SIMMEM: %5d: RFIF was just read; it was a %d word %s at %08x", $time, rfif_len_1a, (rfif_mode_1a == FSAB_WRITE) ? "WRITE" : "READ", rfif_addr_1a);
 				mem_cur_req_pending_0a <= 1;
 				mem_cur_req_active_0a <= 1;
 				mem_cur_req_len_rem_0a <= rfif_len_1a;
@@ -225,7 +232,7 @@ module FSABSimMemory(
 				mem_cur_req_active_0a <= 0;
 			end
 			
-			if (dfif_rd_1a) begin
+			if (dfif_rd_1a && (rfif_mode_1a == FSAB_WRITE)) begin
 				/* verilator lint_off WIDTH */ /* for memory neq FSAB_ADDR size */
 				/* This is the wonderful thing about being a behavioral simulation. */
 				for (i = 0; i <= FSAB_MASK_HI; i = i + 1)
@@ -234,6 +241,7 @@ module FSABSimMemory(
 							dfif_mask_1a[i] ?
 								dfif_data_1a[i*8 + j] :
 								simmem[mem_cur_req_addr_1a[FSAB_ADDR_HI:FSAB_ADDR_LO]][i*8 + j];
+				$display("SIMMEM: %5d: writing %016x data (%08b mask) to %08x address", $time, dfif_data_1a, dfif_mask_1a, {mem_cur_req_addr_1a[FSAB_ADDR_HI:FSAB_ADDR_LO], 3'b0});
 				simmem[mem_cur_req_addr_1a[FSAB_ADDR_HI:FSAB_ADDR_LO]] <= masked_data;
 				/* verilator lint_on WIDTH */ /* for memory neq FSAB_ADDR size */
 			end
