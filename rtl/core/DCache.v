@@ -73,7 +73,7 @@ module DCache(
 	wire [31:0] curdata_lo_3a = cache_data_lo[{idx_3a,didx_word_3a}];
 	always @(*) begin
 		dc__rw_wait_3a = (dc__rd_req_3a && !cache_hit_3a) || (dc__wr_req_3a && !fsab_credit_avail);
-		dc__rd_data_3a = dc__addr_3a[2] ? cache_data_hi : cache_data_lo;
+		dc__rd_data_3a = dc__addr_3a[2] ? curdata_hi_3a : curdata_lo_3a;
 		if (!dc__rw_wait_3a && dc__rd_req_3a)
 			$display("DCACHE: READ COMPLETE: Addr %08x, data %08x", dc__addr_3a, dc__rd_data_3a);
 	end
