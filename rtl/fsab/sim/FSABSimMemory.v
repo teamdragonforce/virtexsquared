@@ -148,7 +148,17 @@ module FSABSimMemory(
 		end
 	
 	/*** Memory control logic ***/
-	reg [FSAB_DATA_HI:0] simmem [(SIMMEM_SIZE / ((FSAB_DATA_HI + 1) / 8)):0];
+	reg [63:0] simmem [(SIMMEM_SIZE / 8):0];
+	reg [31:0] simmem32 [(SIMMEM_SIZE / 4):0];
+	integer f;
+	initial
+	begin
+		assert(FSAB_DATA_HI == 63) else $error("FSAB_DATA_HI unsupported");
+		$readmemh("ram.hex", simmem32);
+		for (f = 0; f < SIMMEM_SIZE / 8; f++)
+			simmem[f] = {simmem32[f*2+1], simmem32[f*2]};
+	end
+	
 	
 	/* Pending determines whether we have a request waiting at all
 	 * (i.e., we did an RFIF read).  The request might not be passed to
@@ -185,7 +195,7 @@ module FSABSimMemory(
 	assign fsabi_did = rfif_did_1a;
 	assign fsabi_subdid = rfif_subdid_1a;
 	/* verilator lint_off WIDTH */
-	assign fsabi_data = simmem[mem_cur_req_addr_1a[FSAB_ADDR_HI:FSAB_ADDR_LO]];
+	assign fsabi_data = simmem[mem_cur_req_addr_1a[FSAB_ADDR_HI:3]];
 	/* verilator lint_on WIDTH */
 	
 	/* This reg is not actually a flop; it is storage for behavioral
@@ -226,7 +236,9 @@ module FSABSimMemory(
 				/* verilator lint_on WIDTH */ /* for memory neq FSAB_ADDR size */
 			end
 			
-			if (dfif_rd_1a || fsabi_valid)
+			if (rfif_rd_1a)
+				mem_cur_req_addr_1a_r <= rfif_addr_1a;
+			else if (dfif_rd_1a || fsabi_valid)
 				mem_cur_req_addr_1a_r <= mem_cur_req_addr_1a + (FSAB_DATA_HI + 1) / 8;
 		end
 	
