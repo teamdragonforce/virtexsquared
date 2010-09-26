@@ -23,7 +23,7 @@ module FSABSimMemory(
 `include "fsab_defines.vh"
 
 	/*** Inbound request FIFO (RFIF) ***/
-`define SIMMEM_RFIF_HI (FSAB_REQ_HI+1 + FSAB_DID_HI+1 + FSAB_DID_HI+1 + FSAB_ADDR_HI+1 + FSAB_LEN_HI+1)
+`define SIMMEM_RFIF_HI (FSAB_REQ_HI+1 + FSAB_DID_HI+1 + FSAB_DID_HI+1 + FSAB_ADDR_HI+1 + FSAB_LEN_HI)
 	reg [FSAB_CREDITS_HI:0] rfif_wpos_0a = 'h0;
 	reg [FSAB_CREDITS_HI:0] rfif_rpos_0a = 'h0;
 	reg [`SIMMEM_RFIF_HI:0] rfif_fifo [(FSAB_INITIAL_CREDITS-1):0];
@@ -41,21 +41,19 @@ module FSABSimMemory(
 		end else begin
 			if (rfif_rd_0a) begin
 				/* NOTE: this FIFO style will NOT port to Xilinx! */
-				rfif_rdat_1a <= rfif_fifo[rfif_rpos_0a];
+				rfif_rdat_1a <= rfif_fifo[rfif_rpos_0a[1:0]];
 				rfif_rpos_0a <= rfif_rpos_0a + 'h1;
-			end else begin
-				rfif_rdat_1a <= {(FSAB_CREDITS_HI+1){1'hx}};
 			end
 			
 			if (rfif_wr_0a) begin
-				rfif_fifo[rfif_wpos_0a] <= rfif_wdat_0a;
+				rfif_fifo[rfif_wpos_0a[1:0]] <= rfif_wdat_0a;
 				rfif_wpos_0a <= rfif_wpos_0a + 'h1;
 			end
 		end
 	
 	always @(posedge clk) begin
-		if (rfif_empty_0a && rfif_rd_0a) $error("RFIF rd while empty");
-		if (rfif_full_0a  && rfif_wr_0a) $error("RFIF wr while full");
+		assert (rfif_empty_0a && rfif_rd_0a) else $error("RFIF rd while empty");
+		assert (rfif_full_0a  && rfif_wr_0a) else $error("RFIF wr while full");
 	end
 	
 	/*** RFIF demux & control ***/
@@ -68,7 +66,7 @@ module FSABSimMemory(
 	/* rfif_rd is assigned later */
 	assign fsabo_credit = rfif_rd_0a;
 	assign {rfif_mode_1a, rfif_did_1a, rfif_subdid_1a, rfif_addr_1a,
-	        rfif_addr_1a, rfif_len_1a} = rfif_rdat_1a;
+	        rfif_len_1a} = rfif_rdat_1a;
 	assign rfif_wdat_0a = {fsabo_mode, fsabo_did, fsabo_subdid,
 	                       fsabo_addr, fsabo_len};
 	reg [FSAB_LEN_HI:0] fsabo_cur_req_len_rem_1a = 0;
@@ -89,7 +87,7 @@ module FSABSimMemory(
 	
 	/*** Inbound data FIFO (DFIF) ***/
 `define SIMMEM_DFIF_MAX (((FSAB_CREDITS_HI+1) * FSAB_LEN_MAX) - 1)
-`define SIMMEM_DFIF_HI (FSAB_CREDITS_HI+1+FSAB_LEN_MAX)
+`define SIMMEM_DFIF_HI ($clog2(`SIMMEM_DFIF_MAX) - 1)
 	reg [`SIMMEM_DFIF_HI:0] dfif_wpos_0a = 'h0;
 	reg [`SIMMEM_DFIF_HI:0] dfif_rpos_0a = 'h0;
 	reg [FSAB_DATA_HI+1 + FSAB_MASK_HI:0] dfif_fifo [`SIMMEM_DFIF_MAX:0];
@@ -121,8 +119,8 @@ module FSABSimMemory(
 		end
 	
 	always @(posedge clk) begin
-		if (dfif_empty_0a && dfif_rd_0a) $error("DFIF rd while empty");
-		if (dfif_full_0a  && dfif_wr_0a) $error("DFIF wr while full");
+		assert (dfif_empty_0a && dfif_rd_0a) else $error("DFIF rd while empty");
+		assert (dfif_full_0a  && dfif_wr_0a) else $error("DFIF wr while full");
 	end
 	
 	/*** DFIF demux & control */
@@ -186,16 +184,19 @@ module FSABSimMemory(
 	                     (mem_cur_req_len_rem_0a != 'h0);
 	assign fsabi_did = rfif_did_1a;
 	assign fsabi_subdid = rfif_subdid_1a;
+	/* verilator lint_off WIDTH */
 	assign fsabi_data = simmem[mem_cur_req_addr_1a[FSAB_ADDR_HI:FSAB_ADDR_LO]];
+	/* verilator lint_on WIDTH */
 	
 	/* This reg is not actually a flop; it is storage for behavioral
 	 * data masking.  */
 	integer i;
+	integer j;
 	reg [FSAB_DATA_HI:0] masked_data;
 	
 	always @(posedge clk or negedge Nrst)
 		if (!Nrst) begin
-			mem_cur_req_len_rem <= 'h0;
+			mem_cur_req_len_rem_0a <= 'h0;
 			mem_cur_req_pending_0a <= 0;
 			mem_cur_req_active_0a <= 0;
 			mem_cur_req_addr_1a_r <= 0;
@@ -213,13 +214,16 @@ module FSABSimMemory(
 			end
 			
 			if (dfif_rd_1a) begin
+				/* verilator lint_off WIDTH */ /* for memory neq FSAB_ADDR size */
 				/* This is the wonderful thing about being a behavioral simulation. */
 				for (i = 0; i <= FSAB_MASK_HI; i = i + 1)
-					masked_data[((i+1)*8 - 1):(i*8)] =
-						dfif_mask_1a[i] ?
-							dfif_data_1a[((i+1)*8 - 1):(i*8)] :
-							simmem[mem_cur_req_addr_1a[FSAB_ADDR_HI:FSAB_ADDR_LO]][((i+1)*8 - 1):(i*8)];
+					for (j = 0; j < 8; j = j + 1)
+						masked_data[i*8 + j] =
+							dfif_mask_1a[i] ?
+								dfif_data_1a[i*8 + j] :
+								simmem[mem_cur_req_addr_1a[FSAB_ADDR_HI:FSAB_ADDR_LO]][i*8 + j];
 				simmem[mem_cur_req_addr_1a[FSAB_ADDR_HI:FSAB_ADDR_LO]] <= masked_data;
+				/* verilator lint_on WIDTH */ /* for memory neq FSAB_ADDR size */
 			end
 			
 			if (dfif_rd_1a || fsabi_valid)

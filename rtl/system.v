@@ -245,6 +245,14 @@ module System(input clk, input rst
 		.bus_ready(bus_ready_blockram));
 
 `ifdef verilator
+	FSABSimMemory simmem(
+		.clk(clk),
+		.Nrst(Nrst),
+		
+		.fsabo_valid(0));
+`endif
+
+`ifdef verilator
 	assign bus_rdata_cellularram = 32'h00000000;
 	assign bus_ready_cellularram = 0;
 `else
