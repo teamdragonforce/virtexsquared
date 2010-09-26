@@ -66,7 +66,7 @@ module FSABSimMemory(
 	wire [FSAB_LEN_HI:0]  rfif_len_1a;
 	
 	/* rfif_rd is assigned later */
-	assign fsabo_credit = rfif_rd_0a;
+	
 	assign {rfif_mode_1a, rfif_did_1a, rfif_subdid_1a, rfif_addr_1a,
 	        rfif_len_1a} = rfif_rdat_1a;
 	assign rfif_wdat_0a = {fsabo_mode, fsabo_did, fsabo_subdid,
@@ -166,25 +166,30 @@ module FSABSimMemory(
 	end
 	
 	
-	/* Pending determines whether we have a request waiting at all
-	 * (i.e., we did an RFIF read).  The request might not be passed to
-	 * the memory since we might not have enough data in the DFIF to
-	 * serve it all at once.
-	 *
-	 * If we're actually serving a request, that assertion is made
-	 * through 'active'.
+	/* Active determines whether we have a request waiting (i.e., we did
+	 * an RFIF read).  It is high as long as we are serving it (which
+	 * might be more than the number of cycles in 'len', since we might
+	 * not have all of the data in the dfif yet).
 	 */
-	reg                   mem_cur_req_pending_0a = 0;
 	reg  [FSAB_LEN_HI:0]  mem_cur_req_len_rem_0a = 'h0;
 	reg                   mem_cur_req_active_0a = 0;
+	reg                   mem_cur_req_active_1a = 0;
 	wire [FSAB_ADDR_HI:0] mem_cur_req_addr_1a;
 	reg  [FSAB_ADDR_HI:0] mem_cur_req_addr_1a_r = 0;
+	
+	/* If we just finished reading from the dfif for the last time
+	 * (i.e., we just went inactive), then we can release a credit. 
+	 * This is as distinct from releasing a credit every time we read
+	 * from rfif, which is incorrect because there may not yet be space
+	 * in the dfif yet.
+	 */
+	assign fsabo_credit = mem_cur_req_active_1a && !mem_cur_req_active_0a;
 	
 	/* TODO: This means that dfif does one read, then pauses one cycle,
 	 * then continues doing the read until we run out of data.  Can the
 	 * one-cycle pause be removed easily?
 	 */
-	assign rfif_rd_0a = !rfif_empty_0a && !mem_cur_req_pending_0a && !rfif_rd_1a;
+	assign rfif_rd_0a = !rfif_empty_0a && !mem_cur_req_active_0a && !rfif_rd_1a;
 	assign dfif_rd_0a = rfif_rd_0a || /* We must always do a read from dfif on rfif. */
 	                    (mem_cur_req_active_0a &&
 	                     (rfif_mode_1a == FSAB_WRITE) &&
@@ -213,19 +218,19 @@ module FSABSimMemory(
 	always @(posedge clk or negedge Nrst)
 		if (!Nrst) begin
 			mem_cur_req_len_rem_0a <= 'h0;
-			mem_cur_req_pending_0a <= 0;
 			mem_cur_req_active_0a <= 0;
+			mem_cur_req_active_1a <= 0;
 			mem_cur_req_addr_1a_r <= 0;
 		end else begin
+			mem_cur_req_active_1a <= mem_cur_req_active_0a;
+		
 			if (rfif_rd_1a) begin
 				$display("SIMMEM: %5d: RFIF was just read; it was a %d word %s at %08x", $time, rfif_len_1a, (rfif_mode_1a == FSAB_WRITE) ? "WRITE" : "READ", rfif_addr_1a);
-				mem_cur_req_pending_0a <= 1;
 				mem_cur_req_active_0a <= 1;
 				mem_cur_req_len_rem_0a <= rfif_len_1a;
 			end else if (dfif_rd_0a || fsabi_valid)
 				mem_cur_req_len_rem_0a <= mem_cur_req_len_rem_0a - 1;
 			else if (mem_cur_req_len_rem_0a == 'h1 || mem_cur_req_len_rem_0a == 'h0) begin
-				mem_cur_req_pending_0a <= 0;
 				mem_cur_req_active_0a <= 0;
 			end
 			
