@@ -160,9 +160,11 @@ module FSABSimMemory(
 	 * If we're actually serving a request, that assertion is made
 	 * through 'active'.
 	 */
-	reg                 mem_cur_req_pending_0a = 0;
-	reg [FSAB_LEN_HI:0] mem_cur_req_len_rem_0a = 'h0;
-	wire                mem_cur_req_active_0a = 0;
+	reg                   mem_cur_req_pending_0a = 0;
+	reg  [FSAB_LEN_HI:0]  mem_cur_req_len_rem_0a = 'h0;
+	reg                   mem_cur_req_active_0a = 0;
+	wire [FSAB_ADDR_HI:0] mem_cur_req_addr_1a;
+	reg  [FSAB_ADDR_HI:0] mem_cur_req_addr_1a_r = 0;
 	
 	/* TODO: This means that dfif does one read, then pauses one cycle,
 	 * then continues doing the read until we run out of data.  Can the
@@ -170,16 +172,25 @@ module FSABSimMemory(
 	 */
 	assign rfif_rd_0a = !rfif_empty_0a && !mem_cur_req_pending_0a && !rfif_rd_1a;
 	assign dfif_rd_0a = rfif_rd_0a || /* We must always do a read from dfif on rfif. */
-	                    ((mem_cur_req_active_0a) &&
+	                    ((mem_cur_req_active_0a &&
 	                     (rfif_mode == FSAB_WRITE) &&
 	                     (mem_cur_req_len_rem_0a != 'h1) &&
-	                     (mem_cur_req_len_rem_0a != 'h0));
+	                     (mem_cur_req_len_rem_0a != 'h0));	
+	
+	assign mem_cur_req_addr_1a = rfif_rd_1a ?
+	                                 rfif_addr_1a :
+	                                 mem_cur_req_addr_1a_r;
+	
+	/* Behavioral data masking. */
+	integer i;
+	reg [FSAB_DATA_HI:0] masked_data;
 	
 	always @(posedge clk or negedge Nrst)
 		if (!Nrst) begin
 			mem_cur_req_len_rem <= 'h0;
 			mem_cur_req_pending_0a <= 0;
 			mem_cur_req_active_0a <= 0;
+			mem_cur_req_addr_1a_r <= 0;
 		end else begin
 			if (rfif_rd_1a) begin
 				mem_cur_req_pending_0a <= 1;
@@ -192,6 +203,19 @@ module FSABSimMemory(
 					mem_cur_req_active_0a <= 0;
 				end
 			end
+			
+			if (dfif_rd_1a) begin
+				/* This is the wonderful thing about being a behavioral simulation. */
+				for (i = 0; i <= FSAB_MASK_HI; i = i + 1)
+					masked_data[((i+1)*8 - 1):(i*8)] =
+						dfif_mask_1a[i] ?
+							dfif_data_1a[((i+1)*8 - 1):(i*8)] :
+							simmem[mem_cur_req_addr_1a[FSAB_ADDR_HI:FSAB_ADDR_LO]][((i+1)*8 - 1):(i*8)];
+				simmem[mem_cur_req_addr_1a[FSAB_ADDR_HI:FSAB_ADDR_LO]] <= masked_data;
+			end
+			
+			if (dfif_rd_1a || 0 /* read condition */)
+				mem_cur_req_addr_1a_r <= mem_cur_req_addr_1a + (FSAB_DATA_HI + 1) / 8;
 		end
 	
 endmodule
