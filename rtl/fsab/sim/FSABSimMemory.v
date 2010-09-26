@@ -88,13 +88,8 @@ module FSABSimMemory(
 		end
 	
 	/*** Inbound data FIFO (DFIF) ***/
-/*
- * Should be as follows, but that's not a power of 2:
- * `define SIMMEM_DFIF_MAX (((FSAB_CREDITS_HI+1) * FSAB_LEN_MAX) - 1)
- * `define SIMMEM_DFIF_HI ($clog2(`SIMMEM_DFIF_MAX) - 1)
- */
-`define SIMMEM_DFIF_MAX 31
-`define SIMMEM_DFIF_HI 4
+`define SIMMEM_DFIF_MAX ((FSAB_INITIAL_CREDITS * FSAB_LEN_MAX) - 1)
+`define SIMMEM_DFIF_HI ($clog2(`SIMMEM_DFIF_MAX) - 1)
 	reg [`SIMMEM_DFIF_HI:0] dfif_wpos_0a = 'h0;
 	reg [`SIMMEM_DFIF_HI:0] dfif_rpos_0a = 'h0;
 	reg [FSAB_DATA_HI+1 + FSAB_MASK_HI:0] dfif_fifo [`SIMMEM_DFIF_MAX:0];
