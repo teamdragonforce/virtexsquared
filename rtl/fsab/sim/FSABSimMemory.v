@@ -172,16 +172,24 @@ module FSABSimMemory(
 	 */
 	assign rfif_rd_0a = !rfif_empty_0a && !mem_cur_req_pending_0a && !rfif_rd_1a;
 	assign dfif_rd_0a = rfif_rd_0a || /* We must always do a read from dfif on rfif. */
-	                    ((mem_cur_req_active_0a &&
-	                     (rfif_mode == FSAB_WRITE) &&
+	                    (mem_cur_req_active_0a &&
+	                     (rfif_mode_1a == FSAB_WRITE) &&
 	                     (mem_cur_req_len_rem_0a != 'h1) &&
-	                     (mem_cur_req_len_rem_0a != 'h0));	
+	                     (mem_cur_req_len_rem_0a != 'h0));
 	
 	assign mem_cur_req_addr_1a = rfif_rd_1a ?
 	                                 rfif_addr_1a :
 	                                 mem_cur_req_addr_1a_r;
 	
-	/* Behavioral data masking. */
+	assign fsabi_valid = mem_cur_req_active_0a &&
+	                     (rfif_mode_1a == FSAB_READ) &&
+	                     (mem_cur_req_len_rem_0a != 'h0);
+	assign fsabi_did = rfif_did_1a;
+	assign fsabi_subdid = rfif_subdid_1a;
+	assign fsabi_data = simmem[mem_cur_req_addr_1a[FSAB_ADDR_HI:FSAB_ADDR_LO]];
+	
+	/* This reg is not actually a flop; it is storage for behavioral
+	 * data masking.  */
 	integer i;
 	reg [FSAB_DATA_HI:0] masked_data;
 	
@@ -196,7 +204,7 @@ module FSABSimMemory(
 				mem_cur_req_pending_0a <= 1;
 				mem_cur_req_active_0a <= 1;
 				mem_cur_req_len_rem_0a <= rfif_len_1a;
-			end else if (dfif_rd_0a) begin
+			end else if (dfif_rd_0a || fsabi_valid) begin
 				mem_cur_req_len_rem_0a <= mem_cur_req_len_rem_0a - 1;
 				if (mem_cur_req_len_rem_0a == 'h1 || mem_cur_req_len_rem_0a == 'h0) begin
 					mem_cur_req_pending_0a <= 0;
@@ -214,7 +222,7 @@ module FSABSimMemory(
 				simmem[mem_cur_req_addr_1a[FSAB_ADDR_HI:FSAB_ADDR_LO]] <= masked_data;
 			end
 			
-			if (dfif_rd_1a || 0 /* read condition */)
+			if (dfif_rd_1a || fsabi_valid)
 				mem_cur_req_addr_1a_r <= mem_cur_req_addr_1a + (FSAB_DATA_HI + 1) / 8;
 		end
 	
