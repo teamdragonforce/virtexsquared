@@ -252,39 +252,8 @@ module System(input clk, input rst
 		.fsabo_valid(0));
 `endif
 
-`ifdef verilator
 	assign bus_rdata_cellularram = 32'h00000000;
 	assign bus_ready_cellularram = 0;
-`else
-	/* CellularRAM AUTO_TEMPLATE (
-		.bus_rdata(bus_rdata_cellularram),
-		.bus_ready(bus_ready_cellularram),
-		);
-	*/
-	CellularRAM cellularram(
-		/*AUTOINST*/
-				// Outputs
-				.bus_rdata	(bus_rdata_cellularram), // Templated
-				.bus_ready	(bus_ready_cellularram), // Templated
-				.cr_nADV	(cr_nADV),
-				.cr_nCE		(cr_nCE),
-				.cr_nOE		(cr_nOE),
-				.cr_nWE		(cr_nWE),
-				.cr_CRE		(cr_CRE),
-				.cr_nLB		(cr_nLB),
-				.cr_nUB		(cr_nUB),
-				.cr_CLK		(cr_CLK),
-				.cr_A		(cr_A[22:0]),
-				.st_nCE		(st_nCE),
-				// Inouts
-				.cr_DQ		(cr_DQ[15:0]),
-				// Inputs
-				.clk		(clk),
-				.bus_addr	(bus_addr[31:0]),
-				.bus_wdata	(bus_wdata[31:0]),
-				.bus_rd		(bus_rd),
-				.bus_wr		(bus_wr));
-`endif
 
 	/* Fetch AUTO_TEMPLATE (
 		.jmp_0a(jmp),

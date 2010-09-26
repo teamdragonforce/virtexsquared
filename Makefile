@@ -53,6 +53,7 @@ fpga: .DUMMY $(RUNDIR)/stamps/fpga
 
 # XXX: should we generate the .xst file?
 $(RUNDIR)/stamps/fpga-genrtl:
+	@echo "FPGA RTL is currently UNSYNTHESIZABLE."; exit 1
 	@echo "Copying RTL for synthesis to $(RUNDIR)/fpga/xst..."
 	@mkdir -p $(RUNDIR)/stamps
 	@mkdir -p $(RUNDIR)/fpga/xst
