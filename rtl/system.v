@@ -14,6 +14,8 @@ module System(input clk, input rst
 	output wire st_nCE
 `endif
 	);
+
+`include "fsab_defines.vh"
 	
 	wire [7:0] bus_req;
 	wire [7:0] bus_ack;
@@ -134,6 +136,19 @@ module System(input clk, input rst
 	wire		dc__rw_wait_3a;		// From dcache of DCache.v
 	wire [31:0]	dc__wr_data_3a;		// From memory of Memory.v
 	wire		dc__wr_req_3a;		// From memory of Memory.v
+	wire [FSAB_DATA_HI:0] fsabi_data;	// From simmem of FSABSimMemory.v
+	wire [FSAB_DID_HI:0] fsabi_did;		// From simmem of FSABSimMemory.v
+	wire [FSAB_DID_HI:0] fsabi_subdid;	// From simmem of FSABSimMemory.v
+	wire		fsabi_valid;		// From simmem of FSABSimMemory.v
+	wire [FSAB_ADDR_HI:0] fsabo_addr;	// From dcache of DCache.v
+	wire		fsabo_credit;		// From simmem of FSABSimMemory.v
+	wire [FSAB_DATA_HI:0] fsabo_data;	// From dcache of DCache.v
+	wire [FSAB_DID_HI:0] fsabo_did;		// From dcache of DCache.v
+	wire [FSAB_LEN_HI:0] fsabo_len;		// From dcache of DCache.v
+	wire [FSAB_MASK_HI:0] fsabo_mask;	// From dcache of DCache.v
+	wire [FSAB_REQ_HI:0] fsabo_mode;	// From dcache of DCache.v
+	wire [FSAB_DID_HI:0] fsabo_subdid;	// From dcache of DCache.v
+	wire		fsabo_valid;		// From dcache of DCache.v
 	wire [31:0]	ic__rd_addr_0a;		// From fetch of Fetch.v
 	wire [31:0]	ic__rd_data_1a;		// From icache of ICache.v
 	wire		ic__rd_req_0a;		// From fetch of Fetch.v
@@ -203,14 +218,6 @@ module System(input clk, input rst
 	
 	/* DCache AUTO_TEMPLATE (
 		.clk(clk),
-		.bus_req(bus_req_dcache),
-		.bus_ack(bus_ack_dcache),
-		.bus_addr(bus_addr_dcache),
-		.bus_rdata(bus_rdata),
-		.bus_wdata(bus_wdata_dcache),
-		.bus_rd(bus_rd_dcache),
-		.bus_wr(bus_wr_dcache),
-		.bus_ready(bus_ready),
 		);
 		*/
 	DCache dcache(
@@ -218,20 +225,25 @@ module System(input clk, input rst
 		      // Outputs
 		      .dc__rw_wait_3a	(dc__rw_wait_3a),
 		      .dc__rd_data_3a	(dc__rd_data_3a[31:0]),
-		      .bus_req		(bus_req_dcache),	 // Templated
-		      .bus_addr		(bus_addr_dcache),	 // Templated
-		      .bus_wdata	(bus_wdata_dcache),	 // Templated
-		      .bus_rd		(bus_rd_dcache),	 // Templated
-		      .bus_wr		(bus_wr_dcache),	 // Templated
+		      .fsabo_valid	(fsabo_valid),
+		      .fsabo_mode	(fsabo_mode[FSAB_REQ_HI:0]),
+		      .fsabo_did	(fsabo_did[FSAB_DID_HI:0]),
+		      .fsabo_subdid	(fsabo_subdid[FSAB_DID_HI:0]),
+		      .fsabo_addr	(fsabo_addr[FSAB_ADDR_HI:0]),
+		      .fsabo_len	(fsabo_len[FSAB_LEN_HI:0]),
+		      .fsabo_data	(fsabo_data[FSAB_DATA_HI:0]),
+		      .fsabo_mask	(fsabo_mask[FSAB_MASK_HI:0]),
 		      // Inputs
 		      .clk		(clk),			 // Templated
 		      .dc__addr_3a	(dc__addr_3a[31:0]),
 		      .dc__rd_req_3a	(dc__rd_req_3a),
 		      .dc__wr_req_3a	(dc__wr_req_3a),
 		      .dc__wr_data_3a	(dc__wr_data_3a[31:0]),
-		      .bus_ack		(bus_ack_dcache),	 // Templated
-		      .bus_rdata	(bus_rdata),		 // Templated
-		      .bus_ready	(bus_ready));		 // Templated
+		      .fsabo_credit	(fsabo_credit),
+		      .fsabi_valid	(fsabi_valid),
+		      .fsabi_did	(fsabi_did[FSAB_DID_HI:0]),
+		      .fsabi_subdid	(fsabi_subdid[FSAB_DID_HI:0]),
+		      .fsabi_data	(fsabi_data[FSAB_DATA_HI:0]));
 
 `ifdef verilator
 	BigBlockRAM
@@ -246,10 +258,24 @@ module System(input clk, input rst
 
 `ifdef verilator
 	FSABSimMemory simmem(
-		.clk(clk),
-		.Nrst(Nrst),
-		
-		.fsabo_valid(0));
+		/*AUTOINST*/
+			     // Outputs
+			     .fsabo_credit	(fsabo_credit),
+			     .fsabi_valid	(fsabi_valid),
+			     .fsabi_did		(fsabi_did[FSAB_DID_HI:0]),
+			     .fsabi_subdid	(fsabi_subdid[FSAB_DID_HI:0]),
+			     .fsabi_data	(fsabi_data[FSAB_DATA_HI:0]),
+			     // Inputs
+			     .clk		(clk),
+			     .Nrst		(Nrst),
+			     .fsabo_valid	(fsabo_valid),
+			     .fsabo_mode	(fsabo_mode[FSAB_REQ_HI:0]),
+			     .fsabo_did		(fsabo_did[FSAB_DID_HI:0]),
+			     .fsabo_subdid	(fsabo_subdid[FSAB_DID_HI:0]),
+			     .fsabo_addr	(fsabo_addr[FSAB_ADDR_HI:0]),
+			     .fsabo_len		(fsabo_len[FSAB_LEN_HI:0]),
+			     .fsabo_data	(fsabo_data[FSAB_DATA_HI:0]),
+			     .fsabo_mask	(fsabo_mask[FSAB_MASK_HI:0]));
 `endif
 
 	assign bus_rdata_cellularram = 32'h00000000;
