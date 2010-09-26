@@ -54,8 +54,8 @@ module FSABSimMemory(
 		end
 	
 	always @(posedge clk) begin
-		assert (rfif_empty_0a && rfif_rd_0a) else $error("RFIF rd while empty");
-		assert (rfif_full_0a  && rfif_wr_0a) else $error("RFIF wr while full");
+		assert (!(rfif_empty_0a && rfif_rd_0a)) else $error("RFIF rd while empty");
+		assert (!(rfif_full_0a  && rfif_wr_0a)) else $error("RFIF wr while full");
 	end
 	
 	/*** RFIF demux & control ***/
@@ -123,8 +123,10 @@ module FSABSimMemory(
 		end
 	
 	always @(posedge clk) begin
-		assert (dfif_empty_0a && dfif_rd_0a) else $error("DFIF rd while empty");
-		assert (dfif_full_0a  && dfif_wr_0a) else $error("DFIF wr while full");
+		assert (!(dfif_empty_0a && dfif_rd_0a)) else $error("DFIF rd while empty");
+		assert (!(dfif_full_0a  && dfif_wr_0a)) else $error("DFIF wr while full");
+		// assert (`SIMMEM_DFIF_MAX == (({1'b1, {`SIMMEM_DFIF_HI{1'b0}}}) - 1)) else $error("DFIF size invalid");
+		// Assertion removed due to Verilator bug in calculating $clog2 in non-size expressions
 	end
 	
 	/*** DFIF demux & control */
@@ -136,7 +138,7 @@ module FSABSimMemory(
 	assign dfif_wdat_0a = {fsabo_data,fsabo_mask};
 	assign dfif_wr_0a = fsabo_valid;
 	/* NOTE: this means that dfif_rd must ALWAYS be asserted along with
-	 * rfif_rd...  even if len is 0, and even if the request was a read!
+	 * rfif_rd...  even if len is 0, or even if the request was a read!
 	 */
 	
 	/*** Pipe-throughs ***/

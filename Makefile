@@ -31,7 +31,7 @@ $(RUNDIR)/stamps/sim-genrtl:
 $(RUNDIR)/stamps/sim-verilate: $(RUNDIR)/stamps/sim-genrtl
 	@echo "Building simulator source with Verilator into $(RUNDIR)/sim/obj_dir..."
 	@mkdir -p $(RUNDIR)/sim/obj_dir
-	cd $(RUNDIR)/sim; verilator -Irtl --cc rtl/system.v testbench.cpp --exe
+	cd $(RUNDIR)/sim; verilator -Irtl --cc rtl/system.v testbench.cpp --exe --assert
 	@touch $(RUNDIR)/stamps/sim-verilate
 
 $(RUNDIR)/stamps/sim-build: $(RUNDIR)/stamps/sim-verilate
