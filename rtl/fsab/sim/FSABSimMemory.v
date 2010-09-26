@@ -40,12 +40,14 @@ module FSABSimMemory(
 			rfif_rpos_0a <= 'h0;
 		end else begin
 			if (rfif_rd_0a) begin
+				$display("SIMMEM: reading from rfif");
 				/* NOTE: this FIFO style will NOT port to Xilinx! */
 				rfif_rdat_1a <= rfif_fifo[rfif_rpos_0a[1:0]];
 				rfif_rpos_0a <= rfif_rpos_0a + 'h1;
 			end
 			
 			if (rfif_wr_0a) begin
+				$display("SIMMEM: writing to rfif");
 				rfif_fifo[rfif_wpos_0a[1:0]] <= rfif_wdat_0a;
 				rfif_wpos_0a <= rfif_wpos_0a + 'h1;
 			end
@@ -212,15 +214,15 @@ module FSABSimMemory(
 			mem_cur_req_addr_1a_r <= 0;
 		end else begin
 			if (rfif_rd_1a) begin
+				$display("SIMMEM: RFIF was just read; it was a %d word %s", rfif_len_1a, (rfif_mode_1a == FSAB_WRITE) ? "WRITE" : "READ");
 				mem_cur_req_pending_0a <= 1;
 				mem_cur_req_active_0a <= 1;
 				mem_cur_req_len_rem_0a <= rfif_len_1a;
-			end else if (dfif_rd_0a || fsabi_valid) begin
+			end else if (dfif_rd_0a || fsabi_valid)
 				mem_cur_req_len_rem_0a <= mem_cur_req_len_rem_0a - 1;
-				if (mem_cur_req_len_rem_0a == 'h1 || mem_cur_req_len_rem_0a == 'h0) begin
-					mem_cur_req_pending_0a <= 0;
-					mem_cur_req_active_0a <= 0;
-				end
+			else if (mem_cur_req_len_rem_0a == 'h1 || mem_cur_req_len_rem_0a == 'h0) begin
+				mem_cur_req_pending_0a <= 0;
+				mem_cur_req_active_0a <= 0;
 			end
 			
 			if (dfif_rd_1a) begin
