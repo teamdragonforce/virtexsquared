@@ -38,8 +38,11 @@ module DCache(
 	
 	reg [FSAB_CREDITS_HI:0] fsab_credits = FSAB_INITIAL_CREDITS;	/* XXX needs resettability */
 	wire fsab_credit_avail = (fsab_credits != 0);
-	always @(posedge clk)
+	always @(posedge clk) begin
+		if (fsabo_credit | fsabo_valid)
+			$display("DCACHE: Credits: %d (+%d, -%d)", fsab_credits, fsabo_credit, fsabo_valid);
 		fsab_credits <= fsab_credits + (fsabo_credit ? 1 : 0) - (fsabo_valid ? 1 : 0);
+	end
 	
 	/* [31 tag 10] [9 cache index 6] [5 data index 0]
 	 * so the data index is 6 bits long
@@ -76,6 +79,10 @@ module DCache(
 		dc__rd_data_3a = dc__addr_3a[2] ? curdata_hi_3a : curdata_lo_3a;
 		if (!dc__rw_wait_3a && dc__rd_req_3a)
 			$display("DCACHE: READ COMPLETE: Addr %08x, data %08x", dc__addr_3a, dc__rd_data_3a);
+		if (dc__rd_req_3a && !cache_hit_3a)
+			$display("DCACHE: Stalling due to cache miss (credits %d)", fsab_credits);
+		if (dc__wr_req_3a && !fsab_credit_avail)
+			$display("DCACHE: Stalling due to insufficient credits to write");
 	end
 	
 	reg [2:0] cache_fill_pos = 0;
@@ -109,6 +116,7 @@ module DCache(
 			fsabo_subdid = FSAB_SUBDID_CPU_DCACHE;
 			fsabo_addr = {dc__addr_3a[30:6], 3'b000, 3'b000 /* 64-bit aligned */};
 			fsabo_len = 'h8; /* 64 byte cache lines, 8 byte reads */
+			$display("DCACHE: Starting read: Addr %08x", fsabo_addr);
 		end else if (dc__wr_req_3a && fsab_credit_avail) begin
 			fsabo_valid = 1;
 			fsabo_mode = FSAB_WRITE;
