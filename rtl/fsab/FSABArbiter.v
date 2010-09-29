@@ -1,9 +1,11 @@
+
+
+module FIF(
+`include "fsab_defines.vh"
 `define FSAB_DEVICES_MAX (16)
 `define FSAB_RFIF_HI (1 + FSAB_REQ_HI+1 + FSAB_DID_HI+1 + FSAB_DID_HI+1 + FSAB_ADDR_HI+1 + FSAB_LEN_HI)
 `define FSAB_DFIF_MAX 31
 `define FSAB_DFIF_HI 4
-
-module FSABSimMemory(
 	input clk,
 	input Nrst,
 	
@@ -21,6 +23,8 @@ module FSABSimMemory(
 	output wire [FSAB_DATA_HI:0] fsabi_data,
 	output wire [FSAB_MASK_HI:0] fsabi_mask
 	);
+
+
 
 	/*** Inbound request FIFO (RFIF) ***/
 	reg [FSAB_CREDITS_HI:0] rfif_wpos_0a = 'h0;
@@ -91,7 +95,7 @@ module FSABSimMemory(
 	wire [FSAB_DATA_HI+1 + FSAB_MASK_HI:0] dfif_wdat_0a;
 	reg [FSAB_DATA_HI+1 + FSAB_MASK_HI:0] dfif_rdat_1a;
 	wire dfif_empty_0a = (dfif_rpos_0a == dfif_wpos_0a);
-	wire dfif_full_0a = (dfif_wpos_0a == (dfif_rpos_0a + `SIMMEM_DFIF_MAX));
+	wire dfif_full_0a = (dfif_wpos_0a == (dfif_rpos_0a + FSAB_DFIF_MAX));
 	wire [FSAB_DFIF_HI:0] dfif_avail_0a = dfif_wpos_0a - dfif_rpos_0a;
 	
 	always @(posedge clk or negedge Nrst)
@@ -145,12 +149,17 @@ module FSABSimMemory(
 	 * one-cycle pause be removed easily?
 	 */
 	assign rfif_rd_0a = !rfif_empty_0a && !rfif_rd_1a && fifo_read;
-	assign dfif_rd_0a = rfif_rd_0a  /* We must always do a read from dfif on rfif. */
+	assign dfif_rd_0a = rfif_rd_0a;  /* We must always do a read from dfif on rfif. */
 	
 	
 endmodule
 
-module BusArbiter(
+module FSABArbiter(
+`include "fsab_defines.vh"
+`define FSAB_DEVICES_MAX (16)
+`define FSAB_RFIF_HI (1 + FSAB_REQ_HI+1 + FSAB_DID_HI+1 + FSAB_DID_HI+1 + FSAB_ADDR_HI+1 + FSAB_LEN_HI)
+`define FSAB_DFIF_MAX 31
+`define FSAB_DFIF_HI 4
 	input clk,
 	input Nrst,
 	input fsabo_valids[FSAB_DEVICES_MAX],
@@ -162,27 +171,58 @@ module BusArbiter(
 	input [FSAB_DATA_HI:0] fsabo_datas [FSAB_DEVICES_MAX],
 	input [FSAB_MASK_HI:0] fsabo_masks [FSAB_DEVICES_MAX],
 	
-	output reg                  fsabo_valid,
-	output reg [FSAB_REQ_HI:0]  fsabo_mode,
-	output reg [FSAB_DID_HI:0]  fsabo_did,
-	output reg [FSAB_DID_HI:0]  fsabo_subdid,
-	output reg [FSAB_ADDR_HI:0] fsabo_addr,
-	output reg [FSAB_LEN_HI:0]  fsabo_len,
-	output reg [FSAB_DATA_HI:0] fsabo_data,
-	output reg [FSAB_MASK_HI:0] fsabo_mask,
-	input                       fsabo_credit,
-	);
+	output wire                  fsabo_valid,
+	output wire [FSAB_REQ_HI:0]  fsabo_mode,
+	output wire [FSAB_DID_HI:0]  fsabo_did,
+	output wire [FSAB_DID_HI:0]  fsabo_subdid,
+	output wire [FSAB_ADDR_HI:0] fsabo_addr,
+	output wire [FSAB_LEN_HI:0]  fsabo_len,
+	output wire [FSAB_DATA_HI:0] fsabo_data,
+	output wire [FSAB_MASK_HI:0] fsabo_mask,
+	input                       fsabo_credit);
 	
-	wire [FSAB_RFIF_HI:0] req_out [FSAB_DEVICES_MAX];
 
-	RFIF rfifs[FSAB_DEVICES_MAX](.write(fsabo_valids,
-				     .clk(clk),
-				     .Nrst(Nrst),
-		.request({fsabo_modes,fsabo_dids,fsabo_subdids,
-			fsabo_addrs,fsabo_lens}),
-				      .req_out(req_out),
-				       );
 	
+	wire [FSAB_RFIF_HI:0] fsab_req_out [FSAB_DEVICES_MAX:0];
+	wire [FSAB_DATA_HI + 1 + FSAB_MASK_HI:0] fsab_data_out[FSAB_DEVICES_MAX:0];
+	reg fifo_read[FSAB_DEVICES_MAX];
+	reg [FSAB_RFIF_HI:0] current_device;
+
+	assign {fsabo_valid,fsabo_mode,fsabo_did, fsabo_subdid,
+		 fsabo_addr,fsabo_len} = fsab_req_out[current_device];
+		 
+	assign {fsabo_data,fsabo_mask} = fsab_data_out[current_device];
+
+	FIF fifs[FSAB_DEVICES_MAX](.clk(clk),
+				     .Nrst(Nrst),
+				     .fifo_read(fifo_read),
+				     .fsabo_valid(fsabo_valids),
+				     .fsabo_mode(fsabo_modes),
+				     .fsabo_did(fsabo_dids),
+				     .fsabo_subdid(fsabo_subdids),
+				     .fsabo_addr(fsabo_addrs),
+				     .fsabo_len(fsabo_lens),
+				     .fsabo_data(fsabo_datas),
+				     .fsabo_mask(fsabo_masks),
+				      .fsab_req_out(fsab_req_out),
+.fsabo_data(fsab_data_out[FSAB_DATA_HI + 1 + FSAB_MASK_HI:FSAB_MASK_HI+1]),
+.fsabo_mask(fsab_data_out[FSAB_MASK_HI:0]));
+	
+	always @(posedge clk or negedge Nrst)
+		if(!Nrst) begin
+			fifo_read <= 1;
+			current_device <= 0;
+		end else begin
+			if(fsabo_credit || !(fsabo_valid)) begin
+				fifo_read <= fifo_read << 1;
+				current_device <= current_device + 1;
+				
+				if(current_device == FSAB_DEVICES_MAX) begin
+					fifo_read <= 1;
+					current_device <= current_device + 1;
+				end
+			end
+		end
 	
 	
 endmodule

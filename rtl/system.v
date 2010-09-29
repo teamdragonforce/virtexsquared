@@ -141,6 +141,7 @@ module System(input clk, input rst
 	wire [FSAB_DID_HI:0] fsabi_subdid;	// From simmem of FSABSimMemory.v
 	wire		fsabi_valid;		// From simmem of FSABSimMemory.v
 	wire [FSAB_ADDR_HI:0] fsabo_addr;	// From dcache of DCache.v
+	wire [FSAB_ADDR_HI:0] fsaba_addr;	// From dcache of DCache.v
 	wire		fsabo_credit;		// From simmem of FSABSimMemory.v
 	wire [FSAB_DATA_HI:0] fsabo_data;	// From dcache of DCache.v
 	wire [FSAB_DID_HI:0] fsabo_did;		// From dcache of DCache.v
@@ -149,6 +150,13 @@ module System(input clk, input rst
 	wire [FSAB_REQ_HI:0] fsabo_mode;	// From dcache of DCache.v
 	wire [FSAB_DID_HI:0] fsabo_subdid;	// From dcache of DCache.v
 	wire		fsabo_valid;		// From dcache of DCache.v
+	wire [FSAB_DATA_HI:0] fsaba_data;	// From dcache of DCache.v
+	wire [FSAB_DID_HI:0] fsaba_did;		// From dcache of DCache.v
+	wire [FSAB_LEN_HI:0] fsaba_len;		// From dcache of DCache.v
+	wire [FSAB_MASK_HI:0] fsaba_mask;	// From dcache of DCache.v
+	wire [FSAB_REQ_HI:0] fsaba_mode;	// From dcache of DCache.v
+	wire [FSAB_DID_HI:0] fsaba_subdid;	// From dcache of DCache.v
+	wire		fsaba_valid;		// From dcache of DCache.v
 	wire [31:0]	ic__rd_addr_0a;		// From fetch of Fetch.v
 	wire [31:0]	ic__rd_data_1a;		// From icache of ICache.v
 	wire		ic__rd_req_0a;		// From fetch of Fetch.v
@@ -245,6 +253,29 @@ module System(input clk, input rst
 		      .fsabi_subdid	(fsabi_subdid[FSAB_DID_HI:0]),
 		      .fsabi_data	(fsabi_data[FSAB_DATA_HI:0]));
 
+	FSABArbiter fsabarbiter(
+		      // Outputs
+		      .fsabo_valid	(fsaba_valid),
+		      .fsabo_mode	(fsaba_mode[FSAB_REQ_HI:0]),
+		      .fsabo_did	(fsaba_did[FSAB_DID_HI:0]),
+		      .fsabo_subdid	(fsaba_subdid[FSAB_DID_HI:0]),
+		      .fsabo_addr	(fsaba_addr[FSAB_ADDR_HI:0]),
+		      .fsabo_len	(fsaba_len[FSAB_LEN_HI:0]),
+		      .fsabo_data	(fsaba_data[FSAB_DATA_HI:0]),
+		      .fsabo_mask	(fsaba_mask[FSAB_MASK_HI:0]),
+		      .fsabo_valids	({fsabo_valid,0}),
+		      .fsabo_modes	({fsabo_mode[FSAB_REQ_HI:0],0}),
+		      .fsabo_dids	({fsabo_did[FSAB_DID_HI:0],0}),
+		      .fsabo_subdids	({fsabo_subdid[FSAB_DID_HI:0],0}),
+		      .fsabo_addrs	({fsabo_addr[FSAB_ADDR_HI:0],0}),
+		      .fsabo_lens	({fsabo_len[FSAB_LEN_HI:0],0}),
+		      .fsabo_datas	({fsabo_data[FSAB_DATA_HI:0],0}),
+		      .fsabo_masks	({fsabo_mask[FSAB_MASK_HI:0],0}),
+		      // Inputs
+		      .clk		(clk),			 // Templated
+		      .Nrst (Nrst),
+		      .fsabo_credit	(fsabo_credit));
+
 `ifdef verilator
 	BigBlockRAM
 `else
@@ -268,14 +299,14 @@ module System(input clk, input rst
 			     // Inputs
 			     .clk		(clk),
 			     .Nrst		(Nrst),
-			     .fsabo_valid	(fsabo_valid),
-			     .fsabo_mode	(fsabo_mode[FSAB_REQ_HI:0]),
-			     .fsabo_did		(fsabo_did[FSAB_DID_HI:0]),
-			     .fsabo_subdid	(fsabo_subdid[FSAB_DID_HI:0]),
-			     .fsabo_addr	(fsabo_addr[FSAB_ADDR_HI:0]),
-			     .fsabo_len		(fsabo_len[FSAB_LEN_HI:0]),
-			     .fsabo_data	(fsabo_data[FSAB_DATA_HI:0]),
-			     .fsabo_mask	(fsabo_mask[FSAB_MASK_HI:0]));
+			     .fsabo_valid	(fsaba_valid),
+			     .fsabo_mode	(fsaba_mode[FSAB_REQ_HI:0]),
+			     .fsabo_did		(fsaba_did[FSAB_DID_HI:0]),
+			     .fsabo_subdid	(fsaba_subdid[FSAB_DID_HI:0]),
+			     .fsabo_addr	(fsaba_addr[FSAB_ADDR_HI:0]),
+			     .fsabo_len		(fsaba_len[FSAB_LEN_HI:0]),
+			     .fsabo_data	(fsaba_data[FSAB_DATA_HI:0]),
+			     .fsabo_mask	(fsaba_mask[FSAB_MASK_HI:0]));
 `endif
 
 	assign bus_rdata_cellularram = 32'h00000000;
