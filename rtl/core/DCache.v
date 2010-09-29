@@ -11,7 +11,7 @@ module DCache(
 	input      [31:0] dc__wr_data_3a,
 	output reg [31:0] dc__rd_data_3a,
 
-	/* bus interface */
+	/* FSAB interface */
 	output reg                  fsabo_valid,
 	output reg [FSAB_REQ_HI:0]  fsabo_mode,
 	output reg [FSAB_DID_HI:0]  fsabo_did,
@@ -25,9 +25,20 @@ module DCache(
 	input                       fsabi_valid,
 	input      [FSAB_DID_HI:0]  fsabi_did,
 	input      [FSAB_DID_HI:0]  fsabi_subdid,
-	input      [FSAB_DATA_HI:0] fsabi_data);
+	input      [FSAB_DATA_HI:0] fsabi_data,
+	
+	/* SPAM sidechannel interface */
+	output reg                  spamo_valid,
+	output reg                  spamo_r_nw,
+	output reg [SPAM_DID_HI:0]  spamo_did,
+	output reg [SPAM_ADDR_HI:0] spamo_addr,
+	output reg [SPAM_DATA_HI:0] spamo_data,
+	
+	input                       spami_busy_b,
+	input      [SPAM_DATA_HI:0] spami_data);
 
  `include "fsab_defines.vh"
+ `include "spam_defines.vh"
 	
 	/*** FSAB credit availability logic ***/
 	
