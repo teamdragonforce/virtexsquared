@@ -85,23 +85,13 @@ module DCache(
 	
 	wire [31:0] curdata_hi_3a = cache_data_hi[{idx_3a,didx_word_3a}];
 	wire [31:0] curdata_lo_3a = cache_data_lo[{idx_3a,didx_word_3a}];
-	always @(*) begin
-		dc__rw_wait_3a = (dc__rd_req_3a && !cache_hit_3a) || (dc__wr_req_3a && !fsab_credit_avail);
-		dc__rd_data_3a = dc__addr_3a[2] ? curdata_hi_3a : curdata_lo_3a;
-		if (!dc__rw_wait_3a && dc__rd_req_3a)
-			$display("DCACHE: READ COMPLETE: Addr %08x, data %08x", dc__addr_3a, dc__rd_data_3a);
-		if (dc__rd_req_3a && !cache_hit_3a)
-			$display("DCACHE: Stalling due to cache miss (credits %d)", fsab_credits);
-		if (dc__wr_req_3a && !fsab_credit_avail)
-			$display("DCACHE: Stalling due to insufficient credits to write");
-	end
 	
 	reg [2:0] cache_fill_pos = 0;
 	reg read_pending = 0;
 	reg [31:0] fill_addr = 0;
 	wire [21:0] fill_tag = fill_addr[31:10];
 	wire [3:0] fill_idx = fill_addr[9:6];
-	wire start_read = dc__rd_req_3a && !cache_hit_3a && !read_pending && fsab_credit_avail;
+	wire start_read = dc__rd_req_3a && !dc__addr_3a[31] && !cache_hit_3a && !read_pending && fsab_credit_avail;
 	always @(*)
 	begin
 		fsabo_valid = 0;
@@ -163,5 +153,22 @@ module DCache(
 			cache_data_hi[dc__wr_req_3a ? {idx_3a,dc__addr_3a[5:3]} : {fill_idx,cache_fill_pos}] <= dc__wr_req_3a ? dc__wr_data_3a : fsabi_data[63:32];
 		if ((fsabi_valid && (fsabi_did == FSAB_DID_CPU) && (fsabi_subdid == FSAB_SUBDID_CPU_DCACHE)) || (dc__wr_req_3a && cache_hit_3a && ~dc__addr_3a[2]))
 			cache_data_lo[dc__wr_req_3a ? {idx_3a,dc__addr_3a[5:3]} : {fill_idx,cache_fill_pos}] <= dc__wr_req_3a ? dc__wr_data_3a : fsabi_data[31:0];
+	end
+	
+	/*** Overall processor databus multiplexing logic ***/
+	always @(*) begin
+		if (!dc__addr_3a[31]) /* FSAB */ begin
+			dc__rw_wait_3a = (dc__rd_req_3a && !cache_hit_3a) || (dc__wr_req_3a && !fsab_credit_avail);
+			dc__rd_data_3a = dc__addr_3a[2] ? curdata_hi_3a : curdata_lo_3a;
+			if (!dc__rw_wait_3a && dc__rd_req_3a)
+				$display("DCACHE: READ COMPLETE: Addr %08x, data %08x", dc__addr_3a, dc__rd_data_3a);
+			if (dc__rd_req_3a && !cache_hit_3a)
+				$display("DCACHE: Stalling due to cache miss (credits %d)", fsab_credits);
+			if (dc__wr_req_3a && !fsab_credit_avail)
+				$display("DCACHE: Stalling due to insufficient credits to write");
+		end else /* SPAM */ begin
+			dc__rw_wait_3a = 1;
+			dc__rd_data_3a = 32'h00000000;
+		end
 	end
 endmodule
