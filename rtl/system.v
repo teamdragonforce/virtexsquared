@@ -16,6 +16,7 @@ module System(input clk, input rst
 	);
 
 `include "fsab_defines.vh"
+`include "spam_defines.vh"
 	
 	wire [7:0] bus_req;
 	wire [7:0] bus_ack;
@@ -173,6 +174,11 @@ module System(input clk, input rst
 	wire [3:0]	rf__read_1_1a;		// From decode of Decode.v
 	wire [3:0]	rf__read_2_1a;		// From decode of Decode.v
 	wire [3:0]	rf__read_3_3a;		// From memory of Memory.v
+	wire [SPAM_ADDR_HI:0] spamo_addr;	// From dcache of DCache.v
+	wire [SPAM_DATA_HI:0] spamo_data;	// From dcache of DCache.v
+	wire [SPAM_DID_HI:0] spamo_did;		// From dcache of DCache.v
+	wire		spamo_r_nw;		// From dcache of DCache.v
+	wire		spamo_valid;		// From dcache of DCache.v
 	wire [31:0]	spsr_2a;		// From decode of Decode.v
 	wire [31:0]	spsr_3a;		// From execute of Execute.v
 	wire		stall_0a;		// From issue of Issue.v
@@ -216,6 +222,8 @@ module System(input clk, input rst
 		      .bus_rdata	(bus_rdata),		 // Templated
 		      .bus_ready	(bus_ready));		 // Templated
 	
+	wire spami_busy_b = 0;
+	wire [SPAM_DATA_HI:0] spami_data = 32'h00000000;
 	/* DCache AUTO_TEMPLATE (
 		.clk(clk),
 		);
@@ -233,6 +241,11 @@ module System(input clk, input rst
 		      .fsabo_len	(fsabo_len[FSAB_LEN_HI:0]),
 		      .fsabo_data	(fsabo_data[FSAB_DATA_HI:0]),
 		      .fsabo_mask	(fsabo_mask[FSAB_MASK_HI:0]),
+		      .spamo_valid	(spamo_valid),
+		      .spamo_r_nw	(spamo_r_nw),
+		      .spamo_did	(spamo_did[SPAM_DID_HI:0]),
+		      .spamo_addr	(spamo_addr[SPAM_ADDR_HI:0]),
+		      .spamo_data	(spamo_data[SPAM_DATA_HI:0]),
 		      // Inputs
 		      .clk		(clk),			 // Templated
 		      .dc__addr_3a	(dc__addr_3a[31:0]),
@@ -243,7 +256,9 @@ module System(input clk, input rst
 		      .fsabi_valid	(fsabi_valid),
 		      .fsabi_did	(fsabi_did[FSAB_DID_HI:0]),
 		      .fsabi_subdid	(fsabi_subdid[FSAB_DID_HI:0]),
-		      .fsabi_data	(fsabi_data[FSAB_DATA_HI:0]));
+		      .fsabi_data	(fsabi_data[FSAB_DATA_HI:0]),
+		      .spami_busy_b	(spami_busy_b),
+		      .spami_data	(spami_data[SPAM_DATA_HI:0]));
 
 `ifdef verilator
 	BigBlockRAM
