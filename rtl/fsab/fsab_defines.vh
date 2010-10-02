@@ -19,3 +19,8 @@ parameter FSAB_LEN_MAX = 8;
 
 parameter FSAB_INITIAL_CREDITS = 4;
 parameter FSAB_CREDITS_HI = 2;
+
+parameter FSAB_DEVICES_MAX = 16;
+parameter FSAB_RFIF_HI = 1 + FSAB_REQ_HI+1 + FSAB_DID_HI+1 + FSAB_DID_HI+1 + FSAB_ADDR_HI+1 + FSAB_LEN_HI;
+parameter FSAB_DFIF_MAX = 31;
+parameter FSAB_DFIF_HI = 4;
