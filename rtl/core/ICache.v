@@ -10,26 +10,38 @@ module ICache(
 	output wire [31:0] ic__rd_data_1a,
 	
 	/* bus interface */
-	output wire        bus_req,
-	input              bus_ack,
-	output reg  [31:0] bus_addr,
-	input       [31:0] bus_rdata,
-	output wire [31:0] bus_wdata,
-	output reg         bus_rd,
-	output wire        bus_wr,
-	input              bus_ready);
+	output reg                  fsabo_valid,
+	output reg [FSAB_REQ_HI:0]  fsabo_mode,
+	output reg [FSAB_DID_HI:0]  fsabo_did,
+	output reg [FSAB_DID_HI:0]  fsabo_subdid,
+	output reg [FSAB_ADDR_HI:0] fsabo_addr,
+	output reg [FSAB_LEN_HI:0]  fsabo_len,
+	output reg [FSAB_DATA_HI:0] fsabo_data,
+	output reg [FSAB_MASK_HI:0] fsabo_mask,
+	input                       fsabo_credit,
 	
-	assign bus_wr = 0;
-	assign bus_wdata = 0;
+	input                       fsabi_valid,
+	input      [FSAB_DID_HI:0]  fsabi_did,
+	input      [FSAB_DID_HI:0]  fsabi_subdid,
+	input      [FSAB_DATA_HI:0] fsabi_data);
 	
-	wire [31:0] rd_addr_0a;
-	wire        rd_req_0a;
-	reg         rd_wait_0a;
-	reg  [31:0] rd_data_1a;
-	assign ic__rd_wait_0a = rd_wait_0a;
-	assign ic__rd_data_1a = rd_data_1a;
-	assign rd_addr_0a = ic__rd_addr_0a;
-	assign rd_req_0a = ic__rd_req_0a;
+ `include "fsab_defines.vh"
+
+	/*** FSAB credit availability logic ***/
+	
+	/* This makes the assumption that all outbound transactions will be
+	 * exactly one cycle long.  This is correct now, but if we move to a
+	 * writeback cache, it will no longer be correct!
+	 */
+	
+	reg [FSAB_CREDITS_HI:0] fsab_credits = FSAB_INITIAL_CREDITS;	/* XXX needs resettability */
+	wire fsab_credit_avail = (fsab_credits != 0);
+	always @(posedge clk) begin
+		if (fsabo_credit | fsabo_valid)
+			$display("ICACHE: Credits: %d (+%d, -%d)", fsab_credits, fsabo_credit, fsabo_valid);
+		fsab_credits <= fsab_credits + (fsabo_credit ? 1 : 0) - (fsabo_valid ? 1 : 0);
+	end
+
 	
 	/* [31 tag 10] [9 cache index 6] [5 data index 0]
 	 * so the data index is 6 bits long
@@ -39,7 +51,8 @@ module ICache(
 	
 	reg cache_valid [15:0];
 	reg [21:0] cache_tags [15:0];
-	reg [31:0] cache_data [255:0 /* {line, word} */];	//synthesis attribute ram_style of cache_data is block
+	reg [31:0] cache_data_hi [127:0 /* {line,word} */];	//synthesis attribute ram_style of cache_data is block
+	reg [31:0] cache_data_lo [127:0 /* {line,word} */];
 	
 	integer i;
 	initial
@@ -49,47 +62,83 @@ module ICache(
 			cache_tags[i[3:0]] = 0;
 		end
 	
-	wire  [5:0] rd_didx_0a      = rd_addr_0a[5:0];
-	wire  [3:0] rd_didx_word_0a = rd_didx_0a[5:2];
-	wire  [3:0] rd_idx_0a       = rd_addr_0a[9:6];
-	wire [21:0] rd_tag_0a       = rd_addr_0a[31:10];
+	wire  [5:0] rd_didx_0a      = ic__rd_addr_0a[5:0];
+	wire  [2:0] rd_didx_word_0a = rd_didx_0a[5:3]; /* bit 2 goes to the hi/lo index */
+	wire  [3:0] rd_idx_0a       = ic__rd_addr_0a[9:6];
+	wire [21:0] rd_tag_0a       = ic__rd_addr_0a[31:10];
 	
 	reg  [31:0] rd_addr_1a = 32'hFFFFFFFF;
 	
 	wire cache_hit_0a = cache_valid[rd_idx_0a] && (cache_tags[rd_idx_0a] == rd_tag_0a);
 	
-	reg [3:0] cache_fill_pos_0a = 0;
-	assign bus_req = rd_req_0a && !cache_hit_0a; /* xxx, needed for Verilator */
-	always @(*)
-		if (rd_req_0a && !cache_hit_0a && bus_ack) begin
-			bus_addr = {rd_addr_0a[31:6], cache_fill_pos_0a[3:0], 2'b00 /* reads are 32-bits */};
-			bus_rd = 1;
-		end else begin
-			bus_addr = 0;
-			bus_rd = 0;
-		end
+	wire [31:0] curdata_hi_0a = cache_data_hi[{rd_idx_0a,rd_didx_word_0a}];
+	wire [31:0] curdata_lo_0a = cache_data_lo[{rd_idx_0a,rd_didx_word_0a}];
 
+	/*** Processor control bus logic ***/
 	always @(*) begin
-		rd_wait_0a = rd_req_0a && !cache_hit_0a;
+		ic__rd_wait_0a = ic__rd_req_0a && !cache_hit_0a;
 	end
-	
 	always @(posedge clk) begin
 		// Do the actual read.
-		rd_data_1a <= cache_data[{rd_idx_0a,rd_didx_word_0a}];
+		ic__rd_data_1a <= ic__rd_addr_0a[2] ? curdata_hi_0a : curdata_lo_0a;
+	end
+	
+	reg [2:0] cache_fill_pos = 0;
+	reg read_pending = 0;
+	reg [31:0] fill_addr = 0;
+	wire [21:0] fill_tag = fill_addr[31:10];
+	wire [3:0] fill_idx = fill_addr[9:6];
+	wire start_read = ic__rd_req_0a && !cache_hit_0a && !read_pending && fsab_credit_avail;
+	always @(*)
+	begin
+		fsabo_valid = 0;
+		fsabo_mode = {(FSAB_REQ_HI+1){1'bx}};
+		fsabo_did = {(FSAB_DID_HI+1){1'bx}};
+		fsabo_subdid = {(FSAB_DID_HI+1){1'bx}};
+		fsabo_addr = {(FSAB_ADDR_HI+1){1'bx}};
+		fsabo_len = {{FSAB_LEN_HI+1}{1'bx}};
+		fsabo_data = {{FSAB_DATA_HI+1}{1'bx}};
+		fsabo_mask = {{FSAB_MASK_HI+1}{1'bx}};
 		
-		rd_addr_1a <= {rd_addr_0a[31:6], 6'b0};
-		if (cache_fill_pos_0a != 0 && ((rd_addr_1a != {rd_addr_0a[31:6], 6'b0}) || cache_hit_0a))	/* If this wasn't from the same line, or we've moved on somehow, reset the fill circuitry. */
-			cache_fill_pos_0a <= 0;
-		else if (rd_req_0a && !cache_hit_0a && bus_ack && bus_ready) begin
-			$display("ICACHE: FILL: rd addr %08x; bus addr %08x; bus data %08x", rd_addr_0a, bus_addr, bus_rdata);
-			cache_data[{rd_idx_0a,cache_fill_pos_0a}] <= bus_rdata;
-			cache_fill_pos_0a <= cache_fill_pos_0a + 1;
-			if (cache_fill_pos_0a == 15) begin	/* Done? */
-				cache_tags[rd_idx_0a] <= rd_tag_0a;
-				cache_valid[rd_idx_0a] <= 1;
-				$display("ICACHE: Fill complete for line %x, tag %x", rd_idx_0a, rd_tag_0a);
-			end else
-				cache_valid[rd_idx_0a] <= 0;
+		/* At first glance, there can only be one request alive at a
+		 * time, but that's not quite the case; there can
+		 * potentially be multiple writes alive, since we don't
+		 * block for the request to come back.  So, we do need to
+		 * worry about credits.
+		 */
+		
+		if (start_read) begin
+			fsabo_valid = 1;
+			fsabo_mode = FSAB_READ;
+			fsabo_did = FSAB_DID_CPU;
+			fsabo_subdid = FSAB_SUBDID_CPU_ICACHE;
+			fsabo_addr = {ic__rd_addr_0a[30:6], 3'b000, 3'b000 /* 64-bit aligned */};
+			fsabo_len = 'h8; /* 64 byte cache lines, 8 byte reads */
+			$display("ICACHE: Starting read: Addr %08x", fsabo_addr);
 		end
+	end
+
+	always @(posedge clk) begin
+		if (start_read) begin
+			read_pending <= 1;
+			cache_fill_pos <= 0;
+			fill_addr <= {ic__rd_addr_0a[31:6], 6'b0};
+		end else if (fsabi_valid && (fsabi_did == FSAB_DID_CPU) && (fsabi_subdid == FSAB_SUBDID_CPU_ICACHE)) begin
+			$display("DCACHE: FILL: rd addr %08x; FSAB addr %08x; FSAB data %016x", ic__rd_addr_0a, fill_addr, fsabi_data);
+			
+			cache_fill_pos <= cache_fill_pos + 1;
+			if (cache_fill_pos == 7) begin	/* Done? */
+				cache_tags[fill_idx] <= fill_tag;
+				cache_valid[fill_idx] <= 1;
+				read_pending <= 0;
+			end else
+				cache_valid[fill_idx] <= 0;
+		end
+		
+		/* Split this out because XST is kind of silly about this sort of thing. */
+		if (fsabi_valid && (fsabi_did == FSAB_DID_CPU) && (fsabi_subdid == FSAB_SUBDID_CPU_ICACHE))
+			cache_data_hi[{fill_idx,cache_fill_pos}] <= fsabi_data[63:32];
+		if (fsabi_valid && (fsabi_did == FSAB_DID_CPU) && (fsabi_subdid == FSAB_SUBDID_CPU_ICACHE))
+			cache_data_lo[{fill_idx,cache_fill_pos}] <= fsabi_data[31:0];
 	end
 endmodule
