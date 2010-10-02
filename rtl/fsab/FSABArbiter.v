@@ -22,15 +22,6 @@ module FSABArbiter(
 	output wire [FSAB_MASK_HI:0] fsabo_mask,
 	input                       fsabo_credit);
 `include "fsab_defines.vh"
-
-	assign fsabo_valid = fsabo_valids[0];
-	assign fsabo_mode = fsabo_modes[FSAB_REQ_HI:0];
-	assign fsabo_did = fsabo_dids[FSAB_DID_HI:0];
-	assign fsabo_subdid = fsabo_subdids[FSAB_DID_HI:0];
-	assign fsabo_addr = fsabo_addrs[FSAB_ADDR_HI:0];
-	assign fsabo_len = fsabo_lens[FSAB_LEN_HI:0];
-	assign fsabo_data = fsabo_datas[FSAB_DATA_HI:0];
-	assign fsabo_mask = fsabo_masks[FSAB_MASK_HI:0];
 	
 	FSABFifo fifo (.clk(clk),
 			.Nrst(Nrst),
