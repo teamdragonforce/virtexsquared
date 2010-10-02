@@ -127,6 +127,8 @@ module System(input clk, input rst
 	wire		bubble_2a;		// From issue of Issue.v
 	wire		bubble_3a;		// From execute of Execute.v
 	wire		carry_2a;		// From decode of Decode.v
+	wire		cio__spami_busy_b;	// From conio of SPAM_ConsoleIO.v
+	wire [SPAM_DATA_HI:0] cio__spami_data;	// From conio of SPAM_ConsoleIO.v
 	wire [31:0]	cpsr_2a;		// From decode of Decode.v
 	wire [31:0]	cpsr_3a;		// From execute of Execute.v
 	wire		cpsrup_3a;		// From execute of Execute.v
@@ -222,8 +224,8 @@ module System(input clk, input rst
 		      .bus_rdata	(bus_rdata),		 // Templated
 		      .bus_ready	(bus_ready));		 // Templated
 	
-	wire spami_busy_b = 0;
-	wire [SPAM_DATA_HI:0] spami_data = 32'h00000000;
+	wire spami_busy_b = cio__spami_busy_b;
+	wire [SPAM_DATA_HI:0] spami_data = cio__spami_data[SPAM_DATA_HI:0];
 	/* DCache AUTO_TEMPLATE (
 		.clk(clk),
 		);
@@ -259,6 +261,28 @@ module System(input clk, input rst
 		      .fsabi_data	(fsabi_data[FSAB_DATA_HI:0]),
 		      .spami_busy_b	(spami_busy_b),
 		      .spami_data	(spami_data[SPAM_DATA_HI:0]));
+	
+`ifdef verilator
+	wire [8:0] sys_odata;
+	wire sys_tookdata;
+	wire [8:0] sys_idata = 0;
+`endif
+
+	SPAM_ConsoleIO conio(
+		/*AUTOINST*/
+			     // Outputs
+			     .cio__spami_busy_b	(cio__spami_busy_b),
+			     .cio__spami_data	(cio__spami_data[SPAM_DATA_HI:0]),
+			     .sys_odata		(sys_odata[8:0]),
+			     .sys_tookdata	(sys_tookdata),
+			     // Inputs
+			     .clk		(clk),
+			     .spamo_valid	(spamo_valid),
+			     .spamo_r_nw	(spamo_r_nw),
+			     .spamo_did		(spamo_did[SPAM_DID_HI:0]),
+			     .spamo_addr	(spamo_addr[SPAM_ADDR_HI:0]),
+			     .spamo_data	(spamo_data[SPAM_DATA_HI:0]),
+			     .sys_idata		(sys_idata[8:0]));
 
 `ifdef verilator
 	BigBlockRAM
@@ -451,10 +475,10 @@ module System(input clk, input rst
 		.out_write_num(memory_out_write_num), 
 		.out_write_data(memory_out_write_data),
 		.cp_req(cp_req),
-		.cp_ack(cp_ack),
-		.cp_busy(cp_busy),
+		.cp_ack(1'b0),
+		.cp_busy(1'b0),
 		.cp_rnw(cp_rnw),
-		.cp_read(cp_read),
+		.cp_read(32'h0),
 		.cp_write(cp_write),
 		.outcpsr(memory_out_cpsr),
 		.outspsr(memory_out_spsr),
@@ -490,9 +514,9 @@ module System(input clk, input rst
 		      .dc__rw_wait_3a	(dc__rw_wait_3a),
 		      .dc__rd_data_3a	(dc__rd_data_3a[31:0]),
 		      .rf__rdata_3_3a	(rf__rdata_3_3a[31:0]),
-		      .cp_ack		(cp_ack),		 // Templated
-		      .cp_busy		(cp_busy),		 // Templated
-		      .cp_read		(cp_read),		 // Templated
+		      .cp_ack		(1'b0),			 // Templated
+		      .cp_busy		(1'b0),			 // Templated
+		      .cp_read		(32'h0),		 // Templated
 		      .bubble_3a	(bubble_3a),
 		      .pc_3a		(pc_3a[31:0]),
 		      .insn_3a		(insn_3a[31:0]),
@@ -506,15 +530,6 @@ module System(input clk, input rst
 		      .write_num_3a	(write_num_3a[3:0]),
 		      .write_data_3a	(write_data_3a[31:0]));
 	
-	Terminal terminal(	
-		.clk(clk),
-		.cp_req(cp_req), .cp_insn(cp_insn), .cp_ack(cp_ack_terminal), .cp_busy(cp_busy_terminal), .cp_rnw(cp_rnw),
-		.cp_read(cp_read_terminal), .cp_write(cp_write)
-`ifdef verilator
-`else
-		, .sys_odata(sys_odata), .sys_tookdata(sys_tookdata), .sys_idata(sys_idata)
-`endif
-		);
 	
 	Writeback writeback(
 		.clk(clk),
