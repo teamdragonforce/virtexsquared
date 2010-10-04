@@ -18,50 +18,6 @@ module System(input clk, input rst
 `include "fsab_defines.vh"
 `include "spam_defines.vh"
 	
-	wire [7:0] bus_req;
-	wire [7:0] bus_ack;
-	wire [31:0] bus_addr;
-	wire [31:0] bus_rdata;
-	wire [31:0] bus_wdata;
-	wire bus_rd, bus_wr;
-	wire bus_ready;
-
-	wire bus_req_icache;
-	wire bus_req_dcache;
-	assign bus_req = {6'b0, bus_req_icache, bus_req_dcache};
-	wire bus_ack_icache = bus_ack[`BUS_ICACHE];
-	wire bus_ack_dcache = bus_ack[`BUS_DCACHE];
-	
-	wire [31:0] bus_addr_icache;
-	wire [31:0] bus_wdata_icache;
-	wire bus_rd_icache;
-	wire bus_wr_icache;
-	
-	wire [31:0] bus_addr_dcache;
-	wire [31:0] bus_wdata_dcache;
-	wire bus_rd_dcache;
-	wire bus_wr_dcache;
-	
-	wire [31:0] bus_rdata_blockram, bus_rdata_cellularram;
-	wire bus_ready_blockram, bus_ready_cellularram;
-	
-	assign bus_addr = bus_addr_icache | bus_addr_dcache;
-	assign bus_rdata = bus_rdata_blockram | bus_rdata_cellularram;
-	assign bus_wdata = bus_wdata_icache | bus_wdata_dcache;
-	assign bus_rd = bus_rd_icache | bus_rd_dcache;
-	assign bus_wr = bus_wr_icache | bus_wr_dcache;
-	assign bus_ready = bus_ready_blockram | bus_ready_cellularram;
-
-	wire [31:0] icache_rd_addr;
-	wire icache_rd_req;
-	wire icache_rd_wait;
-	wire [31:0] icache_rd_data;
-	
-	wire [31:0] dcache_addr;
-	wire dcache_rd_req, dcache_wr_req;
-	wire dcache_rw_wait;
-	wire [31:0] dcache_wr_data, dcache_rd_data;
-	
 	wire [31:0] decode_out_op0, decode_out_op1, decode_out_op2, decode_out_spsr, decode_out_cpsr;
 	wire decode_out_carry;
 	
@@ -91,16 +47,12 @@ module System(input clk, input rst
 	
 	wire [31:0] writeback_out_cpsr, writeback_out_spsr;
 
-	wire cp_ack_terminal;
-	wire cp_busy_terminal;
-	wire [31:0] cp_read_terminal;
-	
 	wire cp_req;
 	wire [31:0] cp_insn;
-	wire cp_ack = cp_ack_terminal;
-	wire cp_busy = cp_busy_terminal;
+	wire cp_ack = 0;
+	wire cp_busy = 0;
 	wire cp_rnw;
-	wire [31:0] cp_read = cp_read_terminal;
+	wire [31:0] cp_read = 0;
 	wire [31:0] cp_write;
 	
 	wire stall_cause_issue;
@@ -162,6 +114,7 @@ module System(input clk, input rst
 	wire [FSAB_DID_HI:0] fsabo_subdid;	// From fsabarbiter of FSABArbiter.v
 	wire		fsabo_valid;		// From fsabarbiter of FSABArbiter.v
 	wire [FSAB_ADDR_HI:0] ic__fsabo_addr;	// From icache of ICache.v
+	wire		ic__fsabo_credit;	// From fsabarbiter of FSABArbiter.v
 	wire [FSAB_DATA_HI:0] ic__fsabo_data;	// From icache of ICache.v
 	wire [FSAB_DID_HI:0] ic__fsabo_did;	// From icache of ICache.v
 	wire [FSAB_LEN_HI:0] ic__fsabo_len;	// From icache of ICache.v
@@ -206,18 +159,8 @@ module System(input clk, input rst
 	wire		write_reg_3a;		// From execute of Execute.v
 	// End of automatics
 
-	wire [FSAB_DATA_HI:0] ic__fsabi_data;	// From simmem of FSABSimMemory.v
-	wire [FSAB_DID_HI:0] ic__fsabi_did;		// From simmem of FSABSimMemory.v
-	wire [FSAB_DID_HI:0] ic__fsabi_subdid;	// From simmem of FSABSimMemory.v
-	wire		ic__fsabi_valid;		// From simmem of FSABSimMemory.v
-	wire		ic__fsabo_credit;		// From simmem of FSABSimMemory.v
-
-
-
 	wire execute_out_backflush;
 	wire writeback_out_backflush;
-
-	BusArbiter busarbiter(.bus_req(bus_req), .bus_ack(bus_ack));
 
 	/* XXX reset? */
 	/* ICache AUTO_TEMPLATE (
@@ -344,17 +287,6 @@ module System(input clk, input rst
 	defparam fsabarbiter.FSAB_DEVICES = 2;
 
 `ifdef verilator
-	BigBlockRAM
-`else
-	BlockRAM
-`endif
-	blockram(
-		.clk(clk),
-		.bus_addr(bus_addr), .bus_rdata(bus_rdata_blockram),
-		.bus_wdata(bus_wdata), .bus_rd(bus_rd), .bus_wr(bus_wr),
-		.bus_ready(bus_ready_blockram));
-
-`ifdef verilator
 	FSABSimMemory simmem(
 		/*AUTOINST*/
 			     // Outputs
@@ -375,9 +307,6 @@ module System(input clk, input rst
 			     .fsabo_data	(fsabo_data[FSAB_DATA_HI:0]),
 			     .fsabo_mask	(fsabo_mask[FSAB_MASK_HI:0]));
 `endif
-
-	assign bus_rdata_cellularram = 32'h00000000;
-	assign bus_ready_cellularram = 0;
 
 	/* Fetch AUTO_TEMPLATE (
 		.jmp_0a(jmp),
@@ -533,12 +462,6 @@ module System(input clk, input rst
 		.out_write_reg(memory_out_write_reg),
 		.out_write_num(memory_out_write_num), 
 		.out_write_data(memory_out_write_data),
-		.cp_req(cp_req),
-		.cp_ack(1'b0),
-		.cp_busy(1'b0),
-		.cp_rnw(cp_rnw),
-		.cp_read(32'h0),
-		.cp_write(cp_write),
 		.outcpsr(memory_out_cpsr),
 		.outspsr(memory_out_spsr),
 		.outcpsrup(memory_out_cpsrup),
@@ -553,9 +476,9 @@ module System(input clk, input rst
 		      .dc__wr_data_3a	(dc__wr_data_3a[31:0]),
 		      .dc__data_size_3a	(dc__data_size_3a[2:0]),
 		      .rf__read_3_3a	(rf__read_3_3a[3:0]),
-		      .cp_req		(cp_req),		 // Templated
-		      .cp_rnw		(cp_rnw),		 // Templated
-		      .cp_write		(cp_write),		 // Templated
+		      .cp_req		(cp_req),
+		      .cp_rnw		(cp_rnw),
+		      .cp_write		(cp_write[31:0]),
 		      .outstall		(stall_cause_memory),	 // Templated
 		      .outbubble	(bubble_out_memory),	 // Templated
 		      .outpc		(pc_out_memory),	 // Templated
@@ -573,9 +496,9 @@ module System(input clk, input rst
 		      .dc__rw_wait_3a	(dc__rw_wait_3a),
 		      .dc__rd_data_3a	(dc__rd_data_3a[31:0]),
 		      .rf__rdata_3_3a	(rf__rdata_3_3a[31:0]),
-		      .cp_ack		(1'b0),			 // Templated
-		      .cp_busy		(1'b0),			 // Templated
-		      .cp_read		(32'h0),		 // Templated
+		      .cp_ack		(cp_ack),
+		      .cp_busy		(cp_busy),
+		      .cp_read		(cp_read[31:0]),
 		      .bubble_3a	(bubble_3a),
 		      .pc_3a		(pc_3a[31:0]),
 		      .insn_3a		(insn_3a[31:0]),
