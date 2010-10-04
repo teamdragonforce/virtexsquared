@@ -158,6 +158,14 @@ module System(input clk, input rst
 	wire [FSAB_REQ_HI:0] fsabo_mode;	// From fsabarbiter of FSABArbiter.v
 	wire [FSAB_DID_HI:0] fsabo_subdid;	// From fsabarbiter of FSABArbiter.v
 	wire		fsabo_valid;		// From fsabarbiter of FSABArbiter.v
+	wire [FSAB_ADDR_HI:0] ic__fsabo_addr;	// From icache of ICache.v
+	wire [FSAB_DATA_HI:0] ic__fsabo_data;	// From icache of ICache.v
+	wire [FSAB_DID_HI:0] ic__fsabo_did;	// From icache of ICache.v
+	wire [FSAB_LEN_HI:0] ic__fsabo_len;	// From icache of ICache.v
+	wire [FSAB_MASK_HI:0] ic__fsabo_mask;	// From icache of ICache.v
+	wire [FSAB_REQ_HI:0] ic__fsabo_mode;	// From icache of ICache.v
+	wire [FSAB_DID_HI:0] ic__fsabo_subdid;	// From icache of ICache.v
+	wire		ic__fsabo_valid;	// From icache of ICache.v
 	wire [31:0]	ic__rd_addr_0a;		// From fetch of Fetch.v
 	wire [31:0]	ic__rd_data_1a;		// From icache of ICache.v
 	wire		ic__rd_req_0a;		// From fetch of Fetch.v
@@ -190,6 +198,14 @@ module System(input clk, input rst
 	wire		write_reg_3a;		// From execute of Execute.v
 	// End of automatics
 
+	wire [FSAB_DATA_HI:0] ic__fsabi_data;	// From simmem of FSABSimMemory.v
+	wire [FSAB_DID_HI:0] ic__fsabi_did;		// From simmem of FSABSimMemory.v
+	wire [FSAB_DID_HI:0] ic__fsabi_subdid;	// From simmem of FSABSimMemory.v
+	wire		ic__fsabi_valid;		// From simmem of FSABSimMemory.v
+	wire		ic__fsabo_credit;		// From simmem of FSABSimMemory.v
+
+
+
 	wire execute_out_backflush;
 	wire writeback_out_backflush;
 
@@ -198,32 +214,29 @@ module System(input clk, input rst
 	/* XXX reset? */
 	/* ICache AUTO_TEMPLATE (
 		.clk(clk),
-		.bus_req(bus_req_icache),
-		.bus_ack(bus_ack_icache),
-		.bus_addr(bus_addr_icache),
-		.bus_rdata(bus_rdata),
-		.bus_wdata(bus_wdata_icache),
-		.bus_rd(bus_rd_icache),
-		.bus_wr(bus_wr_icache),
-		.bus_ready(bus_ready),
 		); */
 	ICache icache(
 		/*AUTOINST*/
 		      // Outputs
 		      .ic__rd_wait_0a	(ic__rd_wait_0a),
 		      .ic__rd_data_1a	(ic__rd_data_1a[31:0]),
-		      .bus_req		(bus_req_icache),	 // Templated
-		      .bus_addr		(bus_addr_icache),	 // Templated
-		      .bus_wdata	(bus_wdata_icache),	 // Templated
-		      .bus_rd		(bus_rd_icache),	 // Templated
-		      .bus_wr		(bus_wr_icache),	 // Templated
+		      .ic__fsabo_valid	(ic__fsabo_valid),
+		      .ic__fsabo_mode	(ic__fsabo_mode[FSAB_REQ_HI:0]),
+		      .ic__fsabo_did	(ic__fsabo_did[FSAB_DID_HI:0]),
+		      .ic__fsabo_subdid	(ic__fsabo_subdid[FSAB_DID_HI:0]),
+		      .ic__fsabo_addr	(ic__fsabo_addr[FSAB_ADDR_HI:0]),
+		      .ic__fsabo_len	(ic__fsabo_len[FSAB_LEN_HI:0]),
+		      .ic__fsabo_data	(ic__fsabo_data[FSAB_DATA_HI:0]),
+		      .ic__fsabo_mask	(ic__fsabo_mask[FSAB_MASK_HI:0]),
 		      // Inputs
 		      .clk		(clk),			 // Templated
 		      .ic__rd_addr_0a	(ic__rd_addr_0a[31:0]),
 		      .ic__rd_req_0a	(ic__rd_req_0a),
-		      .bus_ack		(bus_ack_icache),	 // Templated
-		      .bus_rdata	(bus_rdata),		 // Templated
-		      .bus_ready	(bus_ready));		 // Templated
+		      .ic__fsabo_credit	(ic__fsabo_credit),
+		      .fsabi_valid	(fsabi_valid),
+		      .fsabi_did	(fsabi_did[FSAB_DID_HI:0]),
+		      .fsabi_subdid	(fsabi_subdid[FSAB_DID_HI:0]),
+		      .fsabi_data	(fsabi_data[FSAB_DATA_HI:0]));
 	
 	DCache dcache(
 		/*AUTOINST*/
@@ -251,20 +264,20 @@ module System(input clk, input rst
 		      .fsabi_data	(fsabi_data[FSAB_DATA_HI:0]));
 
 	/* FSABArbiter AUTO_TEMPLATE (
-		.fsabo_valids({dc__fsabo_valid}),
-		.fsabo_modes({dc__fsabo_mode[FSAB_REQ_HI:0]}),
-		.fsabo_dids({dc__fsabo_did[FSAB_DID_HI:0]}),
-		.fsabo_subdids({dc__fsabo_subdid[FSAB_DID_HI:0]}),
-		.fsabo_addrs({dc__fsabo_addr[FSAB_ADDR_HI:0]}),
-		.fsabo_lens({dc__fsabo_len[FSAB_LEN_HI:0]}),
-		.fsabo_datas({dc__fsabo_data[FSAB_DATA_HI:0]}),
-		.fsabo_masks({dc__fsabo_mask[FSAB_MASK_HI:0]}),
-		.fsabo_credits({dc__fsabo_credit}),
+		.fsabo_valids({ic__fsabo_valid,dc__fsabo_valid}),
+		.fsabo_modes({ic__fsabo_mode[FSAB_REQ_HI:0],dc__fsabo_mode[FSAB_REQ_HI:0]}),
+		.fsabo_dids({ic__fsabo_did[FSAB_DID_HI:0],dc__fsabo_did[FSAB_DID_HI:0]}),
+		.fsabo_subdids({ic__fsabo_subdid[FSAB_DID_HI:0],dc__fsabo_subdid[FSAB_DID_HI:0]}),
+		.fsabo_addrs({ic__fsabo_addr[FSAB_ADDR_HI:0],dc__fsabo_addr[FSAB_ADDR_HI:0]}),
+		.fsabo_lens({ic__fsabo_len[FSAB_LEN_HI:0],dc__fsabo_len[FSAB_LEN_HI:0]}),
+		.fsabo_datas({ic__fsabo_data[FSAB_DATA_HI:0],dc__fsabo_data[FSAB_DATA_HI:0]}),
+		.fsabo_masks({ic__fsabo_mask[FSAB_MASK_HI:0],dc__fsabo_mask[FSAB_MASK_HI:0]}),
+		.fsabo_credits({ic__fsabo_credit,dc__fsabo_credit}),
 		); */
 	FSABArbiter fsabarbiter(
 		/*AUTOINST*/
 				// Outputs
-				.fsabo_credits	({dc__fsabo_credit}), // Templated
+				.fsabo_credits	({ic__fsabo_credit,dc__fsabo_credit}), // Templated
 				.fsabo_valid	(fsabo_valid),
 				.fsabo_mode	(fsabo_mode[FSAB_REQ_HI:0]),
 				.fsabo_did	(fsabo_did[FSAB_DID_HI:0]),
@@ -276,15 +289,16 @@ module System(input clk, input rst
 				// Inputs
 				.clk		(clk),
 				.Nrst		(Nrst),
-				.fsabo_valids	({dc__fsabo_valid}), // Templated
-				.fsabo_modes	({dc__fsabo_mode[FSAB_REQ_HI:0]}), // Templated
-				.fsabo_dids	({dc__fsabo_did[FSAB_DID_HI:0]}), // Templated
-				.fsabo_subdids	({dc__fsabo_subdid[FSAB_DID_HI:0]}), // Templated
-				.fsabo_addrs	({dc__fsabo_addr[FSAB_ADDR_HI:0]}), // Templated
-				.fsabo_lens	({dc__fsabo_len[FSAB_LEN_HI:0]}), // Templated
-				.fsabo_datas	({dc__fsabo_data[FSAB_DATA_HI:0]}), // Templated
-				.fsabo_masks	({dc__fsabo_mask[FSAB_MASK_HI:0]}), // Templated
+				.fsabo_valids	({ic__fsabo_valid,dc__fsabo_valid}), // Templated
+				.fsabo_modes	({ic__fsabo_mode[FSAB_REQ_HI:0],dc__fsabo_mode[FSAB_REQ_HI:0]}), // Templated
+				.fsabo_dids	({ic__fsabo_did[FSAB_DID_HI:0],dc__fsabo_did[FSAB_DID_HI:0]}), // Templated
+				.fsabo_subdids	({ic__fsabo_subdid[FSAB_DID_HI:0],dc__fsabo_subdid[FSAB_DID_HI:0]}), // Templated
+				.fsabo_addrs	({ic__fsabo_addr[FSAB_ADDR_HI:0],dc__fsabo_addr[FSAB_ADDR_HI:0]}), // Templated
+				.fsabo_lens	({ic__fsabo_len[FSAB_LEN_HI:0],dc__fsabo_len[FSAB_LEN_HI:0]}), // Templated
+				.fsabo_datas	({ic__fsabo_data[FSAB_DATA_HI:0],dc__fsabo_data[FSAB_DATA_HI:0]}), // Templated
+				.fsabo_masks	({ic__fsabo_mask[FSAB_MASK_HI:0],dc__fsabo_mask[FSAB_MASK_HI:0]}), // Templated
 				.fsabo_credit	(fsabo_credit));
+	defparam fsabarbiter.FSAB_DEVICES = 2;
 
 `ifdef verilator
 	BigBlockRAM

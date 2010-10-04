@@ -26,7 +26,7 @@ module FSABArbiter(
 `include "fsab_defines.vh"
 	parameter FSAB_DEVICES = 1;	/* Can be changed externally. */
 
-	parameter FSAB_DEVICES_HI = $clog2(FSAB_DEVICES+1)-1;
+	parameter FSAB_DEVICES_HI = $clog2((FSAB_DEVICES == 1) ? 2 : FSAB_DEVICES)-1;
 
 	/* The theory internal to these state machines (generated with a
 	 * genvar, so that we can split out the input bit vectors) is that
