@@ -27,20 +27,9 @@ module FSABArbiterFIFO(
 	);
 
 `include "fsab_defines.vh"
+	parameter myindex = 0;
 
-	/*** Stubs ***/
-	assign inp_credit = 0;
-	assign out_valid = 0;
-	assign out_mode = 0;
-	assign out_did = 0;
-	assign out_subdid = 0;
-	assign out_addr = 0;
-	assign out_len = 0;
-	assign out_data = 0;
-	assign out_mask = 0;
-	assign empty_b = 0;
-	assign active = 0;
-
+	
 	/*** Inbound request FIFO (RFIF) ***/
 	reg [FSAB_CREDITS_HI:0] rfif_wpos_0a = 'h0;
 	reg [FSAB_CREDITS_HI:0] rfif_rpos_0a = 'h0;
@@ -58,14 +47,14 @@ module FSABArbiterFIFO(
 			rfif_rpos_0a <= 'h0;
 		end else begin
 			if (rfif_rd_0a) begin
-				$display("ARB: %5d: reading from rfif", $time);
+				$display("ARB[%2d]: %5d: reading from rfif", myindex, $time);
 				/* NOTE: this FIFO style will NOT port to Xilinx! */
 				rfif_rdat_1a <= rfif_fifo[rfif_rpos_0a[1:0]];
 				rfif_rpos_0a <= rfif_rpos_0a + 'h1;
 			end
 			
 			if (rfif_wr_0a) begin
-				$display("ARB: %5d: writing to rfif (%d word %s)", $time, inp_len, (inp_mode == FSAB_WRITE) ? "write" : "read");
+				$display("ARB[%2d]: %5d: writing to rfif (%d word %s to %08x)", myindex, $time, inp_len, (inp_mode == FSAB_WRITE) ? "write" : "read", inp_addr);
 				rfif_fifo[rfif_wpos_0a[1:0]] <= rfif_wdat_0a;
 				rfif_wpos_0a <= rfif_wpos_0a + 'h1;
 			end
@@ -125,7 +114,7 @@ module FSABArbiterFIFO(
 			dfif_rpos_0a <= 'h0;
 		end else begin
 			if (dfif_rd_0a) begin
-				$display("ARB: %5d: reading from dfif (ad %d, da %x)", $time, dfif_rpos_0a, dfif_fifo[dfif_rpos_0a]);
+				$display("ARB[%2d]: %5d: reading from dfif (ad %d, da %x)", myindex, $time, dfif_rpos_0a, dfif_fifo[dfif_rpos_0a]);
 				/* NOTE: this FIFO style will NOT port to Xilinx! */
 				dfif_rdat_1a <= dfif_fifo[dfif_rpos_0a];
 				dfif_rpos_0a <= dfif_rpos_0a + 'h1;
@@ -134,7 +123,7 @@ module FSABArbiterFIFO(
 			end
 			
 			if (dfif_wr_0a) begin
-				$display("ARB: %5d: writing to dfif (ad %d, %08b mask, %08x data)", $time, dfif_wpos_0a, inp_mask, inp_data);
+				$display("ARB[%2d]: %5d: writing to dfif (ad %d, %08b mask, %08x data)", myindex, $time, dfif_wpos_0a, inp_mask, inp_data);
 				dfif_fifo[dfif_wpos_0a] <= dfif_wdat_0a;
 				dfif_wpos_0a <= dfif_wpos_0a + 'h1;
 			end
@@ -159,6 +148,104 @@ module FSABArbiterFIFO(
 	 * rfif_rd...  even if len is 0, or even if the request was a read!
 	 */
 	
-	assign rfif_rd_0a = 0;
-	assign dfif_rd_0a = 0;
+	/*** Pipe-throughs ***/
+	reg rfif_rd_1a = 0;
+	reg dfif_rd_1a = 0;
+	always @(posedge clk or negedge Nrst)
+		if (!Nrst) begin
+			rfif_rd_1a <= 0;
+			dfif_rd_1a <= 0;
+		end else begin
+			rfif_rd_1a <= rfif_rd_0a;
+			dfif_rd_1a <= dfif_rd_0a;
+		end
+	
+	/*** Readout logic ***/
+	/* When start is asserted, we can *always* kick off an rfif read. 
+	 * Why?  Well, it may result in rfif getting out of sync...  but
+	 * it's a protocol violation on the input for start to be asserted
+	 * while we're in a transaction ("active").  It will get caught by
+	 * an assertion checker -- but no special action is needed to slow
+	 * down the RTL to check for it.
+	 */
+	
+	/* XXX: This isn't really true.  It may light up before we actually
+	 * have a full packet buffered in.  It won't cause any correctness
+	 * issues, but if a master has lots of intra-packet delays, then
+	 * this will cause the arbited interface to back up.
+	 */
+	assign empty_b = !rfif_empty_0a;
+	
+	/* Active determines whether we have a request waiting (i.e., we did
+	 * an RFIF read).  It is high as long as we are serving it (which
+	 * might be more than the number of cycles in 'len', since we might
+	 * not have all of the data in the dfif yet).
+	 */
+	reg  [FSAB_LEN_HI:0]  mem_cur_req_len_rem_0a = 'h0;
+	reg                   mem_cur_req_active_0a = 0;
+	reg                   mem_cur_req_active_1a = 0;
+	wire [FSAB_ADDR_HI:0] mem_cur_req_addr_1a;
+	reg  [FSAB_ADDR_HI:0] mem_cur_req_addr_1a_r = 0;
+	
+	/* If we just finished reading from the dfif for the last time
+	 * (i.e., we just went inactive), then we can release a credit. 
+	 * This is as distinct from releasing a credit every time we read
+	 * from rfif, which is incorrect because there may not yet be space
+	 * in the dfif yet.  (Compare this to the empty_b issue, which is
+	 * the opposite.)
+	 *
+	 * Alternatively, if we were doing no dfif reading at all (we just
+	 * ate a READ packet), then we're done, too.
+	 */
+	assign inp_credit = (mem_cur_req_active_1a && !mem_cur_req_active_0a) ||
+	                      (rfif_rd_1a && (rfif_mode_1a == FSAB_READ));
+	
+	/* Similarly, we're active as long as something is showing up on the
+	 * output bus (mem_cur_req_active_1a), or we just did a read and
+	 * we're thinking about it.
+	 */
+	assign active = mem_cur_req_active_1a || mem_cur_req_active_0a || rfif_rd_1a;
+	
+	/* TODO: This means that dfif does one read, then pauses one cycle,
+	 * then continues doing the read until we run out of data.  Can the
+	 * one-cycle pause be removed easily?
+	 *
+	 * This is the same problem as in FSABSimMemory.
+	 */
+	assign rfif_rd_0a = !rfif_empty_0a && !mem_cur_req_active_0a && !rfif_rd_1a && start;
+	assign dfif_rd_0a = rfif_rd_0a || /* We must always do a read from dfif on rfif. */
+	                    (mem_cur_req_active_0a &&
+	                     (rfif_mode_1a == FSAB_WRITE) &&
+	                     (mem_cur_req_len_rem_0a != 'h1) &&
+	                     (mem_cur_req_len_rem_0a != 'h0));
+	
+	always @(posedge clk or negedge Nrst)
+		if (!Nrst) begin
+			mem_cur_req_len_rem_0a <= 'h0;
+			mem_cur_req_active_0a <= 0;
+			mem_cur_req_active_1a <= 0;
+			mem_cur_req_addr_1a_r <= 0;
+		end else begin
+			mem_cur_req_active_1a <= mem_cur_req_active_0a;
+		
+			if (rfif_rd_1a && (rfif_mode_1a == FSAB_WRITE)) begin
+				$display("ARB[%2d]: %5d: RFIF was just read; it was a %d word %s at %08x", myindex, $time, rfif_len_1a, (rfif_mode_1a == FSAB_WRITE) ? "WRITE" : "READ", rfif_addr_1a);
+				mem_cur_req_active_0a <= 1;
+				mem_cur_req_len_rem_0a <= rfif_len_1a;
+			end else if (dfif_rd_0a)
+				mem_cur_req_len_rem_0a <= mem_cur_req_len_rem_0a - 1;
+			else if (mem_cur_req_len_rem_0a == 'h1 || mem_cur_req_len_rem_0a == 'h0) begin
+				mem_cur_req_active_0a <= 0;
+			end
+		end
+	
+	/*** External interface assignments ***/
+	assign out_valid = dfif_rd_1a;
+	assign out_mode = rfif_mode_1a;
+	assign out_did = rfif_did_1a;
+	assign out_subdid = rfif_subdid_1a;
+	assign out_addr = rfif_addr_1a;
+	assign out_len = rfif_len_1a;
+	assign out_data = dfif_data_1a;
+	assign out_mask = dfif_mask_1a;
 endmodule

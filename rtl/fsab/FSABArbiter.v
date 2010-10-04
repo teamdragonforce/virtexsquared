@@ -81,9 +81,10 @@ module FSABArbiter(
 				     .inp_subdid	(fsabo_subdids[`ARB_BITS(FSAB_DID_HI)]),
 				     .inp_addr		(fsabo_addrs[`ARB_BITS(FSAB_ADDR_HI)]),
 				     .inp_len		(fsabo_lens[`ARB_BITS(FSAB_LEN_HI)]),
-				     .inp_data		(fsabo_data[`ARB_BITS(FSAB_DATA_HI)]),
+				     .inp_data		(fsabo_datas[`ARB_BITS(FSAB_DATA_HI)]),
 				     .inp_mask		(fsabo_masks[`ARB_BITS(FSAB_MASK_HI)]),
 				     .start		(fifo_start[i]));
+		defparam fifo.myindex = i;
 	end
 	endgenerate
 	
@@ -95,7 +96,7 @@ module FSABArbiter(
 			fsab_credits <= FSAB_INITIAL_CREDITS;
 		end else begin
 			if (fsabo_credit | (|fifo_start))
-				$display("DCACHE: Credits: %d (+%d, -%d)", fsab_credits, fsabo_credit, fsabo_valid);
+				$display("ARB: %5d: Credits: %d (+%d, -%d)", $time, fsab_credits, fsabo_credit, |fifo_start);
 			fsab_credits <= fsab_credits + (fsabo_credit ? 1 : 0) - ((|fifo_start) ? 1 : 0);
 		end
 	
@@ -129,7 +130,7 @@ module FSABArbiter(
 	/* verilator lint_off WIDTH */ /* comparing an int to a reg */
 	always @(*)
 		for (ii = 0; ii < FSAB_DEVICES; ii = ii + 1)
-			fifo_start[ii] = new_selection && (current_device_next == ii) && fsab_credit_avail;
+			fifo_start[ii] = new_selection && (current_device_next == ii) && fifo_empty_b[ii] && fsab_credit_avail;
 	/* verilator lint_on WIDTH */ /* comparing an int to a reg */
 	
 	/*** Output routing ***/
