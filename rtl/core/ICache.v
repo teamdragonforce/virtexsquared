@@ -10,15 +10,15 @@ module ICache(
 	output wire [31:0] ic__rd_data_1a,
 	
 	/* bus interface */
-	output reg                  fsabo_valid,
-	output reg [FSAB_REQ_HI:0]  fsabo_mode,
-	output reg [FSAB_DID_HI:0]  fsabo_did,
-	output reg [FSAB_DID_HI:0]  fsabo_subdid,
-	output reg [FSAB_ADDR_HI:0] fsabo_addr,
-	output reg [FSAB_LEN_HI:0]  fsabo_len,
-	output reg [FSAB_DATA_HI:0] fsabo_data,
-	output reg [FSAB_MASK_HI:0] fsabo_mask,
-	input                       fsabo_credit,
+	output reg                  ic__fsabo_valid,
+	output reg [FSAB_REQ_HI:0]  ic__fsabo_mode,
+	output reg [FSAB_DID_HI:0]  ic__fsabo_did,
+	output reg [FSAB_DID_HI:0]  ic__fsabo_subdid,
+	output reg [FSAB_ADDR_HI:0] ic__fsabo_addr,
+	output reg [FSAB_LEN_HI:0]  ic__fsabo_len,
+	output reg [FSAB_DATA_HI:0] ic__fsabo_data,
+	output reg [FSAB_MASK_HI:0] ic__fsabo_mask,
+	input                       ic__fsabo_credit,
 	
 	input                       fsabi_valid,
 	input      [FSAB_DID_HI:0]  fsabi_did,
@@ -37,9 +37,9 @@ module ICache(
 	reg [FSAB_CREDITS_HI:0] fsab_credits = FSAB_INITIAL_CREDITS;	/* XXX needs resettability */
 	wire fsab_credit_avail = (fsab_credits != 0);
 	always @(posedge clk) begin
-		if (fsabo_credit | fsabo_valid)
-			$display("ICACHE: Credits: %d (+%d, -%d)", fsab_credits, fsabo_credit, fsabo_valid);
-		fsab_credits <= fsab_credits + (fsabo_credit ? 1 : 0) - (fsabo_valid ? 1 : 0);
+		if (ic__fsabo_credit | ic__fsabo_valid)
+			$display("ICACHE: Credits: %d (+%d, -%d)", fsab_credits, ic__fsabo_credit, ic__fsabo_valid);
+		fsab_credits <= fsab_credits + (ic__fsabo_credit ? 1 : 0) - (ic__fsabo_valid ? 1 : 0);
 	end
 
 	
@@ -91,14 +91,14 @@ module ICache(
 	wire start_read = ic__rd_req_0a && !cache_hit_0a && !read_pending && fsab_credit_avail;
 	always @(*)
 	begin
-		fsabo_valid = 0;
-		fsabo_mode = {(FSAB_REQ_HI+1){1'bx}};
-		fsabo_did = {(FSAB_DID_HI+1){1'bx}};
-		fsabo_subdid = {(FSAB_DID_HI+1){1'bx}};
-		fsabo_addr = {(FSAB_ADDR_HI+1){1'bx}};
-		fsabo_len = {{FSAB_LEN_HI+1}{1'bx}};
-		fsabo_data = {{FSAB_DATA_HI+1}{1'bx}};
-		fsabo_mask = {{FSAB_MASK_HI+1}{1'bx}};
+		ic__fsabo_valid = 0;
+		ic__fsabo_mode = {(FSAB_REQ_HI+1){1'bx}};
+		ic__fsabo_did = {(FSAB_DID_HI+1){1'bx}};
+		ic__fsabo_subdid = {(FSAB_DID_HI+1){1'bx}};
+		ic__fsabo_addr = {(FSAB_ADDR_HI+1){1'bx}};
+		ic__fsabo_len = {{FSAB_LEN_HI+1}{1'bx}};
+		ic__fsabo_data = {{FSAB_DATA_HI+1}{1'bx}};
+		ic__fsabo_mask = {{FSAB_MASK_HI+1}{1'bx}};
 		
 		/* At first glance, there can only be one request alive at a
 		 * time, but that's not quite the case; there can
@@ -108,13 +108,13 @@ module ICache(
 		 */
 		
 		if (start_read) begin
-			fsabo_valid = 1;
-			fsabo_mode = FSAB_READ;
-			fsabo_did = FSAB_DID_CPU;
-			fsabo_subdid = FSAB_SUBDID_CPU_ICACHE;
-			fsabo_addr = {ic__rd_addr_0a[30:6], 3'b000, 3'b000 /* 64-bit aligned */};
-			fsabo_len = 'h8; /* 64 byte cache lines, 8 byte reads */
-			$display("ICACHE: Starting read: Addr %08x", fsabo_addr);
+			ic__fsabo_valid = 1;
+			ic__fsabo_mode = FSAB_READ;
+			ic__fsabo_did = FSAB_DID_CPU;
+			ic__fsabo_subdid = FSAB_SUBDID_CPU_ICACHE;
+			ic__fsabo_addr = {ic__rd_addr_0a[30:6], 3'b000, 3'b000 /* 64-bit aligned */};
+			ic__fsabo_len = 'h8; /* 64 byte cache lines, 8 byte reads */
+			$display("ICACHE: Starting read: Addr %08x", ic__fsabo_addr);
 		end
 	end
 
