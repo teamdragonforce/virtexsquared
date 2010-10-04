@@ -12,15 +12,15 @@ module DCache(
 	output reg [31:0] dc__rd_data_3a,
 
 	/* bus interface */
-	output reg                  fsabo_valid,
-	output reg [FSAB_REQ_HI:0]  fsabo_mode,
-	output reg [FSAB_DID_HI:0]  fsabo_did,
-	output reg [FSAB_DID_HI:0]  fsabo_subdid,
-	output reg [FSAB_ADDR_HI:0] fsabo_addr,
-	output reg [FSAB_LEN_HI:0]  fsabo_len,
-	output reg [FSAB_DATA_HI:0] fsabo_data,
-	output reg [FSAB_MASK_HI:0] fsabo_mask,
-	input                       fsabo_credit,
+	output reg                  dc__fsabo_valid,
+	output reg [FSAB_REQ_HI:0]  dc__fsabo_mode,
+	output reg [FSAB_DID_HI:0]  dc__fsabo_did,
+	output reg [FSAB_DID_HI:0]  dc__fsabo_subdid,
+	output reg [FSAB_ADDR_HI:0] dc__fsabo_addr,
+	output reg [FSAB_LEN_HI:0]  dc__fsabo_len,
+	output reg [FSAB_DATA_HI:0] dc__fsabo_data,
+	output reg [FSAB_MASK_HI:0] dc__fsabo_mask,
+	input                       dc__fsabo_credit,
 	
 	input                       fsabi_valid,
 	input      [FSAB_DID_HI:0]  fsabi_did,
@@ -39,9 +39,9 @@ module DCache(
 	reg [FSAB_CREDITS_HI:0] fsab_credits = FSAB_INITIAL_CREDITS;	/* XXX needs resettability */
 	wire fsab_credit_avail = (fsab_credits != 0);
 	always @(posedge clk) begin
-		if (fsabo_credit | fsabo_valid)
-			$display("DCACHE: Credits: %d (+%d, -%d)", fsab_credits, fsabo_credit, fsabo_valid);
-		fsab_credits <= fsab_credits + (fsabo_credit ? 1 : 0) - (fsabo_valid ? 1 : 0);
+		if (dc__fsabo_credit | dc__fsabo_valid)
+			$display("DCACHE: Credits: %d (+%d, -%d)", fsab_credits, dc__fsabo_credit, dc__fsabo_valid);
+		fsab_credits <= fsab_credits + (dc__fsabo_credit ? 1 : 0) - (dc__fsabo_valid ? 1 : 0);
 	end
 	
 	/* [31 tag 10] [9 cache index 6] [5 data index 0]
@@ -93,14 +93,14 @@ module DCache(
 	wire start_read = dc__rd_req_3a && !cache_hit_3a && !read_pending && fsab_credit_avail;
 	always @(*)
 	begin
-		fsabo_valid = 0;
-		fsabo_mode = {(FSAB_REQ_HI+1){1'bx}};
-		fsabo_did = {(FSAB_DID_HI+1){1'bx}};
-		fsabo_subdid = {(FSAB_DID_HI+1){1'bx}};
-		fsabo_addr = {(FSAB_ADDR_HI+1){1'bx}};
-		fsabo_len = {{FSAB_LEN_HI+1}{1'bx}};
-		fsabo_data = {{FSAB_DATA_HI+1}{1'bx}};
-		fsabo_mask = {{FSAB_MASK_HI+1}{1'bx}};
+		dc__fsabo_valid = 0;
+		dc__fsabo_mode = {(FSAB_REQ_HI+1){1'bx}};
+		dc__fsabo_did = {(FSAB_DID_HI+1){1'bx}};
+		dc__fsabo_subdid = {(FSAB_DID_HI+1){1'bx}};
+		dc__fsabo_addr = {(FSAB_ADDR_HI+1){1'bx}};
+		dc__fsabo_len = {{FSAB_LEN_HI+1}{1'bx}};
+		dc__fsabo_data = {{FSAB_DATA_HI+1}{1'bx}};
+		dc__fsabo_mask = {{FSAB_MASK_HI+1}{1'bx}};
 		
 		/* At first glance, there can only be one request alive at a
 		 * time, but that's not quite the case; there can
@@ -110,22 +110,22 @@ module DCache(
 		 */
 		
 		if (start_read) begin
-			fsabo_valid = 1;
-			fsabo_mode = FSAB_READ;
-			fsabo_did = FSAB_DID_CPU;
-			fsabo_subdid = FSAB_SUBDID_CPU_DCACHE;
-			fsabo_addr = {dc__addr_3a[30:6], 3'b000, 3'b000 /* 64-bit aligned */};
-			fsabo_len = 'h8; /* 64 byte cache lines, 8 byte reads */
-			$display("DCACHE: Starting read: Addr %08x", fsabo_addr);
+			dc__fsabo_valid = 1;
+			dc__fsabo_mode = FSAB_READ;
+			dc__fsabo_did = FSAB_DID_CPU;
+			dc__fsabo_subdid = FSAB_SUBDID_CPU_DCACHE;
+			dc__fsabo_addr = {dc__addr_3a[30:6], 3'b000, 3'b000 /* 64-bit aligned */};
+			dc__fsabo_len = 'h8; /* 64 byte cache lines, 8 byte reads */
+			$display("DCACHE: Starting read: Addr %08x", dc__fsabo_addr);
 		end else if (dc__wr_req_3a && fsab_credit_avail) begin
-			fsabo_valid = 1;
-			fsabo_mode = FSAB_WRITE;
-			fsabo_did = FSAB_DID_CPU;
-			fsabo_subdid = FSAB_SUBDID_CPU_DCACHE;
-			fsabo_addr = {dc__addr_3a[30:3], 3'b000 /* 64-bit aligned */};
-			fsabo_len = 'h1; /* one eight-byte write */
-			fsabo_data = {dc__wr_data_3a, dc__wr_data_3a};
-			fsabo_mask = dc__addr_3a[2] ? 8'hF0 : 8'h0F;
+			dc__fsabo_valid = 1;
+			dc__fsabo_mode = FSAB_WRITE;
+			dc__fsabo_did = FSAB_DID_CPU;
+			dc__fsabo_subdid = FSAB_SUBDID_CPU_DCACHE;
+			dc__fsabo_addr = {dc__addr_3a[30:3], 3'b000 /* 64-bit aligned */};
+			dc__fsabo_len = 'h1; /* one eight-byte write */
+			dc__fsabo_data = {dc__wr_data_3a, dc__wr_data_3a};
+			dc__fsabo_mask = dc__addr_3a[2] ? 8'hF0 : 8'h0F;
 			$display("DCACHE: WRITE REQUEST: Addr %08x, data %08x", dc__addr_3a, dc__wr_data_3a);
 		end
 	end

@@ -1,228 +1,145 @@
-
-
-module FIF(
-`include "fsab_defines.vh"
-`define FSAB_DEVICES_MAX (16)
-`define FSAB_RFIF_HI (1 + FSAB_REQ_HI+1 + FSAB_DID_HI+1 + FSAB_DID_HI+1 + FSAB_ADDR_HI+1 + FSAB_LEN_HI)
-`define FSAB_DFIF_MAX 31
-`define FSAB_DFIF_HI 4
-	input clk,
-	input Nrst,
+module FSABArbiter(
+	input                                       clk,
+	input                                       Nrst,
 	
-	input                        fifo_read,
-	input                        fsabo_valid,
-	input       [FSAB_REQ_HI:0]  fsabo_mode,
-	input       [FSAB_DID_HI:0]  fsabo_did,
-	input       [FSAB_DID_HI:0]  fsabo_subdid,
-	input       [FSAB_ADDR_HI:0] fsabo_addr,
-	input       [FSAB_LEN_HI:0]  fsabo_len,
-	input       [FSAB_DATA_HI:0] fsabo_data,
-	input       [FSAB_MASK_HI:0] fsabo_mask,
+	input [FSAB_DEVICES-1:0]                    fsabo_valids,
+	input [(FSAB_DEVICES*(FSAB_REQ_HI+1))-1:0]  fsabo_modes,
+	input [(FSAB_DEVICES*(FSAB_DID_HI+1))-1:0]  fsabo_dids,
+	input [(FSAB_DEVICES*(FSAB_DID_HI+1))-1:0]  fsabo_subdids,
+	input [(FSAB_DEVICES*(FSAB_ADDR_HI+1))-1:0] fsabo_addrs,
+	input [(FSAB_DEVICES*(FSAB_LEN_HI+1))-1:0]  fsabo_lens,
+	input [(FSAB_DEVICES*(FSAB_DATA_HI+1))-1:0] fsabo_datas,
+	input [(FSAB_DEVICES*(FSAB_MASK_HI+1))-1:0] fsabo_masks,
+	output wire [FSAB_DEVICES-1:0]              fsabo_credits,
 	
-	output wire [FSAB_RFIF_HI:0] fsab_req_out,
-	output wire [FSAB_DATA_HI:0] fsabi_data,
-	output wire [FSAB_MASK_HI:0] fsabi_mask
+	output wire                                 fsabo_valid,
+	output wire [FSAB_REQ_HI:0]                 fsabo_mode,
+	output wire [FSAB_DID_HI:0]                 fsabo_did,
+	output wire [FSAB_DID_HI:0]                 fsabo_subdid,
+	output wire [FSAB_ADDR_HI:0]                fsabo_addr,
+	output wire [FSAB_LEN_HI:0]                 fsabo_len,
+	output wire [FSAB_DATA_HI:0]                fsabo_data,
+	output wire [FSAB_MASK_HI:0]                fsabo_mask,
+	input                                       fsabo_credit
 	);
 
-
-
-	/*** Inbound request FIFO (RFIF) ***/
-	reg [FSAB_CREDITS_HI:0] rfif_wpos_0a = 'h0;
-	reg [FSAB_CREDITS_HI:0] rfif_rpos_0a = 'h0;
-	reg [FSAB_RFIF_HI:0] rfif_fifo [(FSAB_INITIAL_CREDITS-1):0];
-	wire rfif_wr_0a;
-	wire rfif_rd_0a;
-	wire [FSAB_RFIF_HI:0] rfif_wdat_0a;
-	reg [FSAB_RFIF_HI:0] rfif_rdat_1a;
-	wire rfif_empty_0a = (rfif_rpos_0a == rfif_wpos_0a);
-	wire rfif_full_0a = (rfif_wpos_0a == (rfif_rpos_0a + FSAB_INITIAL_CREDITS));
-	
-	always @(posedge clk or negedge Nrst)
-		if (!Nrst) begin
-			rfif_wpos_0a <= 'h0;
-			rfif_rpos_0a <= 'h0;
-		end else begin
-			if (rfif_rd_0a) begin
-				/* NOTE: this FIFO style will NOT port to Xilinx! */
-				rfif_rdat_1a <= rfif_fifo[rfif_rpos_0a[1:0]];
-				rfif_rpos_0a <= rfif_rpos_0a + 'h1;
-			end
-			
-			if (rfif_wr_0a) begin
-				rfif_fifo[rfif_wpos_0a[1:0]] <= rfif_wdat_0a;
-				rfif_wpos_0a <= rfif_wpos_0a + 'h1;
-			end
-		end
-	
-	always @(posedge clk) begin
-		assert (rfif_empty_0a && rfif_rd_0a) else $error("RFIF rd while empty");
-		assert (rfif_full_0a  && rfif_wr_0a) else $error("RFIF wr while full");
-	end
-	
-
-	
-	/* rfif_rd is assigned later */
-	assign fsab_req_out = rfif_rdat_1a;
-	assign rfif_wdat_0a = {fsabo_valid, fsabo_mode, fsabo_did, fsabo_subdid,
-	                       fsabo_addr, fsabo_len};
-	reg [FSAB_LEN_HI:0] fsabo_cur_req_len_rem_1a = 0;
-	wire fsabo_cur_req_done_1a = (fsabo_cur_req_len_rem_1a == 0 /* we were done long ago */ || 
-	                              fsabo_cur_req_len_rem_1a == 1 /* last cycle (1a) was the last word;
-								       this cycle (0a), len will be 0 */);
-	assign rfif_wr_0a = fsabo_valid && fsabo_cur_req_done_1a;
-	
-	always @(posedge clk or negedge Nrst)
-		if (Nrst) begin
-			fsabo_cur_req_len_rem_1a <= 0;
-		end else begin
-			if (fsabo_valid && fsabo_cur_req_done_1a && (fsabo_mode == FSAB_WRITE))
-				fsabo_cur_req_len_rem_1a <= fsabo_len;
-			else if (fsabo_valid && fsabo_cur_req_len_rem_1a != 0)
-				fsabo_cur_req_len_rem_1a <= fsabo_cur_req_len_rem_1a - 1;
-		end
-	
-	/*** Inbound data FIFO (DFIF) ***/
-/*
- * Should be as follows, but that's not a power of 2:
- * `define FSAB_DFIF_MAX (((FSAB_CREDITS_HI+1) * FSAB_LEN_MAX) - 1)
- * `define FSAB_DFIF_HI ($clog2(`SIMMEM_DFIF_MAX) - 1)
- */
-	reg [FSAB_DFIF_HI:0] dfif_wpos_0a = 'h0;
-	reg [FSAB_DFIF_HI:0] dfif_rpos_0a = 'h0;
-	reg [FSAB_DATA_HI+1 + FSAB_MASK_HI:0] dfif_fifo [FSAB_DFIF_MAX:0];
-	wire dfif_wr_0a;
-	wire dfif_rd_0a;
-	wire [FSAB_DATA_HI+1 + FSAB_MASK_HI:0] dfif_wdat_0a;
-	reg [FSAB_DATA_HI+1 + FSAB_MASK_HI:0] dfif_rdat_1a;
-	wire dfif_empty_0a = (dfif_rpos_0a == dfif_wpos_0a);
-	wire dfif_full_0a = (dfif_wpos_0a == (dfif_rpos_0a + FSAB_DFIF_MAX));
-	wire [FSAB_DFIF_HI:0] dfif_avail_0a = dfif_wpos_0a - dfif_rpos_0a;
-	
-	always @(posedge clk or negedge Nrst)
-		if (!Nrst) begin
-			dfif_wpos_0a <= 'h0;
-			dfif_rpos_0a <= 'h0;
-		end else begin
-			if (dfif_rd_0a) begin
-				/* NOTE: this FIFO style will NOT port to Xilinx! */
-				dfif_rdat_1a <= dfif_fifo[dfif_rpos_0a];
-				dfif_rpos_0a <= dfif_rpos_0a + 'h1;
-			end else begin
-				dfif_rdat_1a <= {(FSAB_DATA_HI+1 + FSAB_MASK_HI+1){1'hx}};
-			end
-			
-			if (dfif_wr_0a) begin
-				dfif_fifo[dfif_wpos_0a] <= dfif_wdat_0a;
-				dfif_wpos_0a <= dfif_wpos_0a + 'h1;
-			end
-		end
-	
-	always @(posedge clk) begin
-		assert (dfif_empty_0a && dfif_rd_0a) else $error("DFIF rd while empty");
-		assert (dfif_full_0a  && dfif_wr_0a) else $error("DFIF wr while full");
-	end
-	
-	
-	/* dfif_rd is assigned later */
-	assign {fsabi_data,fsabi_mask} = dfif_rdat_1a;
-	assign dfif_wdat_0a = {fsabo_data,fsabo_mask};
-	assign dfif_wr_0a = fsabo_valid;
-	/* NOTE: this means that dfif_rd must ALWAYS be asserted along with
-	 * rfif_rd...  even if len is 0, and even if the request was a read!
-	 */
-	
-	/*** Pipe-throughs ***/
-	reg rfif_rd_1a = 0;
-	reg dfif_rd_1a = 0;
-	always @(posedge clk or negedge Nrst)
-		if (!Nrst) begin
-			rfif_rd_1a <= 0;
-			dfif_rd_1a <= 0;
-		end else begin
-			rfif_rd_1a <= rfif_rd_0a;
-			dfif_rd_1a <= dfif_rd_0a;
-		end
-	
-	
-	/* TODO: This means that dfif does one read, then pauses one cycle,
-	 * then continues doing the read until we run out of data.  Can the
-	 * one-cycle pause be removed easily?
-	 */
-	assign rfif_rd_0a = !rfif_empty_0a && !rfif_rd_1a && fifo_read;
-	assign dfif_rd_0a = rfif_rd_0a;  /* We must always do a read from dfif on rfif. */
-	
-	
-endmodule
-
-module FSABArbiter(
 `include "fsab_defines.vh"
-`define FSAB_DEVICES_MAX (16)
-`define FSAB_RFIF_HI (1 + FSAB_REQ_HI+1 + FSAB_DID_HI+1 + FSAB_DID_HI+1 + FSAB_ADDR_HI+1 + FSAB_LEN_HI)
-`define FSAB_DFIF_MAX 31
-`define FSAB_DFIF_HI 4
-	input clk,
-	input Nrst,
-	input fsabo_valids[FSAB_DEVICES_MAX],
-	input [FSAB_REQ_HI:0] fsabo_modes [FSAB_DEVICES_MAX],
-	input [FSAB_DID_HI:0] fsabo_dids [FSAB_DEVICES_MAX],
-	input [FSAB_DID_HI:0] fsabo_subdids [FSAB_DEVICES_MAX],
-	input [FSAB_ADDR_HI:0] fsabo_addrs [FSAB_DEVICES_MAX],
-	input [FSAB_LEN_HI:0] fsabo_lens [FSAB_DEVICES_MAX],
-	input [FSAB_DATA_HI:0] fsabo_datas [FSAB_DEVICES_MAX],
-	input [FSAB_MASK_HI:0] fsabo_masks [FSAB_DEVICES_MAX],
-	
-	output wire                  fsabo_valid,
-	output wire [FSAB_REQ_HI:0]  fsabo_mode,
-	output wire [FSAB_DID_HI:0]  fsabo_did,
-	output wire [FSAB_DID_HI:0]  fsabo_subdid,
-	output wire [FSAB_ADDR_HI:0] fsabo_addr,
-	output wire [FSAB_LEN_HI:0]  fsabo_len,
-	output wire [FSAB_DATA_HI:0] fsabo_data,
-	output wire [FSAB_MASK_HI:0] fsabo_mask,
-	input                       fsabo_credit);
-	
+	parameter FSAB_DEVICES = 1;	/* Can be changed externally. */
 
-	
-	wire [FSAB_RFIF_HI:0] fsab_req_out [FSAB_DEVICES_MAX:0];
-	wire [FSAB_DATA_HI + 1 + FSAB_MASK_HI:0] fsab_data_out[FSAB_DEVICES_MAX:0];
-	reg fifo_read[FSAB_DEVICES_MAX];
-	reg [FSAB_RFIF_HI:0] current_device;
+	parameter FSAB_DEVICES_HI = $clog2(FSAB_DEVICES+1)-1;
 
-	assign {fsabo_valid,fsabo_mode,fsabo_did, fsabo_subdid,
-		 fsabo_addr,fsabo_len} = fsab_req_out[current_device];
-		 
-	assign {fsabo_data,fsabo_mask} = fsab_data_out[current_device];
+	/* The theory internal to these state machines (generated with a
+	 * genvar, so that we can split out the input bit vectors) is that
+	 * they will deassert empty (by raising empty_b to 1) when they have
+	 * an entry in the FIFO ready to be delivered.
+	 *
+	 * Once a FIFO has something ready, it is activated with a one-clock
+	 * pulse on fifo_start.  It then has control of the bus until it
+	 * deasserts fifo_active, during which time it should deliver
+	 * exactly one transaction.
+	 */
 
-	FIF fifs[FSAB_DEVICES_MAX](.clk(clk),
-				     .Nrst(Nrst),
-				     .fifo_read(fifo_read),
-				     .fsabo_valid(fsabo_valids),
-				     .fsabo_mode(fsabo_modes),
-				     .fsabo_did(fsabo_dids),
-				     .fsabo_subdid(fsabo_subdids),
-				     .fsabo_addr(fsabo_addrs),
-				     .fsabo_len(fsabo_lens),
-				     .fsabo_data(fsabo_datas),
-				     .fsabo_mask(fsabo_masks),
-				      .fsab_req_out(fsab_req_out),
-.fsabo_data(fsab_data_out[FSAB_DATA_HI + 1 + FSAB_MASK_HI:FSAB_MASK_HI+1]),
-.fsabo_mask(fsab_data_out[FSAB_MASK_HI:0]));
+	/*** Input request buffering state machines ***/
+	wire                  fifo_valid [FSAB_DEVICES-1:0];
+	wire [FSAB_REQ_HI:0]  fifo_mode [FSAB_DEVICES-1:0];
+	wire [FSAB_DID_HI:0]  fifo_did [FSAB_DEVICES-1:0];
+	wire [FSAB_DID_HI:0]  fifo_subdid [FSAB_DEVICES-1:0];
+	wire [FSAB_ADDR_HI:0] fifo_addr [FSAB_DEVICES-1:0];
+	wire [FSAB_LEN_HI:0]  fifo_len [FSAB_DEVICES-1:0];
+	wire [FSAB_DATA_HI:0] fifo_data [FSAB_DEVICES-1:0];
+	wire [FSAB_MASK_HI:0] fifo_mask [FSAB_DEVICES-1:0];
+	wire                  fifo_credit [FSAB_DEVICES-1:0];
+	wire [FSAB_DEVICES-1:0] fifo_empty_b;
+	wire [FSAB_DEVICES-1:0] fifo_active;
+	reg  [FSAB_DEVICES-1:0] fifo_start = {FSAB_DEVICES{1'b0}}; /* combinatorial */
+
+	generate
+	genvar i;
+	for (i = 0; i < FSAB_DEVICES; i = i + 1) begin: fifos
+
+`define ARB_BITS(HI) (i+1)*(HI+1)-1:i*(HI+1)
+		
+		FSABArbiterFIFO fifo(/*NOT AUTOINST: too much custom*/
+				     // Outputs
+				     .out_valid		(fifo_valid[i]),
+				     .out_mode		(fifo_mode[i]),
+				     .out_did		(fifo_did[i]),
+				     .out_subdid	(fifo_subdid[i]),
+				     .out_addr		(fifo_addr[i]),
+				     .out_len		(fifo_len[i]),
+				     .out_data		(fifo_data[i]),
+				     .out_mask		(fifo_mask[i]),
+				     .inp_credit        (fsabo_credits[i]),
+				     .empty_b		(fifo_empty_b[i]),
+				     .active		(fifo_active[i]),
+				     // Inputs
+				     .clk		(clk),
+				     .Nrst		(Nrst),
+				     .inp_valid		(fsabo_valids[i]),
+				     .inp_mode		(fsabo_modes[`ARB_BITS(FSAB_REQ_HI)]),
+				     .inp_did		(fsabo_dids[`ARB_BITS(FSAB_DID_HI)]),
+				     .inp_subdid	(fsabo_subdids[`ARB_BITS(FSAB_DID_HI)]),
+				     .inp_addr		(fsabo_addrs[`ARB_BITS(FSAB_ADDR_HI)]),
+				     .inp_len		(fsabo_lens[`ARB_BITS(FSAB_LEN_HI)]),
+				     .inp_data		(fsabo_data[`ARB_BITS(FSAB_DATA_HI)]),
+				     .inp_mask		(fsabo_masks[`ARB_BITS(FSAB_MASK_HI)]),
+				     .start		(fifo_start[i]));
+	end
+	endgenerate
 	
+	/*** Outbound credit availability ***/
+	reg [FSAB_CREDITS_HI:0] fsab_credits = FSAB_INITIAL_CREDITS;
+	wire fsab_credit_avail = (fsab_credits != 0);
 	always @(posedge clk or negedge Nrst)
-		if(!Nrst) begin
-			fifo_read <= 1;
-			current_device <= 0;
+		if (!Nrst) begin
+			fsab_credits <= FSAB_INITIAL_CREDITS;
 		end else begin
-			if(fsabo_credit || !(fsabo_valid)) begin
-				fifo_read <= fifo_read << 1;
-				current_device <= current_device + 1;
-				
-				if(current_device == FSAB_DEVICES_MAX) begin
-					fifo_read <= 1;
-					current_device <= current_device + 1;
-				end
-			end
+			if (fsabo_credit | (|fifo_start))
+				$display("DCACHE: Credits: %d (+%d, -%d)", fsab_credits, fsabo_credit, fsabo_valid);
+			fsab_credits <= fsab_credits + (fsabo_credit ? 1 : 0) - ((|fifo_start) ? 1 : 0);
 		end
 	
+	/*** Device selection ***/
+	reg [FSAB_DEVICES_HI:0] current_device_next = {(FSAB_DEVICES_HI+1){1'b0}};
+	reg [FSAB_DEVICES_HI:0] current_device = {(FSAB_DEVICES_HI+1){1'b0}};
+	wire new_selection = !fifo_active[current_device];
+
+	/* XXX: Currently, selection is unfair (the largest numbered device
+	 * gets to go the most often).  It would be nice to make this fair.
+	 */
+
+	integer ii;	/* must be distinct from 'i', due to genvar i */
+	/* verilator lint_off WIDTH */ /* assigning an int to a reg */
+	always @(*) begin
+		current_device_next = {(FSAB_DEVICES_HI+1){1'b0}};
+		for (ii = 0; ii < FSAB_DEVICES; ii = ii + 1)
+			if (fifo_empty_b[ii])
+				current_device_next = ii;
+	end
+	/* verilator lint_on WIDTH */ /* assigning an int to a reg */
+	
+	always @(posedge clk or negedge Nrst)
+		if (!Nrst) begin
+			current_device <= {(FSAB_DEVICES_HI+1){1'b0}};
+		end else begin
+			if (new_selection)
+				current_device <= current_device_next;
+		end
+	
+	/* verilator lint_off WIDTH */ /* comparing an int to a reg */
+	always @(*)
+		for (ii = 0; ii < FSAB_DEVICES; ii = ii + 1)
+			fifo_start[ii] = new_selection && (current_device_next == ii) && fsab_credit_avail;
+	/* verilator lint_on WIDTH */ /* comparing an int to a reg */
+	
+	/*** Output routing ***/
+	assign fsabo_valid = fifo_valid[current_device] & fifo_active[current_device];	/* Mask off bogons that might be left over. */
+	assign fsabo_mode = fifo_mode[current_device];
+	assign fsabo_did = fifo_did[current_device];
+	assign fsabo_subdid = fifo_subdid[current_device];
+	assign fsabo_addr = fifo_addr[current_device];
+	assign fsabo_len = fifo_len[current_device];
+	assign fsabo_data = fifo_data[current_device];
+	assign fsabo_mask = fifo_mask[current_device];
 	
 endmodule

@@ -1,6 +1,6 @@
 module FSABSimMemory(
-	input clk,
-	input Nrst,
+	input                        clk,
+	input                        Nrst,
 	
 	input                        fsabo_valid,
 	input       [FSAB_REQ_HI:0]  fsabo_mode,
