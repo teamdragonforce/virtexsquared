@@ -1,10 +1,17 @@
+#ifdef X86
 extern void putc(unsigned char c);
+#else
+void putc(unsigned char c)
+{
+	*(volatile unsigned int*)0x80000000 = c;
+}
+#endif
 
 int serial_getc (void)
 {
 	int c;
 	do
-		asm volatile("mrc 5, 0, %0, c1, c1, 1" : "=r"(c));
+		c = *(volatile unsigned int*)0x80000000;
 	while (!(c & 0x100));
 	return c & 0xFF;
 }

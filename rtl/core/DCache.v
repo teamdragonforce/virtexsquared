@@ -11,7 +11,7 @@ module DCache(
 	input      [31:0] dc__wr_data_3a,
 	output reg [31:0] dc__rd_data_3a,
 
-	/* bus interface */
+	/* FSAB interface */
 	output reg                  dc__fsabo_valid,
 	output reg [FSAB_REQ_HI:0]  dc__fsabo_mode,
 	output reg [FSAB_DID_HI:0]  dc__fsabo_did,
@@ -25,9 +25,20 @@ module DCache(
 	input                       fsabi_valid,
 	input      [FSAB_DID_HI:0]  fsabi_did,
 	input      [FSAB_DID_HI:0]  fsabi_subdid,
-	input      [FSAB_DATA_HI:0] fsabi_data);
+	input      [FSAB_DATA_HI:0] fsabi_data,
+	
+	/* SPAM sidechannel interface */
+	output reg                  spamo_valid,
+	output reg                  spamo_r_nw,
+	output reg [SPAM_DID_HI:0]  spamo_did,
+	output reg [SPAM_ADDR_HI:0] spamo_addr,
+	output reg [SPAM_DATA_HI:0] spamo_data,
+	
+	input                       spami_busy_b,
+	input      [SPAM_DATA_HI:0] spami_data);
 
  `include "fsab_defines.vh"
+ `include "spam_defines.vh"
 	
 	/*** FSAB credit availability logic ***/
 	
@@ -74,23 +85,13 @@ module DCache(
 	
 	wire [31:0] curdata_hi_3a = cache_data_hi[{idx_3a,didx_word_3a}];
 	wire [31:0] curdata_lo_3a = cache_data_lo[{idx_3a,didx_word_3a}];
-	always @(*) begin
-		dc__rw_wait_3a = (dc__rd_req_3a && !cache_hit_3a) || (dc__wr_req_3a && !fsab_credit_avail);
-		dc__rd_data_3a = dc__addr_3a[2] ? curdata_hi_3a : curdata_lo_3a;
-		if (!dc__rw_wait_3a && dc__rd_req_3a)
-			$display("DCACHE: READ COMPLETE: Addr %08x, data %08x", dc__addr_3a, dc__rd_data_3a);
-		if (dc__rd_req_3a && !cache_hit_3a)
-			$display("DCACHE: Stalling due to cache miss (credits %d)", fsab_credits);
-		if (dc__wr_req_3a && !fsab_credit_avail)
-			$display("DCACHE: Stalling due to insufficient credits to write");
-	end
 	
 	reg [2:0] cache_fill_pos = 0;
 	reg read_pending = 0;
 	reg [31:0] fill_addr = 0;
 	wire [21:0] fill_tag = fill_addr[31:10];
 	wire [3:0] fill_idx = fill_addr[9:6];
-	wire start_read = dc__rd_req_3a && !cache_hit_3a && !read_pending && fsab_credit_avail;
+	wire start_read = dc__rd_req_3a && !dc__addr_3a[31] && !cache_hit_3a && !read_pending && fsab_credit_avail;
 	always @(*)
 	begin
 		dc__fsabo_valid = 0;
@@ -152,5 +153,53 @@ module DCache(
 			cache_data_hi[dc__wr_req_3a ? {idx_3a,dc__addr_3a[5:3]} : {fill_idx,cache_fill_pos}] <= dc__wr_req_3a ? dc__wr_data_3a : fsabi_data[63:32];
 		if ((fsabi_valid && (fsabi_did == FSAB_DID_CPU) && (fsabi_subdid == FSAB_SUBDID_CPU_DCACHE)) || (dc__wr_req_3a && cache_hit_3a && ~dc__addr_3a[2]))
 			cache_data_lo[dc__wr_req_3a ? {idx_3a,dc__addr_3a[5:3]} : {fill_idx,cache_fill_pos}] <= dc__wr_req_3a ? dc__wr_data_3a : fsabi_data[31:0];
+	end
+	
+	/*** SPAM initiation logic ***/
+	reg spam_intrans = 0;
+	reg [7:0] spam_timeout = 0;
+	
+	always @(*) begin
+		spamo_valid = 1'b0;
+		spamo_r_nw = 1'bx;
+		spamo_did = 4'hx;
+		spamo_addr = 24'hxxxxxx;
+		spamo_data = 32'hxxxxxxxx;
+		if ((dc__rd_req_3a || dc__wr_req_3a) && dc__addr_3a[31] && !spam_intrans) begin
+			spamo_valid = 1'b1;
+			spamo_r_nw = dc__rd_req_3a;
+			spamo_did = dc__addr_3a[27:24];
+			spamo_addr = dc__addr_3a[23:0];
+			spamo_data = dc__wr_req_3a ? dc__wr_data_3a : 'bx;
+		end
+	end
+	
+	always @(posedge clk) /* XXX reset */ begin
+		if (spamo_valid) begin
+			$display("SPAM: outbound valid");
+			spam_intrans <= 1;
+			spam_timeout <= 8'hFF;
+		end else if (spami_busy_b || (spam_timeout == 0)) begin
+			$display("SPAM: busy %d, timeout %d; done", spami_busy_b, spam_timeout);
+			spam_intrans <= 0;
+		end else if (spam_intrans)
+			spam_timeout <= spam_timeout - 1;
+	end
+	
+	/*** Overall processor databus multiplexing logic ***/
+	always @(*) begin
+		if (!dc__addr_3a[31]) /* FSAB */ begin
+			dc__rw_wait_3a = (dc__rd_req_3a && !cache_hit_3a) || (dc__wr_req_3a && !fsab_credit_avail);
+			dc__rd_data_3a = dc__addr_3a[2] ? curdata_hi_3a : curdata_lo_3a;
+			if (!dc__rw_wait_3a && dc__rd_req_3a)
+				$display("DCACHE: READ COMPLETE: Addr %08x, data %08x", dc__addr_3a, dc__rd_data_3a);
+			if (dc__rd_req_3a && !cache_hit_3a)
+				$display("DCACHE: Stalling due to cache miss (credits %d)", fsab_credits);
+			if (dc__wr_req_3a && !fsab_credit_avail)
+				$display("DCACHE: Stalling due to insufficient credits to write");
+		end else /* SPAM */ begin
+			dc__rw_wait_3a = !spami_busy_b && ((spam_intrans && (spam_timeout != 0)) || spamo_valid);
+			dc__rd_data_3a = (spam_timeout == 0) ? 32'hDEADDEAD : spami_data;
+		end
 	end
 endmodule
