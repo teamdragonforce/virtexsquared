@@ -6,13 +6,14 @@ module ICache(/*AUTOARG*/
    ic__fsabo_did, ic__fsabo_subdid, ic__fsabo_addr, ic__fsabo_len,
    ic__fsabo_data, ic__fsabo_mask,
    // Inputs
-   clk, ic__rd_addr_0a, ic__rd_req_0a, ic__fsabo_credit, fsabi_valid,
-   fsabi_did, fsabi_subdid, fsabi_data
+   clk, Nrst, ic__rd_addr_0a, ic__rd_req_0a, ic__fsabo_credit,
+   fsabi_valid, fsabi_did, fsabi_subdid, fsabi_data
    );
 	`include "fsab_defines.vh"
 
 	input clk;
-
+	input Nrst;
+	
 	/* arm core interface */
 	input       [31:0] ic__rd_addr_0a;
 	input              ic__rd_req_0a;
@@ -42,12 +43,16 @@ module ICache(/*AUTOARG*/
 	 * writeback cache, it will no longer be correct!
 	 */
 	
-	reg [FSAB_CREDITS_HI:0] fsab_credits = FSAB_INITIAL_CREDITS;	/* XXX needs resettability */
+	reg [FSAB_CREDITS_HI:0] fsab_credits = FSAB_INITIAL_CREDITS;
 	wire fsab_credit_avail = (fsab_credits != 0);
-	always @(posedge clk) begin
-		if (ic__fsabo_credit | ic__fsabo_valid)
-			$display("ICACHE: Credits: %d (+%d, -%d)", fsab_credits, ic__fsabo_credit, ic__fsabo_valid);
-		fsab_credits <= fsab_credits + (ic__fsabo_credit ? 1 : 0) - (ic__fsabo_valid ? 1 : 0);
+	always @(posedge clk or negedge Nrst) begin
+		if (!Nrst) begin
+			fsab_credits <= FSAB_INITIAL_CREDITS;
+		end else begin
+			if (ic__fsabo_credit | ic__fsabo_valid)
+				$display("ICACHE: Credits: %d (+%d, -%d)", fsab_credits, ic__fsabo_credit, ic__fsabo_valid);
+			fsab_credits <= fsab_credits + (ic__fsabo_credit ? 1 : 0) - (ic__fsabo_valid ? 1 : 0);
+		end
 	end
 
 	
@@ -115,7 +120,7 @@ module ICache(/*AUTOARG*/
 		 * worry about credits.
 		 */
 		
-		if (start_read) begin
+		if (start_read && Nrst) begin
 			ic__fsabo_valid = 1;
 			ic__fsabo_mode = FSAB_READ;
 			ic__fsabo_did = FSAB_DID_CPU;
@@ -127,26 +132,34 @@ module ICache(/*AUTOARG*/
 	end
 
 	always @(posedge clk) begin
-		if (start_read) begin
-			read_pending <= 1;
+		if (!Nrst) begin
+			read_pending <= 0;
 			cache_fill_pos <= 0;
-			fill_addr <= {ic__rd_addr_0a[31:6], 6'b0};
-		end else if (fsabi_valid && (fsabi_did == FSAB_DID_CPU) && (fsabi_subdid == FSAB_SUBDID_CPU_ICACHE)) begin
-			$display("DCACHE: FILL: rd addr %08x; FSAB addr %08x; FSAB data %016x", ic__rd_addr_0a, fill_addr, fsabi_data);
+			fill_addr <= 0;
+			for (i = 0; i < 16; i = i + 1)
+				cache_valid[i] <= 0;
+		end else begin
+			if (start_read) begin
+				read_pending <= 1;
+				cache_fill_pos <= 0;
+				fill_addr <= {ic__rd_addr_0a[31:6], 6'b0};
+			end else if (fsabi_valid && (fsabi_did == FSAB_DID_CPU) && (fsabi_subdid == FSAB_SUBDID_CPU_ICACHE)) begin
+				$display("DCACHE: FILL: rd addr %08x; FSAB addr %08x; FSAB data %016x", ic__rd_addr_0a, fill_addr, fsabi_data);
+				
+				cache_fill_pos <= cache_fill_pos + 1;
+				if (cache_fill_pos == 7) begin	/* Done? */
+					cache_tags[fill_idx] <= fill_tag;
+					cache_valid[fill_idx] <= 1;
+					read_pending <= 0;
+				end else
+					cache_valid[fill_idx] <= 0;
+			end
 			
-			cache_fill_pos <= cache_fill_pos + 1;
-			if (cache_fill_pos == 7) begin	/* Done? */
-				cache_tags[fill_idx] <= fill_tag;
-				cache_valid[fill_idx] <= 1;
-				read_pending <= 0;
-			end else
-				cache_valid[fill_idx] <= 0;
+			/* Split this out because XST is kind of silly about this sort of thing. */
+			if (fsabi_valid && (fsabi_did == FSAB_DID_CPU) && (fsabi_subdid == FSAB_SUBDID_CPU_ICACHE))
+				cache_data_hi[{fill_idx,cache_fill_pos}] <= fsabi_data[63:32];
+			if (fsabi_valid && (fsabi_did == FSAB_DID_CPU) && (fsabi_subdid == FSAB_SUBDID_CPU_ICACHE))
+				cache_data_lo[{fill_idx,cache_fill_pos}] <= fsabi_data[31:0];
 		end
-		
-		/* Split this out because XST is kind of silly about this sort of thing. */
-		if (fsabi_valid && (fsabi_did == FSAB_DID_CPU) && (fsabi_subdid == FSAB_SUBDID_CPU_ICACHE))
-			cache_data_hi[{fill_idx,cache_fill_pos}] <= fsabi_data[63:32];
-		if (fsabi_valid && (fsabi_did == FSAB_DID_CPU) && (fsabi_subdid == FSAB_SUBDID_CPU_ICACHE))
-			cache_data_lo[{fill_idx,cache_fill_pos}] <= fsabi_data[31:0];
 	end
 endmodule

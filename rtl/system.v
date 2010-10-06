@@ -75,6 +75,7 @@ module System(input clk, input rst
 	
 	/*AUTOWIRE*/
 	// Beginning of automatic wires (for undeclared instantiated-module outputs)
+	wire		Ncorerst;		// From preload of FSABPreload.v
 	wire		bubble_1a;		// From fetch of Fetch.v
 	wire		bubble_2a;		// From issue of Issue.v
 	wire		bubble_3a;		// From execute of Execute.v
@@ -138,6 +139,15 @@ module System(input clk, input rst
 	wire [31:0]	pc_1a;			// From fetch of Fetch.v
 	wire [31:0]	pc_2a;			// From issue of Issue.v
 	wire [31:0]	pc_3a;			// From execute of Execute.v
+	wire [FSAB_ADDR_HI:0] pre__fsabo_addr;	// From preload of FSABPreload.v
+	wire		pre__fsabo_credit;	// From fsabarbiter of FSABArbiter.v
+	wire [FSAB_DATA_HI:0] pre__fsabo_data;	// From preload of FSABPreload.v
+	wire [FSAB_DID_HI:0] pre__fsabo_did;	// From preload of FSABPreload.v
+	wire [FSAB_LEN_HI:0] pre__fsabo_len;	// From preload of FSABPreload.v
+	wire [FSAB_MASK_HI:0] pre__fsabo_mask;	// From preload of FSABPreload.v
+	wire [FSAB_REQ_HI:0] pre__fsabo_mode;	// From preload of FSABPreload.v
+	wire [FSAB_DID_HI:0] pre__fsabo_subdid;	// From preload of FSABPreload.v
+	wire		pre__fsabo_valid;	// From preload of FSABPreload.v
 	wire [31:0]	rf__rdata_0_1a;		// From regfile of RegFile.v
 	wire [31:0]	rf__rdata_1_1a;		// From regfile of RegFile.v
 	wire [31:0]	rf__rdata_2_1a;		// From regfile of RegFile.v
@@ -162,9 +172,9 @@ module System(input clk, input rst
 	wire execute_out_backflush;
 	wire writeback_out_backflush;
 
-	/* XXX reset? */
 	/* ICache AUTO_TEMPLATE (
 		.clk(clk),
+		.Nrst(Ncorerst | Nrst),
 		); */
 	ICache icache(
 		/*AUTOINST*/
@@ -181,6 +191,7 @@ module System(input clk, input rst
 		      .ic__fsabo_mask	(ic__fsabo_mask[FSAB_MASK_HI:0]),
 		      // Inputs
 		      .clk		(clk),			 // Templated
+		      .Nrst		(Ncorerst | Nrst),	 // Templated
 		      .ic__rd_addr_0a	(ic__rd_addr_0a[31:0]),
 		      .ic__rd_req_0a	(ic__rd_req_0a),
 		      .ic__fsabo_credit	(ic__fsabo_credit),
@@ -193,6 +204,7 @@ module System(input clk, input rst
 	wire [SPAM_DATA_HI:0] spami_data = cio__spami_data[SPAM_DATA_HI:0];
 	/* DCache AUTO_TEMPLATE (
 		.clk(clk),
+		.Nrst(Ncorerst | Nrst),
 		);
 		*/
 	DCache dcache(
@@ -215,6 +227,7 @@ module System(input clk, input rst
 		      .spamo_data	(spamo_data[SPAM_DATA_HI:0]),
 		      // Inputs
 		      .clk		(clk),			 // Templated
+		      .Nrst		(Ncorerst | Nrst),	 // Templated
 		      .dc__addr_3a	(dc__addr_3a[31:0]),
 		      .dc__rd_req_3a	(dc__rd_req_3a),
 		      .dc__wr_req_3a	(dc__wr_req_3a),
@@ -250,20 +263,20 @@ module System(input clk, input rst
 			     .sys_idata		(sys_idata[8:0]));
 
 	/* FSABArbiter AUTO_TEMPLATE (
-		.fsabo_valids({ic__fsabo_valid,dc__fsabo_valid}),
-		.fsabo_modes({ic__fsabo_mode[FSAB_REQ_HI:0],dc__fsabo_mode[FSAB_REQ_HI:0]}),
-		.fsabo_dids({ic__fsabo_did[FSAB_DID_HI:0],dc__fsabo_did[FSAB_DID_HI:0]}),
-		.fsabo_subdids({ic__fsabo_subdid[FSAB_DID_HI:0],dc__fsabo_subdid[FSAB_DID_HI:0]}),
-		.fsabo_addrs({ic__fsabo_addr[FSAB_ADDR_HI:0],dc__fsabo_addr[FSAB_ADDR_HI:0]}),
-		.fsabo_lens({ic__fsabo_len[FSAB_LEN_HI:0],dc__fsabo_len[FSAB_LEN_HI:0]}),
-		.fsabo_datas({ic__fsabo_data[FSAB_DATA_HI:0],dc__fsabo_data[FSAB_DATA_HI:0]}),
-		.fsabo_masks({ic__fsabo_mask[FSAB_MASK_HI:0],dc__fsabo_mask[FSAB_MASK_HI:0]}),
-		.fsabo_credits({ic__fsabo_credit,dc__fsabo_credit}),
+		.fsabo_valids({pre__fsabo_valid,ic__fsabo_valid,dc__fsabo_valid}),
+		.fsabo_modes({pre__fsabo_mode[FSAB_REQ_HI:0],ic__fsabo_mode[FSAB_REQ_HI:0],dc__fsabo_mode[FSAB_REQ_HI:0]}),
+		.fsabo_dids({pre__fsabo_did[FSAB_DID_HI:0],ic__fsabo_did[FSAB_DID_HI:0],dc__fsabo_did[FSAB_DID_HI:0]}),
+		.fsabo_subdids({pre__fsabo_subdid[FSAB_DID_HI:0],ic__fsabo_subdid[FSAB_DID_HI:0],dc__fsabo_subdid[FSAB_DID_HI:0]}),
+		.fsabo_addrs({pre__fsabo_addr[FSAB_ADDR_HI:0],ic__fsabo_addr[FSAB_ADDR_HI:0],dc__fsabo_addr[FSAB_ADDR_HI:0]}),
+		.fsabo_lens({pre__fsabo_len[FSAB_LEN_HI:0],ic__fsabo_len[FSAB_LEN_HI:0],dc__fsabo_len[FSAB_LEN_HI:0]}),
+		.fsabo_datas({pre__fsabo_data[FSAB_DATA_HI:0],ic__fsabo_data[FSAB_DATA_HI:0],dc__fsabo_data[FSAB_DATA_HI:0]}),
+		.fsabo_masks({pre__fsabo_mask[FSAB_MASK_HI:0],ic__fsabo_mask[FSAB_MASK_HI:0],dc__fsabo_mask[FSAB_MASK_HI:0]}),
+		.fsabo_credits({pre__fsabo_credit,ic__fsabo_credit,dc__fsabo_credit}),
 		); */
 	FSABArbiter fsabarbiter(
 		/*AUTOINST*/
 				// Outputs
-				.fsabo_credits	({ic__fsabo_credit,dc__fsabo_credit}), // Templated
+				.fsabo_credits	({pre__fsabo_credit,ic__fsabo_credit,dc__fsabo_credit}), // Templated
 				.fsabo_valid	(fsabo_valid),
 				.fsabo_mode	(fsabo_mode[FSAB_REQ_HI:0]),
 				.fsabo_did	(fsabo_did[FSAB_DID_HI:0]),
@@ -275,16 +288,16 @@ module System(input clk, input rst
 				// Inputs
 				.clk		(clk),
 				.Nrst		(Nrst),
-				.fsabo_valids	({ic__fsabo_valid,dc__fsabo_valid}), // Templated
-				.fsabo_modes	({ic__fsabo_mode[FSAB_REQ_HI:0],dc__fsabo_mode[FSAB_REQ_HI:0]}), // Templated
-				.fsabo_dids	({ic__fsabo_did[FSAB_DID_HI:0],dc__fsabo_did[FSAB_DID_HI:0]}), // Templated
-				.fsabo_subdids	({ic__fsabo_subdid[FSAB_DID_HI:0],dc__fsabo_subdid[FSAB_DID_HI:0]}), // Templated
-				.fsabo_addrs	({ic__fsabo_addr[FSAB_ADDR_HI:0],dc__fsabo_addr[FSAB_ADDR_HI:0]}), // Templated
-				.fsabo_lens	({ic__fsabo_len[FSAB_LEN_HI:0],dc__fsabo_len[FSAB_LEN_HI:0]}), // Templated
-				.fsabo_datas	({ic__fsabo_data[FSAB_DATA_HI:0],dc__fsabo_data[FSAB_DATA_HI:0]}), // Templated
-				.fsabo_masks	({ic__fsabo_mask[FSAB_MASK_HI:0],dc__fsabo_mask[FSAB_MASK_HI:0]}), // Templated
+				.fsabo_valids	({pre__fsabo_valid,ic__fsabo_valid,dc__fsabo_valid}), // Templated
+				.fsabo_modes	({pre__fsabo_mode[FSAB_REQ_HI:0],ic__fsabo_mode[FSAB_REQ_HI:0],dc__fsabo_mode[FSAB_REQ_HI:0]}), // Templated
+				.fsabo_dids	({pre__fsabo_did[FSAB_DID_HI:0],ic__fsabo_did[FSAB_DID_HI:0],dc__fsabo_did[FSAB_DID_HI:0]}), // Templated
+				.fsabo_subdids	({pre__fsabo_subdid[FSAB_DID_HI:0],ic__fsabo_subdid[FSAB_DID_HI:0],dc__fsabo_subdid[FSAB_DID_HI:0]}), // Templated
+				.fsabo_addrs	({pre__fsabo_addr[FSAB_ADDR_HI:0],ic__fsabo_addr[FSAB_ADDR_HI:0],dc__fsabo_addr[FSAB_ADDR_HI:0]}), // Templated
+				.fsabo_lens	({pre__fsabo_len[FSAB_LEN_HI:0],ic__fsabo_len[FSAB_LEN_HI:0],dc__fsabo_len[FSAB_LEN_HI:0]}), // Templated
+				.fsabo_datas	({pre__fsabo_data[FSAB_DATA_HI:0],ic__fsabo_data[FSAB_DATA_HI:0],dc__fsabo_data[FSAB_DATA_HI:0]}), // Templated
+				.fsabo_masks	({pre__fsabo_mask[FSAB_MASK_HI:0],ic__fsabo_mask[FSAB_MASK_HI:0],dc__fsabo_mask[FSAB_MASK_HI:0]}), // Templated
 				.fsabo_credit	(fsabo_credit));
-	defparam fsabarbiter.FSAB_DEVICES = 2;
+	defparam fsabarbiter.FSAB_DEVICES = 3;
 
 `ifdef verilator
 	FSABSimMemory simmem(
@@ -308,9 +321,30 @@ module System(input clk, input rst
 			     .fsabo_mask	(fsabo_mask[FSAB_MASK_HI:0]));
 `endif
 
+	FSABPreload preload(/*AUTOINST*/
+			    // Outputs
+			    .Ncorerst		(Ncorerst),
+			    .pre__fsabo_valid	(pre__fsabo_valid),
+			    .pre__fsabo_mode	(pre__fsabo_mode[FSAB_REQ_HI:0]),
+			    .pre__fsabo_did	(pre__fsabo_did[FSAB_DID_HI:0]),
+			    .pre__fsabo_subdid	(pre__fsabo_subdid[FSAB_DID_HI:0]),
+			    .pre__fsabo_addr	(pre__fsabo_addr[FSAB_ADDR_HI:0]),
+			    .pre__fsabo_len	(pre__fsabo_len[FSAB_LEN_HI:0]),
+			    .pre__fsabo_data	(pre__fsabo_data[FSAB_DATA_HI:0]),
+			    .pre__fsabo_mask	(pre__fsabo_mask[FSAB_MASK_HI:0]),
+			    // Inputs
+			    .clk		(clk),
+			    .Nrst		(Nrst),
+			    .pre__fsabo_credit	(pre__fsabo_credit),
+			    .fsabi_valid	(fsabi_valid),
+			    .fsabi_did		(fsabi_did[FSAB_DID_HI:0]),
+			    .fsabi_subdid	(fsabi_subdid[FSAB_DID_HI:0]),
+			    .fsabi_data		(fsabi_data[FSAB_DATA_HI:0]));
+
 	/* Fetch AUTO_TEMPLATE (
 		.jmp_0a(jmp),
 		.jmppc_0a(jmppc),
+		.Nrst(Ncorerst | Nrst),
 		);
 	*/
 	Fetch fetch(
@@ -323,7 +357,7 @@ module System(input clk, input rst
 		    .pc_1a		(pc_1a[31:0]),
 		    // Inputs
 		    .clk		(clk),
-		    .Nrst		(Nrst),
+		    .Nrst		(Ncorerst | Nrst),	 // Templated
 		    .ic__rd_wait_0a	(ic__rd_wait_0a),
 		    .ic__rd_data_1a	(ic__rd_data_1a[31:0]),
 		    .stall_0a		(stall_0a),
@@ -334,6 +368,7 @@ module System(input clk, input rst
 		.stall_1a(stall_cause_execute),
 		.flush_1a(execute_out_backflush | writeback_out_backflush),
 		.cpsr_1a(writeback_out_cpsr),
+		.Nrst(Ncorerst | Nrst),
 		);
 	*/
 	Issue issue(
@@ -345,7 +380,7 @@ module System(input clk, input rst
 		    .insn_2a		(insn_2a[31:0]),
 		    // Inputs
 		    .clk		(clk),
-		    .Nrst		(Nrst),
+		    .Nrst		(Ncorerst | Nrst),	 // Templated
 		    .stall_1a		(stall_cause_execute),	 // Templated
 		    .flush_1a		(execute_out_backflush | writeback_out_backflush), // Templated
 		    .bubble_1a		(bubble_1a),
@@ -358,6 +393,7 @@ module System(input clk, input rst
 		.write(regfile_write),
 		.write_reg(regfile_write_reg),
 		.write_data(regfile_write_data),
+		.Nrst(Ncorerst | Nrst),
 		);
 	*/
 	wire [3:0] rf__read_3_4a;
@@ -371,7 +407,7 @@ module System(input clk, input rst
 			.spsr		(regfile_spsr),		 // Templated
 			// Inputs
 			.clk		(clk),
-			.Nrst		(Nrst),
+			.Nrst		(Ncorerst | Nrst),	 // Templated
 			.rf__read_0_1a	(rf__read_0_1a[3:0]),
 			.rf__read_1_1a	(rf__read_1_1a[3:0]),
 			.rf__read_2_1a	(rf__read_2_1a[3:0]),
@@ -415,6 +451,7 @@ module System(input clk, input rst
 		.outstall_2a(stall_cause_execute),
 		.jmp_2a(jmp_out_execute),
 		.jmppc_2a(jmppc_out_execute),
+		.Nrst(Nrst | Ncorerst),
 		);
 	*/	
 	Execute execute(
@@ -437,7 +474,7 @@ module System(input clk, input rst
 			.op2_3a		(op2_3a[31:0]),
 			// Inputs
 			.clk		(clk),
-			.Nrst		(Nrst),
+			.Nrst		(Nrst | Ncorerst),	 // Templated
 			.stall_2a	(stall_cause_memory),	 // Templated
 			.flush_2a	(writeback_out_backflush), // Templated
 			.bubble_2a	(bubble_2a),
@@ -465,6 +502,7 @@ module System(input clk, input rst
 		.outcpsr(memory_out_cpsr),
 		.outspsr(memory_out_spsr),
 		.outcpsrup(memory_out_cpsrup),
+		.Nrst(Nrst | Ncorerst),
 		);
 		*/
 	Memory memory(
@@ -491,7 +529,7 @@ module System(input clk, input rst
 		      .outcpsrup	(memory_out_cpsrup),	 // Templated
 		      // Inputs
 		      .clk		(clk),
-		      .Nrst		(Nrst),
+		      .Nrst		(Nrst | Ncorerst),	 // Templated
 		      .flush		(writeback_out_backflush), // Templated
 		      .dc__rw_wait_3a	(dc__rw_wait_3a),
 		      .dc__rd_data_3a	(dc__rd_data_3a[31:0]),

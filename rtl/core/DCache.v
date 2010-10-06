@@ -7,14 +7,15 @@ module DCache(/*AUTOARG*/
    dc__fsabo_data, dc__fsabo_mask, spamo_valid, spamo_r_nw, spamo_did,
    spamo_addr, spamo_data,
    // Inputs
-   clk, dc__addr_3a, dc__rd_req_3a, dc__wr_req_3a, dc__wr_data_3a,
-   dc__fsabo_credit, fsabi_valid, fsabi_did, fsabi_subdid, fsabi_data,
-   spami_busy_b, spami_data
+   clk, Nrst, dc__addr_3a, dc__rd_req_3a, dc__wr_req_3a,
+   dc__wr_data_3a, dc__fsabo_credit, fsabi_valid, fsabi_did,
+   fsabi_subdid, fsabi_data, spami_busy_b, spami_data
    );
 	`include "fsab_defines.vh"
 	`include "spam_defines.vh"
 
 	input clk;
+	input Nrst;
 
 	/* ARM core interface */
 	input      [31:0] dc__addr_3a;
@@ -101,7 +102,7 @@ module DCache(/*AUTOARG*/
 	reg [31:0] fill_addr = 0;
 	wire [21:0] fill_tag = fill_addr[31:10];
 	wire [3:0] fill_idx = fill_addr[9:6];
-	wire start_read = dc__rd_req_3a && !dc__addr_3a[31] && !cache_hit_3a && !read_pending && fsab_credit_avail;
+	wire start_read = Nrst && dc__rd_req_3a && !dc__addr_3a[31] && !cache_hit_3a && !read_pending && fsab_credit_avail;
 	always @(*)
 	begin
 		dc__fsabo_valid = 0;
@@ -141,28 +142,36 @@ module DCache(/*AUTOARG*/
 		end
 	end
 	
-	always @(posedge clk) begin
-		if (start_read) begin
-			read_pending <= 1;
+	always @(posedge clk or negedge Nrst) begin
+		if (!Nrst) begin
+			for (i = 0; i < 16; i = i + 1)
+				cache_valid[i] <= 1'b0;
+			read_pending <= 0;
 			cache_fill_pos <= 0;
-			fill_addr <= {dc__addr_3a[31:6], 6'b0};
-		end else if (fsabi_valid && (fsabi_did == FSAB_DID_CPU) && (fsabi_subdid == FSAB_SUBDID_CPU_DCACHE)) begin
-			$display("DCACHE: FILL: rd addr %08x; FSAB addr %08x; FSAB data %016x", dc__addr_3a, fill_addr, fsabi_data);
+			fill_addr <= 0;
+		end else begin
+			if (start_read) begin
+				read_pending <= 1;
+				cache_fill_pos <= 0;
+				fill_addr <= {dc__addr_3a[31:6], 6'b0};
+			end else if (fsabi_valid && (fsabi_did == FSAB_DID_CPU) && (fsabi_subdid == FSAB_SUBDID_CPU_DCACHE)) begin
+				$display("DCACHE: FILL: rd addr %08x; FSAB addr %08x; FSAB data %016x", dc__addr_3a, fill_addr, fsabi_data);
+				
+				cache_fill_pos <= cache_fill_pos + 1;
+				if (cache_fill_pos == 7) begin	/* Done? */
+					cache_tags[fill_idx] <= fill_tag;
+					cache_valid[fill_idx] <= 1;
+					read_pending <= 0;
+				end else
+					cache_valid[fill_idx] <= 0;
+			end
 			
-			cache_fill_pos <= cache_fill_pos + 1;
-			if (cache_fill_pos == 7) begin	/* Done? */
-				cache_tags[fill_idx] <= fill_tag;
-				cache_valid[fill_idx] <= 1;
-				read_pending <= 0;
-			end else
-				cache_valid[fill_idx] <= 0;
+			/* Split this out because XST is kind of silly about this sort of thing. */
+			if ((fsabi_valid && (fsabi_did == FSAB_DID_CPU) && (fsabi_subdid == FSAB_SUBDID_CPU_DCACHE)) || (dc__wr_req_3a && cache_hit_3a && dc__addr_3a[2]))
+				cache_data_hi[dc__wr_req_3a ? {idx_3a,dc__addr_3a[5:3]} : {fill_idx,cache_fill_pos}] <= dc__wr_req_3a ? dc__wr_data_3a : fsabi_data[63:32];
+			if ((fsabi_valid && (fsabi_did == FSAB_DID_CPU) && (fsabi_subdid == FSAB_SUBDID_CPU_DCACHE)) || (dc__wr_req_3a && cache_hit_3a && ~dc__addr_3a[2]))
+				cache_data_lo[dc__wr_req_3a ? {idx_3a,dc__addr_3a[5:3]} : {fill_idx,cache_fill_pos}] <= dc__wr_req_3a ? dc__wr_data_3a : fsabi_data[31:0];
 		end
-		
-		/* Split this out because XST is kind of silly about this sort of thing. */
-		if ((fsabi_valid && (fsabi_did == FSAB_DID_CPU) && (fsabi_subdid == FSAB_SUBDID_CPU_DCACHE)) || (dc__wr_req_3a && cache_hit_3a && dc__addr_3a[2]))
-			cache_data_hi[dc__wr_req_3a ? {idx_3a,dc__addr_3a[5:3]} : {fill_idx,cache_fill_pos}] <= dc__wr_req_3a ? dc__wr_data_3a : fsabi_data[63:32];
-		if ((fsabi_valid && (fsabi_did == FSAB_DID_CPU) && (fsabi_subdid == FSAB_SUBDID_CPU_DCACHE)) || (dc__wr_req_3a && cache_hit_3a && ~dc__addr_3a[2]))
-			cache_data_lo[dc__wr_req_3a ? {idx_3a,dc__addr_3a[5:3]} : {fill_idx,cache_fill_pos}] <= dc__wr_req_3a ? dc__wr_data_3a : fsabi_data[31:0];
 	end
 	
 	/*** SPAM initiation logic ***/
@@ -175,7 +184,7 @@ module DCache(/*AUTOARG*/
 		spamo_did = 4'hx;
 		spamo_addr = 24'hxxxxxx;
 		spamo_data = 32'hxxxxxxxx;
-		if ((dc__rd_req_3a || dc__wr_req_3a) && dc__addr_3a[31] && !spam_intrans) begin
+		if ((dc__rd_req_3a || dc__wr_req_3a) && dc__addr_3a[31] && !spam_intrans && Nrst) begin
 			spamo_valid = 1'b1;
 			spamo_r_nw = dc__rd_req_3a;
 			spamo_did = dc__addr_3a[27:24];
@@ -184,8 +193,11 @@ module DCache(/*AUTOARG*/
 		end
 	end
 	
-	always @(posedge clk) /* XXX reset */ begin
-		if (spamo_valid) begin
+	always @(posedge clk or negedge Nrst) /* XXX reset */ begin
+		if (!Nrst) begin
+			spam_intrans <= 0;
+			spam_timeout <= 0;
+		end else if (spamo_valid) begin
 			$display("SPAM: outbound valid");
 			spam_intrans <= 1;
 			spam_timeout <= 8'hFF;

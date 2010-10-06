@@ -78,7 +78,7 @@ module FSABSimMemory(
 	assign rfif_wr_0a = fsabo_valid && fsabo_cur_req_done_1a;
 	
 	always @(posedge clk or negedge Nrst)
-		if (Nrst) begin
+		if (!Nrst) begin
 			fsabo_cur_req_len_rem_1a <= 0;
 		end else begin
 			if (fsabo_valid && fsabo_cur_req_done_1a && (fsabo_mode == FSAB_WRITE))
@@ -160,9 +160,8 @@ module FSABSimMemory(
 	initial
 	begin
 		assert(FSAB_DATA_HI == 63) else $error("FSAB_DATA_HI unsupported");
-		$readmemh("ram.hex", simmem32);
 		for (f = 0; f < SIMMEM_SIZE / 8; f++)
-			simmem[f] = {simmem32[f*2+1], simmem32[f*2]};
+			simmem[f] = 64'h0000000000000000;
 	end
 	
 	
@@ -243,14 +242,14 @@ module FSABSimMemory(
 							dfif_mask_1a[i] ?
 								dfif_data_1a[i*8 + j] :
 								simmem[mem_cur_req_addr_1a[FSAB_ADDR_HI:FSAB_ADDR_LO]][i*8 + j];
-				$display("SIMMEM: %5d: writing %016x data (%08b mask) to %08x address", $time, dfif_data_1a, dfif_mask_1a, {mem_cur_req_addr_1a[FSAB_ADDR_HI:FSAB_ADDR_LO], 3'b0});
+				$display("SIMMEM: %5d: writing %016x data (%08b mask) to %08x address (old value %016x)", $time, dfif_data_1a, dfif_mask_1a, {mem_cur_req_addr_1a[FSAB_ADDR_HI:FSAB_ADDR_LO], 3'b0}, simmem[mem_cur_req_addr_1a[FSAB_ADDR_HI:FSAB_ADDR_LO]]);
 				simmem[mem_cur_req_addr_1a[FSAB_ADDR_HI:FSAB_ADDR_LO]] <= masked_data;
 				/* verilator lint_on WIDTH */ /* for memory neq FSAB_ADDR size */
 			end
 			
 			if (rfif_rd_1a)
 				mem_cur_req_addr_1a_r <= rfif_addr_1a;
-			else if (dfif_rd_1a || fsabi_valid)
+			else if (dfif_rd_0a || fsabi_valid)
 				mem_cur_req_addr_1a_r <= mem_cur_req_addr_1a + (FSAB_DATA_HI + 1) / 8;
 		end
 	

@@ -97,12 +97,15 @@ module FSABArbiterFIFO(/*AUTOARG*/
 	assign rfif_wr_0a = inp_valid && inp_cur_req_done_1a;
 	
 	always @(posedge clk or negedge Nrst)
-		if (Nrst) begin
+		if (!Nrst) begin
 			inp_cur_req_len_rem_1a <= 0;
 		end else begin
-			if (inp_valid && inp_cur_req_done_1a && (inp_mode == FSAB_WRITE))
+			if (inp_valid) 
+				$display("ARB[%2d]: %5d: RFIF control: valid %d, done %d, rem %d, inp len %d", myindex, $time, inp_valid, inp_cur_req_done_1a, inp_cur_req_len_rem_1a, inp_len);
+			if (inp_valid && inp_cur_req_done_1a && (inp_mode == FSAB_WRITE)) begin
+				$display("ARB[%2d]: %5d: RFIF control: inp len %d", myindex, $time, inp_len);
 				inp_cur_req_len_rem_1a <= inp_len;
-			else if (inp_valid && inp_cur_req_len_rem_1a != 0)
+			end else if (inp_valid && inp_cur_req_len_rem_1a != 0)
 				inp_cur_req_len_rem_1a <= inp_cur_req_len_rem_1a - 1;
 		end
 	
