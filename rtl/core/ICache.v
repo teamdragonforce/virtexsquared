@@ -59,8 +59,8 @@ module ICache(/*AUTOARG*/
 	
 	reg cache_valid [15:0];
 	reg [21:0] cache_tags [15:0];
-	reg [31:0] cache_data_hi [127:0 /* {line,word} */];	//synthesis attribute ram_style of cache_data is block
-	reg [31:0] cache_data_lo [127:0 /* {line,word} */];
+	reg [31:0] cache_data_hi [127:0 /* {line,word} */];	//synthesis attribute ram_style of cache_data_hi is block
+	reg [31:0] cache_data_lo [127:0 /* {line,word} */];	//synthesis attribute ram_style of cache_data_lo is block
 	
 	integer i;
 	initial
