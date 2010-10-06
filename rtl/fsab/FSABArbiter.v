@@ -34,7 +34,7 @@ module FSABArbiter(/*AUTOARG*/
 	input                                       fsabo_credit;
 
 	`include "clog2.vh"
-	parameter FSAB_DEVICES_HI = clog2((FSAB_DEVICES == 1) ? 2 : FSAB_DEVICES)-1;
+	parameter FSAB_DEVICES_HI = clog2((FSAB_DEVICES == 1) ? 2 : FSAB_DEVICES)-2;
 
 	/* The theory internal to these state machines (generated with a
 	 * genvar, so that we can split out the input bit vectors) is that
@@ -91,7 +91,7 @@ module FSABArbiter(/*AUTOARG*/
 				     .inp_len		(fsabo_lens[`ARB_BITS(FSAB_LEN_HI)]),
 				     .inp_data		(fsabo_datas[`ARB_BITS(FSAB_DATA_HI)]),
 				     .inp_mask		(fsabo_masks[`ARB_BITS(FSAB_MASK_HI)]),
-				     .start		(fifo_start[i]));
+				     .start_trans	(fifo_start[i]));
 		defparam fifo.myindex = i;
 	end
 	endgenerate
