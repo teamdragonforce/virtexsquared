@@ -17,8 +17,8 @@ module ICache(/*AUTOARG*/
 	/* arm core interface */
 	input       [31:0] ic__rd_addr_0a;
 	input              ic__rd_req_0a;
-	output wire        ic__rd_wait_0a;
-	output wire [31:0] ic__rd_data_1a;
+	output reg         ic__rd_wait_0a;
+	output reg  [31:0] ic__rd_data_1a;
 	
 	/* bus interface */
 	output reg                  ic__fsabo_valid;
