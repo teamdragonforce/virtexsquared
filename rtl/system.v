@@ -536,3 +536,7 @@ module System(input clk, input rst
 		$display("%3d: WRITEB:                      CPSR %08x, SPSR %08x, Reg: %d [%08x -> %d], Jmp: %d [%08x]", clockno, writeback_out_cpsr, writeback_out_spsr, regfile_write, regfile_write_data, regfile_write_reg, jmp_out_writeback, jmppc_out_writeback);
 	end
 endmodule
+
+// Local Variables:
+// verilog-library-directories:("." "console" "core" "fsab" "spam" "fsab/sim")
+// End:

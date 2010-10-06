@@ -96,9 +96,10 @@ $(RUNDIR)/stamps/fpga: $(RUNDIR)/stamps/fpga-xflow
 
 ###############################################################################
 
+
+# This is gross
 auto: .DUMMY
-	@echo "XXX: this does not autoize enough!"
-	emacs -l ~/elisp/verilog-mode.el --batch system.v -f verilog-batch-auto
+	emacs -l ~/elisp/verilog-mode.el --batch `find rtl -iname '*.v' | xargs echo` -f verilog-batch-auto
 
 tests: .DUMMY
 	make -C tests
