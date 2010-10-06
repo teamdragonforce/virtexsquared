@@ -1,31 +1,39 @@
 /* 16 cache entries, 64-byte long cache lines */
 
-module ICache(
-	input clk,
-	
-	/* ARM core interface */
-	input       [31:0] ic__rd_addr_0a,
-	input              ic__rd_req_0a,
-	output wire        ic__rd_wait_0a,
-	output wire [31:0] ic__rd_data_1a,
+module ICache(/*AUTOARG*/
+   // Outputs
+   ic__rd_wait_0a, ic__rd_data_1a, ic__fsabo_valid, ic__fsabo_mode,
+   ic__fsabo_did, ic__fsabo_subdid, ic__fsabo_addr, ic__fsabo_len,
+   ic__fsabo_data, ic__fsabo_mask,
+   // Inputs
+   clk, ic__rd_addr_0a, ic__rd_req_0a, ic__fsabo_credit, fsabi_valid,
+   fsabi_did, fsabi_subdid, fsabi_data
+   );
+	`include "fsab_defines.vh"
+
+	input clk;
+
+	/* arm core interface */
+	input       [31:0] ic__rd_addr_0a;
+	input              ic__rd_req_0a;
+	output wire        ic__rd_wait_0a;
+	output wire [31:0] ic__rd_data_1a;
 	
 	/* bus interface */
-	output reg                  ic__fsabo_valid,
-	output reg [FSAB_REQ_HI:0]  ic__fsabo_mode,
-	output reg [FSAB_DID_HI:0]  ic__fsabo_did,
-	output reg [FSAB_DID_HI:0]  ic__fsabo_subdid,
-	output reg [FSAB_ADDR_HI:0] ic__fsabo_addr,
-	output reg [FSAB_LEN_HI:0]  ic__fsabo_len,
-	output reg [FSAB_DATA_HI:0] ic__fsabo_data,
-	output reg [FSAB_MASK_HI:0] ic__fsabo_mask,
-	input                       ic__fsabo_credit,
+	output reg                  ic__fsabo_valid;
+	output reg [FSAB_REQ_HI:0]  ic__fsabo_mode;
+	output reg [FSAB_DID_HI:0]  ic__fsabo_did;
+	output reg [FSAB_DID_HI:0]  ic__fsabo_subdid;
+	output reg [FSAB_ADDR_HI:0] ic__fsabo_addr;
+	output reg [FSAB_LEN_HI:0]  ic__fsabo_len;
+	output reg [FSAB_DATA_HI:0] ic__fsabo_data;
+	output reg [FSAB_MASK_HI:0] ic__fsabo_mask;
+	input                       ic__fsabo_credit;
 	
-	input                       fsabi_valid,
-	input      [FSAB_DID_HI:0]  fsabi_did,
-	input      [FSAB_DID_HI:0]  fsabi_subdid,
-	input      [FSAB_DATA_HI:0] fsabi_data);
-	
- `include "fsab_defines.vh"
+	input                       fsabi_valid;
+	input      [FSAB_DID_HI:0]  fsabi_did;
+	input      [FSAB_DID_HI:0]  fsabi_subdid;
+	input      [FSAB_DATA_HI:0] fsabi_data;
 
 	/*** FSAB credit availability logic ***/
 	

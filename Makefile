@@ -1,4 +1,5 @@
-RUN ?= $(shell date +R%Y%m%d-%H%M)
+RUNTIME := $(shell date +R%Y%m%d-%H%M)
+RUN ?= $(RUNTIME)
 RUNDIR ?= runs/$(RUN)
 
 default:
@@ -47,17 +48,20 @@ $(RUNDIR)/stamps/sim: $(RUNDIR)/stamps/sim-build
 ###############################################################################
 
 FPGA_TARGET = FireARM
-PART = xc3s1200e-fg320-5
+
+# not actually used?
+PART = xc5vlx110t-ff1136
 
 fpga: .DUMMY $(RUNDIR)/stamps/fpga
 
 # XXX: should we generate the .xst file?
 $(RUNDIR)/stamps/fpga-genrtl:
-	@echo "FPGA RTL is currently UNSYNTHESIZABLE."; exit 1
+	@echo "FPGA RTL is currently UNSYNTHESIZABLE...?"
 	@echo "Copying RTL for synthesis to $(RUNDIR)/fpga/xst..."
 	@mkdir -p $(RUNDIR)/stamps
 	@mkdir -p $(RUNDIR)/fpga/xst
 	@cp `find rtl -iname '*.v' | grep -v sim/` $(RUNDIR)/fpga/xst
+	@cp `find rtl -iname '*.vh' | grep -v sim/` $(RUNDIR)/fpga/xst
 	@echo "Copying XST configuration to $(RUNDIR)/fpga/xst..."
 	@mkdir -p $(RUNDIR)/fpga/xst/xst/projnav.tmp
 	@echo work > $(RUNDIR)/fpga/xst/$(FPGA_TARGET).lso

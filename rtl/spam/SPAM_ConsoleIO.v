@@ -1,22 +1,21 @@
-module SPAM_ConsoleIO(
-	input clk,
-	
-	input                       spamo_valid,
-	input                       spamo_r_nw,
-	input      [SPAM_DID_HI:0]  spamo_did,
-	input      [SPAM_ADDR_HI:0] spamo_addr,
-	input      [SPAM_DATA_HI:0] spamo_data,
-	
-	output reg                  cio__spami_busy_b = 0,
-	output reg [SPAM_DATA_HI:0] cio__spami_data = 'h0,
-	
-	output reg [8:0] sys_odata = 0,
-	input [8:0] sys_idata,
-	output reg sys_tookdata = 0
-);
+module SPAM_ConsoleIO(/*AUTOARG*/);
+	`include "spam_defines.v"
 
-`include "spam_defines.vh"
+	input clk;
 	
+	input                       spamo_valid;
+	input                       spamo_r_nw;
+	input      [SPAM_DID_HI:0]  spamo_did;
+	input      [SPAM_ADDR_HI:0] spamo_addr;
+	input      [SPAM_DATA_HI:0] spamo_data;
+	
+	output reg                  cio__spami_busy_b = 0;
+	output reg [SPAM_DATA_HI:0] cio__spami_data = 'h0;
+	
+	output reg [8:0] sys_odata = 0;
+	input [8:0] sys_idata;
+	output reg sys_tookdata = 0
+
 	reg towrite = 0;
 	reg [7:0] data = 0;
 	reg [8:0] indata = 0;	/* High bit is if data is present. */

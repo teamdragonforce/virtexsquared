@@ -1,44 +1,54 @@
 /* 16 cache entries, 64-byte long cache lines */
 
-module DCache(
-	input clk,
-	
+module DCache(/*AUTOARG*/
+   // Outputs
+   dc__rw_wait_3a, dc__rd_data_3a, dc__fsabo_valid, dc__fsabo_mode,
+   dc__fsabo_did, dc__fsabo_subdid, dc__fsabo_addr, dc__fsabo_len,
+   dc__fsabo_data, dc__fsabo_mask, spamo_valid, spamo_r_nw, spamo_did,
+   spamo_addr, spamo_data,
+   // Inputs
+   clk, dc__addr_3a, dc__rd_req_3a, dc__wr_req_3a, dc__wr_data_3a,
+   dc__fsabo_credit, fsabi_valid, fsabi_did, fsabi_subdid, fsabi_data,
+   spami_busy_b, spami_data
+   );
+	`include "fsab_defines.vh"
+	`include "spam_defines.vh"
+
+	input clk;
+
 	/* ARM core interface */
-	input      [31:0] dc__addr_3a,
-	input             dc__rd_req_3a,
-	input             dc__wr_req_3a,
-	output reg        dc__rw_wait_3a,
-	input      [31:0] dc__wr_data_3a,
-	output reg [31:0] dc__rd_data_3a,
+	input      [31:0] dc__addr_3a;
+	input             dc__rd_req_3a;
+	input             dc__wr_req_3a;
+	output reg        dc__rw_wait_3a;
+	input      [31:0] dc__wr_data_3a;
+	output reg [31:0] dc__rd_data_3a;
 
 	/* FSAB interface */
-	output reg                  dc__fsabo_valid,
-	output reg [FSAB_REQ_HI:0]  dc__fsabo_mode,
-	output reg [FSAB_DID_HI:0]  dc__fsabo_did,
-	output reg [FSAB_DID_HI:0]  dc__fsabo_subdid,
-	output reg [FSAB_ADDR_HI:0] dc__fsabo_addr,
-	output reg [FSAB_LEN_HI:0]  dc__fsabo_len,
-	output reg [FSAB_DATA_HI:0] dc__fsabo_data,
-	output reg [FSAB_MASK_HI:0] dc__fsabo_mask,
-	input                       dc__fsabo_credit,
+	output reg                  dc__fsabo_valid;
+	output reg [FSAB_REQ_HI:0]  dc__fsabo_mode;
+	output reg [FSAB_DID_HI:0]  dc__fsabo_did;
+	output reg [FSAB_DID_HI:0]  dc__fsabo_subdid;
+	output reg [FSAB_ADDR_HI:0] dc__fsabo_addr;
+	output reg [FSAB_LEN_HI:0]  dc__fsabo_len;
+	output reg [FSAB_DATA_HI:0] dc__fsabo_data;
+	output reg [FSAB_MASK_HI:0] dc__fsabo_mask;
+	input                       dc__fsabo_credit;
 	
-	input                       fsabi_valid,
-	input      [FSAB_DID_HI:0]  fsabi_did,
-	input      [FSAB_DID_HI:0]  fsabi_subdid,
-	input      [FSAB_DATA_HI:0] fsabi_data,
+	input                       fsabi_valid;
+	input      [FSAB_DID_HI:0]  fsabi_did;
+	input      [FSAB_DID_HI:0]  fsabi_subdid;
+	input      [FSAB_DATA_HI:0] fsabi_data;
 	
 	/* SPAM sidechannel interface */
-	output reg                  spamo_valid,
-	output reg                  spamo_r_nw,
-	output reg [SPAM_DID_HI:0]  spamo_did,
-	output reg [SPAM_ADDR_HI:0] spamo_addr,
-	output reg [SPAM_DATA_HI:0] spamo_data,
+	output reg                  spamo_valid;
+	output reg                  spamo_r_nw;
+	output reg [SPAM_DID_HI:0]  spamo_did;
+	output reg [SPAM_ADDR_HI:0] spamo_addr;
+	output reg [SPAM_DATA_HI:0] spamo_data;
 	
-	input                       spami_busy_b,
-	input      [SPAM_DATA_HI:0] spami_data);
-
- `include "fsab_defines.vh"
- `include "spam_defines.vh"
+	input                       spami_busy_b;
+	input      [SPAM_DATA_HI:0] spami_data;
 	
 	/*** FSAB credit availability logic ***/
 	

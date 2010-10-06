@@ -1,32 +1,40 @@
-module FSABArbiter(
-	input                                       clk,
-	input                                       Nrst,
-	
-	input [FSAB_DEVICES-1:0]                    fsabo_valids,
-	input [(FSAB_DEVICES*(FSAB_REQ_HI+1))-1:0]  fsabo_modes,
-	input [(FSAB_DEVICES*(FSAB_DID_HI+1))-1:0]  fsabo_dids,
-	input [(FSAB_DEVICES*(FSAB_DID_HI+1))-1:0]  fsabo_subdids,
-	input [(FSAB_DEVICES*(FSAB_ADDR_HI+1))-1:0] fsabo_addrs,
-	input [(FSAB_DEVICES*(FSAB_LEN_HI+1))-1:0]  fsabo_lens,
-	input [(FSAB_DEVICES*(FSAB_DATA_HI+1))-1:0] fsabo_datas,
-	input [(FSAB_DEVICES*(FSAB_MASK_HI+1))-1:0] fsabo_masks,
-	output wire [FSAB_DEVICES-1:0]              fsabo_credits,
-	
-	output wire                                 fsabo_valid,
-	output wire [FSAB_REQ_HI:0]                 fsabo_mode,
-	output wire [FSAB_DID_HI:0]                 fsabo_did,
-	output wire [FSAB_DID_HI:0]                 fsabo_subdid,
-	output wire [FSAB_ADDR_HI:0]                fsabo_addr,
-	output wire [FSAB_LEN_HI:0]                 fsabo_len,
-	output wire [FSAB_DATA_HI:0]                fsabo_data,
-	output wire [FSAB_MASK_HI:0]                fsabo_mask,
-	input                                       fsabo_credit
-	);
+module FSABArbiter(/*AUTOARG*/
+   // Outputs
+   fsabo_credits, fsabo_valid, fsabo_mode, fsabo_did, fsabo_subdid,
+   fsabo_addr, fsabo_len, fsabo_data, fsabo_mask,
+   // Inputs
+   clk, Nrst, fsabo_valids, fsabo_modes, fsabo_dids, fsabo_subdids,
+   fsabo_addrs, fsabo_lens, fsabo_datas, fsabo_masks, fsabo_credit
+   );
+	`include "fsab_defines.vh"
 
-`include "fsab_defines.vh"
 	parameter FSAB_DEVICES = 1;	/* Can be changed externally. */
 
-	parameter FSAB_DEVICES_HI = $clog2((FSAB_DEVICES == 1) ? 2 : FSAB_DEVICES)-1;
+	input                                       clk;
+	input                                       Nrst;
+	
+	input [FSAB_DEVICES-1:0]                    fsabo_valids;
+	input [(FSAB_DEVICES*(FSAB_REQ_HI+1))-1:0]  fsabo_modes;
+	input [(FSAB_DEVICES*(FSAB_DID_HI+1))-1:0]  fsabo_dids;
+	input [(FSAB_DEVICES*(FSAB_DID_HI+1))-1:0]  fsabo_subdids;
+	input [(FSAB_DEVICES*(FSAB_ADDR_HI+1))-1:0] fsabo_addrs;
+	input [(FSAB_DEVICES*(FSAB_LEN_HI+1))-1:0]  fsabo_lens;
+	input [(FSAB_DEVICES*(FSAB_DATA_HI+1))-1:0] fsabo_datas;
+	input [(FSAB_DEVICES*(FSAB_MASK_HI+1))-1:0] fsabo_masks;
+	output wire [FSAB_DEVICES-1:0]              fsabo_credits;
+	
+	output wire                                 fsabo_valid;
+	output wire [FSAB_REQ_HI:0]                 fsabo_mode;
+	output wire [FSAB_DID_HI:0]                 fsabo_did;
+	output wire [FSAB_DID_HI:0]                 fsabo_subdid;
+	output wire [FSAB_ADDR_HI:0]                fsabo_addr;
+	output wire [FSAB_LEN_HI:0]                 fsabo_len;
+	output wire [FSAB_DATA_HI:0]                fsabo_data;
+	output wire [FSAB_MASK_HI:0]                fsabo_mask;
+	input                                       fsabo_credit;
+
+	`include "clog2.vh"
+	parameter FSAB_DEVICES_HI = clog2((FSAB_DEVICES == 1) ? 2 : FSAB_DEVICES)-1;
 
 	/* The theory internal to these state machines (generated with a
 	 * genvar, so that we can split out the input bit vectors) is that
