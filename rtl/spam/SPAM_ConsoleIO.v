@@ -1,4 +1,10 @@
-module SPAM_ConsoleIO(/*AUTOARG*/);
+module SPAM_ConsoleIO(/*AUTOARG*/
+   // Outputs
+   cio__spami_busy_b, cio__spami_data, sys_odata, sys_tookdata,
+   // Inputs
+   clk, spamo_valid, spamo_r_nw, spamo_did, spamo_addr, spamo_data,
+   sys_idata
+   );
 	`include "spam_defines.vh"
 
 	input clk;
