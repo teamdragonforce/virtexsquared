@@ -1,19 +1,85 @@
 `define BUS_ICACHE 1
 `define BUS_DCACHE 0
 
-module System(input clk, input rst
+module System(/*AUTOARG*/
+   // Outputs
+   regfile_spsr, phy_init_done, pc_out_memory, memory_out_write_reg,
+   memory_out_write_num, memory_out_write_data, memory_out_spsr,
+   memory_out_cpsrup, memory_out_cpsr, jmppc_out_execute,
+   jmp_out_execute, insn_out_memory, ddr2_we_n, ddr2_ras_n, ddr2_odt,
+   ddr2_dm, ddr2_cs_n, ddr2_cke, ddr2_ck_n, ddr2_ck, ddr2_cas_n,
+   ddr2_ba, ddr2_a, dc__data_size_3a, cp_write, cp_rnw, cp_req,
+   clk0_tb, bubble_out_memory, sys_odata, sys_tookdata, cr_nADV,
+   cr_nCE, cr_nOE, cr_nWE, cr_CRE, cr_nLB, cr_nUB, cr_CLK, cr_A,
+   st_nCE,
+   // Inouts
+   ddr2_dqs_n, ddr2_dqs, ddr2_dq, cr_DQ,
+   // Inputs
+   sys_rst_n, sys_clk_p, sys_clk_n, flush, clk200_p, clk200_n, clk,
+   rst, sys_idata
+   );
+
+	`include "memory_defines.vh"
+
+	input clk; input rst;
 `ifdef verilator
 `else
-	, output wire [8:0] sys_odata,
-	input [8:0] sys_idata,
-	output wire sys_tookdata,
+	output wire [8:0] sys_odata;
+	input [8:0] sys_idata;
+	output wire sys_tookdata;
 
-	output wire cr_nADV, cr_nCE, cr_nOE, cr_nWE, cr_CRE, cr_nLB, cr_nUB, cr_CLK,
-	inout wire [15:0] cr_DQ,
-	output wire [22:0] cr_A,
-	output wire st_nCE
+	output wire cr_nADV, cr_nCE, cr_nOE, cr_nWE, cr_CRE, cr_nLB, cr_nUB, cr_CLK;
+	inout wire [15:0] cr_DQ;
+	output wire [22:0] cr_A;
+	output wire st_nCE;
+	/*AUTOINOUT*/
+	// Beginning of automatic inouts (from unused autoinst inouts)
+	inout [DQ_WIDTH-1:0] ddr2_dq;		// To/From mem of FSABMemory.v
+	inout [DQS_WIDTH-1:0] ddr2_dqs;		// To/From mem of FSABMemory.v
+	inout [DQS_WIDTH-1:0] ddr2_dqs_n;	// To/From mem of FSABMemory.v
+	// End of automatics
+	/*AUTOINPUT*/
+	// Beginning of automatic inputs (from unused autoinst inputs)
+	input		clk200_n;		// To mem of FSABMemory.v
+	input		clk200_p;		// To mem of FSABMemory.v
+	input		flush;			// To memory of Memory.v
+	input		sys_clk_n;		// To mem of FSABMemory.v
+	input		sys_clk_p;		// To mem of FSABMemory.v
+	input		sys_rst_n;		// To mem of FSABMemory.v
+	// End of automatics
+	/*AUTOOUTPUT*/
+	// Beginning of automatic outputs (from unused autoinst outputs)
+	output		bubble_out_memory;	// From memory of Memory.v
+	output		clk0_tb;		// From mem of FSABMemory.v
+	output		cp_req;			// From memory of Memory.v
+	output		cp_rnw;			// From memory of Memory.v
+	output [31:0]	cp_write;		// From memory of Memory.v
+	output [2:0]	dc__data_size_3a;	// From memory of Memory.v
+	output [ROW_WIDTH-1:0] ddr2_a;		// From mem of FSABMemory.v
+	output [BANK_WIDTH-1:0] ddr2_ba;	// From mem of FSABMemory.v
+	output		ddr2_cas_n;		// From mem of FSABMemory.v
+	output [CLK_WIDTH-1:0] ddr2_ck;		// From mem of FSABMemory.v
+	output [CLK_WIDTH-1:0] ddr2_ck_n;	// From mem of FSABMemory.v
+	output [CKE_WIDTH-1:0] ddr2_cke;	// From mem of FSABMemory.v
+	output [CS_WIDTH-1:0] ddr2_cs_n;	// From mem of FSABMemory.v
+	output [DM_WIDTH-1:0] ddr2_dm;		// From mem of FSABMemory.v
+	output [ODT_WIDTH-1:0] ddr2_odt;	// From mem of FSABMemory.v
+	output		ddr2_ras_n;		// From mem of FSABMemory.v
+	output		ddr2_we_n;		// From mem of FSABMemory.v
+	output		insn_out_memory;	// From memory of Memory.v
+	output		jmp_out_execute;	// From execute of Execute.v
+	output		jmppc_out_execute;	// From execute of Execute.v
+	output		memory_out_cpsr;	// From memory of Memory.v
+	output		memory_out_cpsrup;	// From memory of Memory.v
+	output		memory_out_spsr;	// From memory of Memory.v
+	output		memory_out_write_data;	// From memory of Memory.v
+	output		memory_out_write_num;	// From memory of Memory.v
+	output		memory_out_write_reg;	// From memory of Memory.v
+	output		pc_out_memory;		// From memory of Memory.v
+	output		phy_init_done;		// From mem of FSABMemory.v
+	output		regfile_spsr;		// From regfile of RegFile.v
+	// End of automatics
 `endif
-	);
 
 `include "fsab_defines.vh"
 `include "spam_defines.vh"
@@ -72,6 +138,7 @@ module System(input clk, input rst
 	wire [31:0] pc_out_memory;
 	
 	wire Nrst = ~rst;
+
 	
 	/*AUTOWIRE*/
 	// Beginning of automatic wires (for undeclared instantiated-module outputs)
@@ -85,7 +152,6 @@ module System(input clk, input rst
 	wire [31:0]	cpsr_3a;		// From execute of Execute.v
 	wire		cpsrup_3a;		// From execute of Execute.v
 	wire [31:0]	dc__addr_3a;		// From memory of Memory.v
-	wire [2:0]	dc__data_size_3a;	// From memory of Memory.v
 	wire [FSAB_ADDR_HI:0] dc__fsabo_addr;	// From dcache of DCache.v
 	wire		dc__fsabo_credit;	// From fsabarbiter of FSABArbiter.v
 	wire [FSAB_DATA_HI:0] dc__fsabo_data;	// From dcache of DCache.v
@@ -100,12 +166,12 @@ module System(input clk, input rst
 	wire		dc__rw_wait_3a;		// From dcache of DCache.v
 	wire [31:0]	dc__wr_data_3a;		// From memory of Memory.v
 	wire		dc__wr_req_3a;		// From memory of Memory.v
-	wire [FSAB_DATA_HI:0] fsabi_data;	// From simmem of FSABSimMemory.v
-	wire [FSAB_DID_HI:0] fsabi_did;		// From simmem of FSABSimMemory.v
-	wire [FSAB_DID_HI:0] fsabi_subdid;	// From simmem of FSABSimMemory.v
-	wire		fsabi_valid;		// From simmem of FSABSimMemory.v
+	wire [FSAB_DATA_HI:0] fsabi_data;	// From simmem of FSABSimMemory.v, ...
+	wire [FSAB_DID_HI:0] fsabi_did;		// From simmem of FSABSimMemory.v, ...
+	wire [FSAB_DID_HI:0] fsabi_subdid;	// From simmem of FSABSimMemory.v, ...
+	wire		fsabi_valid;		// From simmem of FSABSimMemory.v, ...
 	wire [FSAB_ADDR_HI:0] fsabo_addr;	// From fsabarbiter of FSABArbiter.v
-	wire		fsabo_credit;		// From simmem of FSABSimMemory.v
+	wire		fsabo_credit;		// From simmem of FSABSimMemory.v, ...
 	wire [FSAB_DATA_HI:0] fsabo_data;	// From fsabarbiter of FSABArbiter.v
 	wire [FSAB_DID_HI:0] fsabo_did;		// From fsabarbiter of FSABArbiter.v
 	wire [FSAB_LEN_HI:0] fsabo_len;		// From fsabarbiter of FSABArbiter.v
@@ -161,6 +227,11 @@ module System(input clk, input rst
 
 	wire execute_out_backflush;
 	wire writeback_out_backflush;
+
+	stfu_verilog_mode and_i_mean_it(/*AUTOINST*/
+					// Inputs
+					.cio__spami_busy_b(cio__spami_busy_b),
+					.cio__spami_data(cio__spami_data[SPAM_DATA_HI:0]));
 
 	/* XXX reset? */
 	/* ICache AUTO_TEMPLATE (
@@ -306,6 +377,48 @@ module System(input clk, input rst
 			     .fsabo_len		(fsabo_len[FSAB_LEN_HI:0]),
 			     .fsabo_data	(fsabo_data[FSAB_DATA_HI:0]),
 			     .fsabo_mask	(fsabo_mask[FSAB_MASK_HI:0]));
+`else
+	FSABMemory mem(
+		/*AUTOINST*/
+		       // Outputs
+		       .clk0_tb		(clk0_tb),
+		       .ddr2_a		(ddr2_a[ROW_WIDTH-1:0]),
+		       .ddr2_ba		(ddr2_ba[BANK_WIDTH-1:0]),
+		       .ddr2_cas_n	(ddr2_cas_n),
+		       .ddr2_ck		(ddr2_ck[CLK_WIDTH-1:0]),
+		       .ddr2_ck_n	(ddr2_ck_n[CLK_WIDTH-1:0]),
+		       .ddr2_cke	(ddr2_cke[CKE_WIDTH-1:0]),
+		       .ddr2_cs_n	(ddr2_cs_n[CS_WIDTH-1:0]),
+		       .ddr2_dm		(ddr2_dm[DM_WIDTH-1:0]),
+		       .ddr2_odt	(ddr2_odt[ODT_WIDTH-1:0]),
+		       .ddr2_ras_n	(ddr2_ras_n),
+		       .ddr2_we_n	(ddr2_we_n),
+		       .phy_init_done	(phy_init_done),
+		       .clk		(clk),
+		       .fsabo_credit	(fsabo_credit),
+		       .fsabi_valid	(fsabi_valid),
+		       .fsabi_did	(fsabi_did[FSAB_DID_HI:0]),
+		       .fsabi_subdid	(fsabi_subdid[FSAB_DID_HI:0]),
+		       .fsabi_data	(fsabi_data[FSAB_DATA_HI:0]),
+		       // Inouts
+		       .ddr2_dq		(ddr2_dq[DQ_WIDTH-1:0]),
+		       .ddr2_dqs	(ddr2_dqs[DQS_WIDTH-1:0]),
+		       .ddr2_dqs_n	(ddr2_dqs_n[DQS_WIDTH-1:0]),
+		       // Inputs
+		       .clk200_n	(clk200_n),
+		       .clk200_p	(clk200_p),
+		       .sys_clk_n	(sys_clk_n),
+		       .sys_clk_p	(sys_clk_p),
+		       .sys_rst_n	(sys_rst_n),
+		       .Nrst		(Nrst),
+		       .fsabo_valid	(fsabo_valid),
+		       .fsabo_mode	(fsabo_mode[FSAB_REQ_HI:0]),
+		       .fsabo_did	(fsabo_did[FSAB_DID_HI:0]),
+		       .fsabo_subdid	(fsabo_subdid[FSAB_DID_HI:0]),
+		       .fsabo_addr	(fsabo_addr[FSAB_ADDR_HI:0]),
+		       .fsabo_len	(fsabo_len[FSAB_LEN_HI:0]),
+		       .fsabo_data	(fsabo_data[FSAB_DATA_HI:0]),
+		       .fsabo_mask	(fsabo_mask[FSAB_MASK_HI:0]));
 `endif
 
 	/* Fetch AUTO_TEMPLATE (
@@ -454,7 +567,6 @@ module System(input clk, input rst
 	assign cp_insn = insn_3a;
 	/* stall? */
 	/* Memory AUTO_TEMPLATE (
-		.flush(writeback_out_backflush),
 		.outstall(stall_cause_memory),
 		.outbubble(bubble_out_memory), 
 		.outpc(pc_out_memory),
@@ -492,7 +604,7 @@ module System(input clk, input rst
 		      // Inputs
 		      .clk		(clk),
 		      .Nrst		(Nrst),
-		      .flush		(writeback_out_backflush), // Templated
+		      .flush		(flush),
 		      .dc__rw_wait_3a	(dc__rw_wait_3a),
 		      .dc__rd_data_3a	(dc__rd_data_3a[31:0]),
 		      .rf__rdata_3_3a	(rf__rdata_3_3a[31:0]),
@@ -535,6 +647,15 @@ module System(input clk, input rst
 		$display("%3d: MEMORY: Stall: %d, Bubble: %d, Instruction: %08x, PC: %08x, Reg: %d, [%08x -> %d]", clockno, stall_cause_memory, bubble_out_memory, insn_out_memory, pc_out_memory, memory_out_write_reg, memory_out_write_data, memory_out_write_num);
 		$display("%3d: WRITEB:                      CPSR %08x, SPSR %08x, Reg: %d [%08x -> %d], Jmp: %d [%08x]", clockno, writeback_out_cpsr, writeback_out_spsr, regfile_write, regfile_write_data, regfile_write_reg, jmp_out_writeback, jmppc_out_writeback);
 	end
+endmodule
+
+module stfu_verilog_mode (/*AUTOARG*/
+   // Inputs
+   cio__spami_busy_b, cio__spami_data
+   );
+	`include "spam_defines.vh"
+	input                  cio__spami_busy_b;  // From conio of SPAM_ConsoleIO.v
+	input [SPAM_DATA_HI:0] cio__spami_data;    // From conio of SPAM_ConsoleIO.v
 endmodule
 
 // Local Variables:

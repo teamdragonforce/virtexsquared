@@ -1,38 +1,41 @@
 module FSABMemory(/*AUTOARG*/
    // Outputs
-   ddr2_a, ddr2_ba, ddr2_ras_n, ddr2_cas_n, ddr2_we_n, ddr2_cs_n,
-   ddr2_odt, ddr2_cke, ddr2_dm, ddr2_ck, ddr2_ck_n, clk, fsabo_credit,
-   fsabi_valid, fsabi_did, fsabi_subdid, fsabi_data,
+   clk0_tb, ddr2_a, ddr2_ba, ddr2_cas_n, ddr2_ck, ddr2_ck_n, ddr2_cke,
+   ddr2_cs_n, ddr2_dm, ddr2_odt, ddr2_ras_n, ddr2_we_n, phy_init_done,
+   clk, fsabo_credit, fsabi_valid, fsabi_did, fsabi_subdid,
+   fsabi_data,
    // Inouts
    ddr2_dq, ddr2_dqs, ddr2_dqs_n,
    // Inputs
-   sys_clk_p, sys_clk_n, clk200_p, clk200_n, sys_rst_n, Nrst,
+   clk200_n, clk200_p, sys_clk_n, sys_clk_p, sys_rst_n, Nrst,
    fsabo_valid, fsabo_mode, fsabo_did, fsabo_subdid, fsabo_addr,
    fsabo_len, fsabo_data, fsabo_mask
    );
 	`include "fsab_defines.vh"
 	`include "memory_defines.vh"
+	`include "clog2.vh"
 
-	/* Out to pins */
-	inout  [DQ_WIDTH-1:0]              ddr2_dq;
-	output [ROW_WIDTH-1:0]             ddr2_a;
-	output [BANK_WIDTH-1:0]            ddr2_ba;
-	output                             ddr2_ras_n;
-	output                             ddr2_cas_n;
-	output                             ddr2_we_n;
-	output [CS_WIDTH-1:0]              ddr2_cs_n;
-	output [ODT_WIDTH-1:0]             ddr2_odt;
-	output [CKE_WIDTH-1:0]             ddr2_cke;
-	output [DM_WIDTH-1:0]              ddr2_dm;
-	input                              sys_clk_p;
-	input                              sys_clk_n;
-	input                              clk200_p;
-	input                              clk200_n;
-	input                              sys_rst_n;
-	inout  [DQS_WIDTH-1:0]             ddr2_dqs;
-	inout  [DQS_WIDTH-1:0]             ddr2_dqs_n;
-	output [CLK_WIDTH-1:0]             ddr2_ck;
-	output [CLK_WIDTH-1:0]             ddr2_ck_n;
+	input		clk200_n;		// To the_mig of mig.v
+	input		clk200_p;		// To the_mig of mig.v
+	input		sys_clk_n;		// To the_mig of mig.v
+	input		sys_clk_p;		// To the_mig of mig.v
+	input		sys_rst_n;		// To the_mig of mig.v
+	output		clk0_tb;		// From the_mig of mig.v
+	output [ROW_WIDTH-1:0] ddr2_a;		// From the_mig of mig.v
+	output [BANK_WIDTH-1:0] ddr2_ba;	// From the_mig of mig.v
+	output		ddr2_cas_n;		// From the_mig of mig.v
+	output [CLK_WIDTH-1:0] ddr2_ck;		// From the_mig of mig.v
+	output [CLK_WIDTH-1:0] ddr2_ck_n;	// From the_mig of mig.v
+	output [CKE_WIDTH-1:0] ddr2_cke;	// From the_mig of mig.v
+	output [CS_WIDTH-1:0] ddr2_cs_n;	// From the_mig of mig.v
+	output [DM_WIDTH-1:0] ddr2_dm;		// From the_mig of mig.v
+	output [ODT_WIDTH-1:0] ddr2_odt;	// From the_mig of mig.v
+	output		ddr2_ras_n;		// From the_mig of mig.v
+	output		ddr2_we_n;		// From the_mig of mig.v
+	output		phy_init_done;		// From the_mig of mig.v
+	inout [DQ_WIDTH-1:0] ddr2_dq;		// To/From the_mig of mig.v
+	inout [DQS_WIDTH-1:0] ddr2_dqs;		// To/From the_mig of mig.v
+	inout [DQS_WIDTH-1:0] ddr2_dqs_n;	// To/From the_mig of mig.v
 
 	output                       clk;
 	input                        Nrst;
@@ -51,6 +54,7 @@ module FSABMemory(/*AUTOARG*/
 	output wire [FSAB_DID_HI:0]  fsabi_did;
 	output wire [FSAB_DID_HI:0]  fsabi_subdid;
 	output wire [FSAB_DATA_HI:0] fsabi_data;
+
 
 	parameter SIMMEM_SIZE = 8 * 1024 * 1024;
 
@@ -117,7 +121,7 @@ module FSABMemory(/*AUTOARG*/
 	
 	/*** Inbound data FIFO (DFIF) ***/
 `define SIMMEM_DFIF_MAX ((FSAB_INITIAL_CREDITS * FSAB_LEN_MAX) - 1)
-`define SIMMEM_DFIF_HI ($clog2(`SIMMEM_DFIF_MAX) - 1)
+`define SIMMEM_DFIF_HI (clog2(`SIMMEM_DFIF_MAX) - 1)
 	reg [`SIMMEM_DFIF_HI:0] dfif_wpos_0a = 'h0;
 	reg [`SIMMEM_DFIF_HI:0] dfif_rpos_0a = 'h0;
 	reg [FSAB_DATA_HI+1 + FSAB_MASK_HI:0] dfif_fifo [`SIMMEM_DFIF_MAX:0];
@@ -175,81 +179,88 @@ module FSABMemory(/*AUTOARG*/
 		end
 	
 	/*** Memory control logic ***/
-	mig #(
-		.BANK_WIDTH             (BANK_WIDTH),
-		.CKE_WIDTH              (CKE_WIDTH),
-		.CLK_WIDTH              (CLK_WIDTH),
-		.COL_WIDTH              (COL_WIDTH),
-		.CS_NUM                 (CS_NUM),
-		.CS_WIDTH               (CS_WIDTH),
-		.CS_BITS                (CS_BITS),
-		.DM_WIDTH               (DM_WIDTH),
-		.DQ_WIDTH               (DQ_WIDTH),
-		.DQ_PER_DQS             (DQ_PER_DQS),
-		.DQS_WIDTH              (DQS_WIDTH),
-		.DQ_BITS                (DQ_BITS),
-		.DQS_BITS               (DQS_BITS),
-		.ODT_WIDTH              (ODT_WIDTH),
-		.ROW_WIDTH              (ROW_WIDTH),
-		.ADDITIVE_LAT           (ADDITIVE_LAT),
-		.BURST_LEN              (BURST_LEN),
-		.BURST_TYPE             (BURST_TYPE),
-		.CAS_LAT                (CAS_LAT),
-		.ECC_ENABLE             (ECC_ENABLE),
-		.APPDATA_WIDTH          (APPDATA_WIDTH),
-		.MULTI_BANK_EN          (MULTI_BANK_EN),
-		.TWO_T_TIME_EN          (TWO_T_TIME_EN),
-		.ODT_TYPE               (ODT_TYPE),
-		.REDUCE_DRV             (REDUCE_DRV),
-		.REG_ENABLE             (REG_ENABLE),
-		.TREFI_NS               (TREFI_NS),
-		.TRAS                   (TRAS),
-		.TRCD                   (TRCD),
-		.TRFC                   (TRFC),
-		.TRP                    (TRP),
-		.TRTP                   (TRTP),
-		.TWR                    (TWR),
-		.TWTR                   (TWTR),
-		.HIGH_PERFORMANCE_MODE  (HIGH_PERFORMANCE_MODE),
-		.IODELAY_GRP            (IODELAY_GRP),
-		.SIM_ONLY               (SIM_ONLY),
-		.DEBUG_EN               (DEBUG_EN),
-		.FPGA_SPEED_GRADE       (2),
-		.USE_DM_PORT            (1),
-		.CLK_PERIOD             (CLK_PERIOD)
-	)
-	the_mig (
-		.ddr2_dq(ddr2_dq),
-		.ddr2_a(ddr2_a),
-		.ddr2_ba(ddr2_ba),
-		.ddr2_ras_n(ddr2_ras_n),
-		.ddr2_cas_n(ddr2_cas_n),
-		.ddr2_we_n(ddr2_we_n),
-		.ddr2_cs_n(ddr2_cs_n),
-		.ddr2_odt(ddr2_odt),
-		.ddr2_cke(ddr2_cke),
-		.ddr2_dm(ddr2_dm),
-		.sys_clk_p(sys_clk_p),
-		.sys_clk_n(sys_clk_n),
-		.clk200_p(clk200_p),
-		.clk200_n(clk200_n),
-		.sys_rst_n(sys_rst_n),
-		.phy_init_done(phy_init_done),
-		.rst0_tb(rst0_tb),
-		.clk0_tb(clk0_tb),
-		.app_wdf_afull(app_wdf_afull),
-		.app_af_afull(app_af_afull),
-		.rd_data_valid(rd_data_valid),
-		.app_wdf_wren(app_wdf_wren),
-		.app_af_wren(app_af_wren),
-		.app_af_addr(app_af_addr),
-		.app_af_cmd(app_af_cmd),
-		.rd_data_fifo_out(rd_data_fifo_out),
-		.app_wfdf_data(app_wfdf_data),
-		.app_wdf_mask_data(app_wdf_mask_data),
-		.ddr2_dqs(ddr2_dqs),
-		.ddr2_dqs_n(ddr2_dqs_n),
-		.ddr2_ck(ddr2_ck),
-		.ddr2_ck_n(ddr2_ck_n)
-	);
+	mig #(/*AUTOINSTPARAM*/
+	      // Parameters
+	      .BANK_WIDTH		(BANK_WIDTH),
+	      .CKE_WIDTH		(CKE_WIDTH),
+	      .CLK_WIDTH		(CLK_WIDTH),
+	      .COL_WIDTH		(COL_WIDTH),
+	      .CS_NUM			(CS_NUM),
+	      .CS_WIDTH			(CS_WIDTH),
+	      .CS_BITS			(CS_BITS),
+	      .DM_WIDTH			(DM_WIDTH),
+	      .DQ_WIDTH			(DQ_WIDTH),
+	      .DQ_PER_DQS		(DQ_PER_DQS),
+	      .DQS_WIDTH		(DQS_WIDTH),
+	      .DQ_BITS			(DQ_BITS),
+	      .DQS_BITS			(DQS_BITS),
+	      .ODT_WIDTH		(ODT_WIDTH),
+	      .ROW_WIDTH		(ROW_WIDTH),
+	      .ADDITIVE_LAT		(ADDITIVE_LAT),
+	      .BURST_LEN		(BURST_LEN),
+	      .BURST_TYPE		(BURST_TYPE),
+	      .CAS_LAT			(CAS_LAT),
+	      .ECC_ENABLE		(ECC_ENABLE),
+	      .APPDATA_WIDTH		(APPDATA_WIDTH),
+	      .MULTI_BANK_EN		(MULTI_BANK_EN),
+	      .TWO_T_TIME_EN		(TWO_T_TIME_EN),
+	      .ODT_TYPE			(ODT_TYPE),
+	      .REDUCE_DRV		(REDUCE_DRV),
+	      .REG_ENABLE		(REG_ENABLE),
+	      .TREFI_NS			(TREFI_NS),
+	      .TRAS			(TRAS),
+	      .TRCD			(TRCD),
+	      .TRFC			(TRFC),
+	      .TRP			(TRP),
+	      .TRTP			(TRTP),
+	      .TWR			(TWR),
+	      .TWTR			(TWTR),
+	      .HIGH_PERFORMANCE_MODE	(HIGH_PERFORMANCE_MODE),
+	      .SIM_ONLY			(SIM_ONLY),
+	      .DEBUG_EN			(DEBUG_EN),
+	      .CLK_PERIOD		(CLK_PERIOD),
+	      .DLL_FREQ_MODE		(DLL_FREQ_MODE),
+	      .CLK_TYPE			(CLK_TYPE),
+	      .NOCLK200			(NOCLK200),
+	      .RST_ACT_LOW		(RST_ACT_LOW))
+	the_mig (/*AUTOINST*/
+		 // Outputs
+		 .ddr2_a		(ddr2_a[ROW_WIDTH-1:0]),
+		 .ddr2_ba		(ddr2_ba[BANK_WIDTH-1:0]),
+		 .ddr2_ras_n		(ddr2_ras_n),
+		 .ddr2_cas_n		(ddr2_cas_n),
+		 .ddr2_we_n		(ddr2_we_n),
+		 .ddr2_cs_n		(ddr2_cs_n[CS_WIDTH-1:0]),
+		 .ddr2_odt		(ddr2_odt[ODT_WIDTH-1:0]),
+		 .ddr2_cke		(ddr2_cke[CKE_WIDTH-1:0]),
+		 .ddr2_dm		(ddr2_dm[DM_WIDTH-1:0]),
+		 .phy_init_done		(phy_init_done),
+		 .rst0_tb		(rst0_tb),
+		 .clk0_tb		(clk0_tb),
+		 .app_wdf_afull		(app_wdf_afull),
+		 .app_af_afull		(app_af_afull),
+		 .rd_data_valid		(rd_data_valid),
+		 .rd_data_fifo_out	(rd_data_fifo_out[(APPDATA_WIDTH)-1:0]),
+		 .ddr2_ck		(ddr2_ck[CLK_WIDTH-1:0]),
+		 .ddr2_ck_n		(ddr2_ck_n[CLK_WIDTH-1:0]),
+		 // Inouts
+		 .ddr2_dq		(ddr2_dq[DQ_WIDTH-1:0]),
+		 .ddr2_dqs		(ddr2_dqs[DQS_WIDTH-1:0]),
+		 .ddr2_dqs_n		(ddr2_dqs_n[DQS_WIDTH-1:0]),
+		 // Inputs
+		 .sys_clk_p		(sys_clk_p),
+		 .sys_clk_n		(sys_clk_n),
+		 .clk200_p		(clk200_p),
+		 .clk200_n		(clk200_n),
+		 .sys_rst_n		(sys_rst_n),
+		 .app_wdf_wren		(app_wdf_wren),
+		 .app_af_wren		(app_af_wren),
+		 .app_af_addr		(app_af_addr[30:0]),
+		 .app_af_cmd		(app_af_cmd[2:0]),
+		 .app_wdf_data		(app_wdf_data[(APPDATA_WIDTH)-1:0]),
+		 .app_wdf_mask_data	(app_wdf_mask_data[(APPDATA_WIDTH/8)-1:0]));
 endmodule
+
+// Local Variables:
+// verilog-library-directories:("." "mig")
+// End:
