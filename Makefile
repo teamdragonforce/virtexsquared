@@ -49,8 +49,8 @@ $(RUNDIR)/stamps/sim: $(RUNDIR)/stamps/sim-build
 
 FPGA_TARGET = FireARM
 
-# not actually used?
-PART = xc5vlx110t-ff1136
+# not actually used? also needs to be changed in fgpa/xst/FireARM.xst
+PART = xc5vlx110t-ff1136-2
 
 fpga: .DUMMY $(RUNDIR)/stamps/fpga
 
@@ -86,7 +86,7 @@ $(RUNDIR)/stamps/fpga-xflow-prep: $(RUNDIR)/stamps/fpga-synth
 $(RUNDIR)/stamps/fpga-xflow: $(RUNDIR)/stamps/fpga-xflow-prep
 	@echo "Running back-end flow in $(RUNDIR)/fpga/xflow..."
 	@touch $(RUNDIR)/stamps/fpga-xflow-start
-	cd $(RUNDIR)/fpga/xflow; xflow -p xc3s1200e-fg320-5 -implement balanced.opt -config bitgen.opt $(FPGA_TARGET).ngc
+	cd $(RUNDIR)/fpga/xflow; xflow -p $(PART) -implement balanced.opt -config bitgen.opt $(FPGA_TARGET).ngc
 	@touch $(RUNDIR)/stamps/fpga-xflow
 	@ln -s xflow/$(FPGA_TARGET).bit $(RUNDIR)/fpga/
 
