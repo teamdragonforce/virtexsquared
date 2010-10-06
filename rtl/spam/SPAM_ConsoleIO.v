@@ -1,5 +1,5 @@
 module SPAM_ConsoleIO(/*AUTOARG*/);
-	`include "spam_defines.v"
+	`include "spam_defines.vh"
 
 	input clk;
 	
@@ -14,7 +14,7 @@ module SPAM_ConsoleIO(/*AUTOARG*/);
 	
 	output reg [8:0] sys_odata = 0;
 	input [8:0] sys_idata;
-	output reg sys_tookdata = 0
+	output reg sys_tookdata = 0;
 
 	reg towrite = 0;
 	reg [7:0] data = 0;
