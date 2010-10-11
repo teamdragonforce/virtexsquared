@@ -6,13 +6,13 @@ module ICache(/*AUTOARG*/
    ic__fsabo_did, ic__fsabo_subdid, ic__fsabo_addr, ic__fsabo_len,
    ic__fsabo_data, ic__fsabo_mask,
    // Inputs
-   clk, Nrst, ic__rd_addr_0a, ic__rd_req_0a, ic__fsabo_credit,
+   clk, rst_b, ic__rd_addr_0a, ic__rd_req_0a, ic__fsabo_credit,
    fsabi_valid, fsabi_did, fsabi_subdid, fsabi_data
    );
 	`include "fsab_defines.vh"
 
 	input clk;
-	input Nrst;
+	input rst_b;
 	
 	/* arm core interface */
 	input       [31:0] ic__rd_addr_0a;
@@ -45,8 +45,8 @@ module ICache(/*AUTOARG*/
 	
 	reg [FSAB_CREDITS_HI:0] fsab_credits = FSAB_INITIAL_CREDITS;
 	wire fsab_credit_avail = (fsab_credits != 0);
-	always @(posedge clk or negedge Nrst) begin
-		if (!Nrst) begin
+	always @(posedge clk or negedge rst_b) begin
+		if (!rst_b) begin
 			fsab_credits <= FSAB_INITIAL_CREDITS;
 		end else begin
 			if (ic__fsabo_credit | ic__fsabo_valid)
@@ -120,7 +120,7 @@ module ICache(/*AUTOARG*/
 		 * worry about credits.
 		 */
 		
-		if (start_read && Nrst) begin
+		if (start_read && rst_b) begin
 			ic__fsabo_valid = 1;
 			ic__fsabo_mode = FSAB_READ;
 			ic__fsabo_did = FSAB_DID_CPU;
@@ -131,8 +131,8 @@ module ICache(/*AUTOARG*/
 		end
 	end
 
-	always @(posedge clk) begin
-		if (!Nrst) begin
+	always @(posedge clk or negedge rst_b) begin
+		if (!rst_b) begin
 			read_pending <= 0;
 			cache_fill_pos <= 0;
 			fill_addr <= 0;

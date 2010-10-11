@@ -1,6 +1,6 @@
 module Fetch(
 	input              clk,
-	input              Nrst,
+	input              rst_b,
 	
 	output wire [31:0] ic__rd_addr_0a,
 	output wire        ic__rd_req_0a,
@@ -16,8 +16,8 @@ module Fetch(
 	
 	reg qjmp = 0;	/* A jump has been queued up while we were waiting. */
 	reg [31:0] qjmppc;
-	always @(posedge clk or negedge Nrst)
-		if (!Nrst)
+	always @(posedge clk or negedge rst_b)
+		if (!rst_b)
 			qjmp <= 0;
 		else if ((ic__rd_wait_0a || stall_0a) && jmp_0a)
 			{qjmp,qjmppc} <= {jmp_0a, jmppc_0a};
@@ -29,8 +29,8 @@ module Fetch(
 	/* Output latch logic */
 	reg [31:0] insn_2a;
 	reg stall_1a;
-	always @(posedge clk or negedge Nrst)
-		if (!Nrst) begin
+	always @(posedge clk or negedge rst_b)
+		if (!rst_b) begin
 			insn_2a <= 32'h00000000;
 			stall_1a <= 0;
 		end else begin
@@ -47,8 +47,8 @@ module Fetch(
 	assign ic__rd_addr_0a = reqpc_0a;
 	assign ic__rd_req_0a = 1;
 	
-	always @(posedge clk or negedge Nrst)
-		if (!Nrst) begin
+	always @(posedge clk or negedge rst_b)
+		if (!rst_b) begin
 			bubble_1a <= 1;
 			pc_1a <= 32'h00000000;
 		end else if (!stall_0a) begin
@@ -56,8 +56,8 @@ module Fetch(
 			pc_1a <= reqpc_0a;
 		end
 	
-	always @(posedge clk or negedge Nrst)
-		if (!Nrst)
+	always @(posedge clk or negedge rst_b)
+		if (!rst_b)
 			reqpc_0a <= 0;
 		else if (!stall_0a && !ic__rd_wait_0a) begin
 			if (qjmp)

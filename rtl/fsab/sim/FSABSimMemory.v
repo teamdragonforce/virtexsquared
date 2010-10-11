@@ -1,6 +1,6 @@
 module FSABSimMemory(
 	input                        clk,
-	input                        Nrst,
+	input                        rst_b,
 	
 	input                        fsabo_valid,
 	input       [FSAB_REQ_HI:0]  fsabo_mode,
@@ -34,8 +34,8 @@ module FSABSimMemory(
 	wire rfif_empty_0a = (rfif_rpos_0a == rfif_wpos_0a);
 	wire rfif_full_0a = (rfif_wpos_0a == (rfif_rpos_0a + FSAB_INITIAL_CREDITS));
 	
-	always @(posedge clk or negedge Nrst)
-		if (!Nrst) begin
+	always @(posedge clk or negedge rst_b)
+		if (!rst_b) begin
 			rfif_wpos_0a <= 'h0;
 			rfif_rpos_0a <= 'h0;
 		end else begin
@@ -77,8 +77,8 @@ module FSABSimMemory(
 								       this cycle (0a), len will be 0 */);
 	assign rfif_wr_0a = fsabo_valid && fsabo_cur_req_done_1a;
 	
-	always @(posedge clk or negedge Nrst)
-		if (!Nrst) begin
+	always @(posedge clk or negedge rst_b)
+		if (!rst_b) begin
 			fsabo_cur_req_len_rem_1a <= 0;
 		end else begin
 			if (fsabo_valid && fsabo_cur_req_done_1a && (fsabo_mode == FSAB_WRITE))
@@ -101,8 +101,8 @@ module FSABSimMemory(
 	wire dfif_full_0a = (dfif_wpos_0a == (dfif_rpos_0a + `SIMMEM_DFIF_MAX));
 	wire [`SIMMEM_DFIF_HI:0] dfif_avail_0a = dfif_wpos_0a - dfif_rpos_0a;
 	
-	always @(posedge clk or negedge Nrst)
-		if (!Nrst) begin
+	always @(posedge clk or negedge rst_b)
+		if (!rst_b) begin
 			dfif_wpos_0a <= 'h0;
 			dfif_rpos_0a <= 'h0;
 		end else begin
@@ -144,8 +144,8 @@ module FSABSimMemory(
 	/*** Pipe-throughs ***/
 	reg rfif_rd_1a = 0;
 	reg dfif_rd_1a = 0;
-	always @(posedge clk or negedge Nrst)
-		if (!Nrst) begin
+	always @(posedge clk or negedge rst_b)
+		if (!rst_b) begin
 			rfif_rd_1a <= 0;
 			dfif_rd_1a <= 0;
 		end else begin
@@ -214,8 +214,8 @@ module FSABSimMemory(
 	integer j;
 	reg [FSAB_DATA_HI:0] masked_data;
 	
-	always @(posedge clk or negedge Nrst)
-		if (!Nrst) begin
+	always @(posedge clk or negedge rst_b)
+		if (!rst_b) begin
 			mem_cur_req_len_rem_0a <= 'h0;
 			mem_cur_req_active_0a <= 0;
 			mem_cur_req_active_1a <= 0;

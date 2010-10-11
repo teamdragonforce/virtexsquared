@@ -3,13 +3,13 @@ module FSABArbiterFIFO(/*AUTOARG*/
    inp_credit, out_valid, out_mode, out_did, out_subdid, out_addr,
    out_len, out_data, out_mask, empty_b, active,
    // Inputs
-   clk, Nrst, inp_valid, inp_mode, inp_did, inp_subdid, inp_addr,
+   clk, rst_b, inp_valid, inp_mode, inp_did, inp_subdid, inp_addr,
    inp_len, inp_data, inp_mask, start_trans
    );
 	`include "fsab_defines.vh"
 
 	input clk;
-	input Nrst;
+	input rst_b;
 	
 	input                        inp_valid;
 	input       [FSAB_REQ_HI:0]  inp_mode;
@@ -49,8 +49,8 @@ module FSABArbiterFIFO(/*AUTOARG*/
 	wire rfif_empty_0a = (rfif_rpos_0a == rfif_wpos_0a);
 	wire rfif_full_0a = (rfif_wpos_0a == (rfif_rpos_0a + FSAB_INITIAL_CREDITS));
 	
-	always @(posedge clk or negedge Nrst)
-		if (!Nrst) begin
+	always @(posedge clk or negedge rst_b)
+		if (!rst_b) begin
 			rfif_wpos_0a <= 'h0;
 			rfif_rpos_0a <= 'h0;
 		end else begin
@@ -96,8 +96,8 @@ module FSABArbiterFIFO(/*AUTOARG*/
 								       this cycle (0a), len will be 0 */);
 	assign rfif_wr_0a = inp_valid && inp_cur_req_done_1a;
 	
-	always @(posedge clk or negedge Nrst)
-		if (!Nrst) begin
+	always @(posedge clk or negedge rst_b)
+		if (!rst_b) begin
 			inp_cur_req_len_rem_1a <= 0;
 		end else begin
 			`ifdef verilator
@@ -128,8 +128,8 @@ module FSABArbiterFIFO(/*AUTOARG*/
 	wire dfif_full_0a = (dfif_wpos_0a == (dfif_rpos_0a + `ARB_DFIF_MAX));
 	wire [`ARB_DFIF_HI:0] dfif_avail_0a = dfif_wpos_0a - dfif_rpos_0a;
 	
-	always @(posedge clk or negedge Nrst)
-		if (!Nrst) begin
+	always @(posedge clk or negedge rst_b)
+		if (!rst_b) begin
 			dfif_wpos_0a <= 'h0;
 			dfif_rpos_0a <= 'h0;
 		end else begin
@@ -177,8 +177,8 @@ module FSABArbiterFIFO(/*AUTOARG*/
 	/*** Pipe-throughs ***/
 	reg rfif_rd_1a = 0;
 	reg dfif_rd_1a = 0;
-	always @(posedge clk or negedge Nrst)
-		if (!Nrst) begin
+	always @(posedge clk or negedge rst_b)
+		if (!rst_b) begin
 			rfif_rd_1a <= 0;
 			dfif_rd_1a <= 0;
 		end else begin
@@ -245,8 +245,8 @@ module FSABArbiterFIFO(/*AUTOARG*/
 	                     (mem_cur_req_len_rem_0a != 'h1) &&
 	                     (mem_cur_req_len_rem_0a != 'h0));
 	
-	always @(posedge clk or negedge Nrst)
-		if (!Nrst) begin
+	always @(posedge clk or negedge rst_b)
+		if (!rst_b) begin
 			mem_cur_req_len_rem_0a <= 'h0;
 			mem_cur_req_active_0a <= 0;
 			mem_cur_req_active_1a <= 0;

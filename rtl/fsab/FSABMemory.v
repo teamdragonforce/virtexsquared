@@ -7,7 +7,7 @@ module FSABMemory(/*AUTOARG*/
    // Inouts
    ddr2_dq, ddr2_dqs, ddr2_dqs_n,
    // Inputs
-   clk200_n, clk200_p, sys_clk_n, sys_clk_p, sys_rst_n, Nrst,
+   clk200_n, clk200_p, sys_clk_n, sys_clk_p, sys_rst_n, rst_b,
    fsabo_valid, fsabo_mode, fsabo_did, fsabo_subdid, fsabo_addr,
    fsabo_len, fsabo_data, fsabo_mask
    );
@@ -38,7 +38,7 @@ module FSABMemory(/*AUTOARG*/
 	inout [DQS_WIDTH-1:0] ddr2_dqs_n;	// To/From the_mig of mig.v
 
 	output                       clk;
-	input                        Nrst;
+	input                        rst_b;
 	
 	input                        fsabo_valid;
 	input       [FSAB_REQ_HI:0]  fsabo_mode;
@@ -70,8 +70,8 @@ module FSABMemory(/*AUTOARG*/
 	wire rfif_empty_0a = (rfif_rpos_0a == rfif_wpos_0a);
 	wire rfif_full_0a = (rfif_wpos_0a == (rfif_rpos_0a + FSAB_INITIAL_CREDITS));
 	
-	always @(posedge clk or negedge Nrst)
-		if (!Nrst) begin
+	always @(posedge clk or negedge rst_b)
+		if (!rst_b) begin
 			rfif_wpos_0a <= 'h0;
 			rfif_rpos_0a <= 'h0;
 		end else begin
@@ -109,8 +109,8 @@ module FSABMemory(/*AUTOARG*/
 								       this cycle (0a), len will be 0 */);
 	assign rfif_wr_0a = fsabo_valid && fsabo_cur_req_done_1a;
 	
-	always @(posedge clk or negedge Nrst)
-		if (Nrst) begin
+	always @(posedge clk or negedge rst_b)
+		if (rst_b) begin
 			fsabo_cur_req_len_rem_1a <= 0;
 		end else begin
 			if (fsabo_valid && fsabo_cur_req_done_1a && (fsabo_mode == FSAB_WRITE))
@@ -133,8 +133,8 @@ module FSABMemory(/*AUTOARG*/
 	wire dfif_full_0a = (dfif_wpos_0a == (dfif_rpos_0a + `SIMMEM_DFIF_MAX));
 	wire [`SIMMEM_DFIF_HI:0] dfif_avail_0a = dfif_wpos_0a - dfif_rpos_0a;
 	
-	always @(posedge clk or negedge Nrst)
-		if (!Nrst) begin
+	always @(posedge clk or negedge rst_b)
+		if (!rst_b) begin
 			dfif_wpos_0a <= 'h0;
 			dfif_rpos_0a <= 'h0;
 		end else begin
@@ -169,8 +169,8 @@ module FSABMemory(/*AUTOARG*/
 	/*** Pipe-throughs ***/
 	reg rfif_rd_1a = 0;
 	reg dfif_rd_1a = 0;
-	always @(posedge clk or negedge Nrst)
-		if (!Nrst) begin
+	always @(posedge clk or negedge rst_b)
+		if (!rst_b) begin
 			rfif_rd_1a <= 0;
 			dfif_rd_1a <= 0;
 		end else begin

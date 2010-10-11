@@ -2,7 +2,7 @@
 
 module Issue(
 	input clk,
-	input Nrst,	/* XXX not used yet */
+	input rst_b,	/* XXX not used yet */
 	
 	input stall_1a,	/* pipeline control */
 	input flush_1a,
@@ -269,8 +269,8 @@ module Issue(
 	assign stall_0a = (waiting_1a && !bubble_1a && !flush_1a) || stall_1a;
 
 	reg delayedflush_1a = 0;
-	always @(posedge clk/* or negedge Nrst*/)
-		if (!Nrst)
+	always @(posedge clk or negedge rst_b)
+		if (!rst_b)
 			delayedflush_1a <= 0;
 		else if (flush_1a && stall_0a /* halp! I can't do it now, maybe later? */)
 			delayedflush_1a <= 1;
@@ -278,12 +278,12 @@ module Issue(
 			delayedflush_1a <= 0;
 
 	/* Actually do the issue. */
-	always @(posedge clk or negedge Nrst)
+	always @(posedge clk or negedge rst_b)
 	begin
 		if (waiting_1a)
 			$display("ISSUE: Stalling instruction %08x because %d/%d", insn_1a, waiting_cpsr_1a, waiting_regs_1a);
 
-		if (!Nrst) begin
+		if (!rst_b) begin
 			bubble_2a <= 1;
 			/*AUTORESET*/
 			// Beginning of autoreset for uninitialized flops

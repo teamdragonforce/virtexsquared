@@ -7,7 +7,7 @@ module DCache(/*AUTOARG*/
    dc__fsabo_data, dc__fsabo_mask, spamo_valid, spamo_r_nw, spamo_did,
    spamo_addr, spamo_data,
    // Inputs
-   clk, Nrst, dc__addr_3a, dc__rd_req_3a, dc__wr_req_3a,
+   clk, rst_b, dc__addr_3a, dc__rd_req_3a, dc__wr_req_3a,
    dc__wr_data_3a, dc__fsabo_credit, fsabi_valid, fsabi_did,
    fsabi_subdid, fsabi_data, spami_busy_b, spami_data
    );
@@ -15,7 +15,7 @@ module DCache(/*AUTOARG*/
 	`include "spam_defines.vh"
 
 	input clk;
-	input Nrst;
+	input rst_b;
 
 	/* ARM core interface */
 	input      [31:0] dc__addr_3a;
@@ -102,7 +102,7 @@ module DCache(/*AUTOARG*/
 	reg [31:0] fill_addr = 0;
 	wire [21:0] fill_tag = fill_addr[31:10];
 	wire [3:0] fill_idx = fill_addr[9:6];
-	wire start_read = Nrst && dc__rd_req_3a && !dc__addr_3a[31] && !cache_hit_3a && !read_pending && fsab_credit_avail;
+	wire start_read = rst_b && dc__rd_req_3a && !dc__addr_3a[31] && !cache_hit_3a && !read_pending && fsab_credit_avail;
 	always @(*)
 	begin
 		dc__fsabo_valid = 0;
@@ -142,8 +142,8 @@ module DCache(/*AUTOARG*/
 		end
 	end
 	
-	always @(posedge clk or negedge Nrst) begin
-		if (!Nrst) begin
+	always @(posedge clk or negedge rst_b) begin
+		if (!rst_b) begin
 			for (i = 0; i < 16; i = i + 1)
 				cache_valid[i] <= 1'b0;
 			read_pending <= 0;
@@ -184,7 +184,7 @@ module DCache(/*AUTOARG*/
 		spamo_did = 4'hx;
 		spamo_addr = 24'hxxxxxx;
 		spamo_data = 32'hxxxxxxxx;
-		if ((dc__rd_req_3a || dc__wr_req_3a) && dc__addr_3a[31] && !spam_intrans && Nrst) begin
+		if ((dc__rd_req_3a || dc__wr_req_3a) && dc__addr_3a[31] && !spam_intrans && rst_b) begin
 			spamo_valid = 1'b1;
 			spamo_r_nw = dc__rd_req_3a;
 			spamo_did = dc__addr_3a[27:24];
@@ -193,8 +193,8 @@ module DCache(/*AUTOARG*/
 		end
 	end
 	
-	always @(posedge clk or negedge Nrst) /* XXX reset */ begin
-		if (!Nrst) begin
+	always @(posedge clk or negedge rst_b) /* XXX reset */ begin
+		if (!rst_b) begin
 			spam_intrans <= 0;
 			spam_timeout <= 0;
 		end else if (spamo_valid) begin

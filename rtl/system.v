@@ -124,12 +124,12 @@ module System(
 	wire [31:0] pc_out_execute;
 	wire [31:0] pc_out_memory;
 	
-	wire Nrst = ~rst;
+	wire rst_b = ~rst;
 
 	
 	/*AUTOWIRE*/
 	// Beginning of automatic wires (for undeclared instantiated-module outputs)
-	wire		Ncorerst;		// From preload of FSABPreload.v
+	wire		rst_core_b;		// From preload of FSABPreload.v
 	wire		bubble_1a;		// From fetch of Fetch.v
 	wire		bubble_2a;		// From issue of Issue.v
 	wire		bubble_3a;		// From execute of Execute.v
@@ -233,7 +233,7 @@ module System(
 
 	/* ICache AUTO_TEMPLATE (
 		.clk(clk),
-		.Nrst(Ncorerst | Nrst),
+		.rst_b(rst_core_b | rst_b),
 		); */
 	ICache icache(
 		/*AUTOINST*/
@@ -250,7 +250,7 @@ module System(
 		      .ic__fsabo_mask	(ic__fsabo_mask[FSAB_MASK_HI:0]),
 		      // Inputs
 		      .clk		(clk),			 // Templated
-		      .Nrst		(Ncorerst | Nrst),	 // Templated
+		      .rst_b		(rst_core_b | rst_b),	 // Templated
 		      .ic__rd_addr_0a	(ic__rd_addr_0a[31:0]),
 		      .ic__rd_req_0a	(ic__rd_req_0a),
 		      .ic__fsabo_credit	(ic__fsabo_credit),
@@ -263,7 +263,7 @@ module System(
 	wire [SPAM_DATA_HI:0] spami_data = cio__spami_data[SPAM_DATA_HI:0];
 	/* DCache AUTO_TEMPLATE (
 		.clk(clk),
-		.Nrst(Ncorerst | Nrst),
+		.rst_b(rst_core_b | rst_b),
 		);
 		*/
 	DCache dcache(
@@ -286,7 +286,7 @@ module System(
 		      .spamo_data	(spamo_data[SPAM_DATA_HI:0]),
 		      // Inputs
 		      .clk		(clk),			 // Templated
-		      .Nrst		(Ncorerst | Nrst),	 // Templated
+		      .rst_b		(rst_core_b | rst_b),	 // Templated
 		      .dc__addr_3a	(dc__addr_3a[31:0]),
 		      .dc__rd_req_3a	(dc__rd_req_3a),
 		      .dc__wr_req_3a	(dc__wr_req_3a),
@@ -346,7 +346,7 @@ module System(
 				.fsabo_mask	(fsabo_mask[FSAB_MASK_HI:0]),
 				// Inputs
 				.clk		(clk),
-				.Nrst		(Nrst),
+				.rst_b		(rst_b),
 				.fsabo_valids	({pre__fsabo_valid,ic__fsabo_valid,dc__fsabo_valid}), // Templated
 				.fsabo_modes	({pre__fsabo_mode[FSAB_REQ_HI:0],ic__fsabo_mode[FSAB_REQ_HI:0],dc__fsabo_mode[FSAB_REQ_HI:0]}), // Templated
 				.fsabo_dids	({pre__fsabo_did[FSAB_DID_HI:0],ic__fsabo_did[FSAB_DID_HI:0],dc__fsabo_did[FSAB_DID_HI:0]}), // Templated
@@ -369,7 +369,7 @@ module System(
 			     .fsabi_data	(fsabi_data[FSAB_DATA_HI:0]),
 			     // Inputs
 			     .clk		(clk),
-			     .Nrst		(Nrst),
+			     .rst_b		(rst_b),
 			     .fsabo_valid	(fsabo_valid),
 			     .fsabo_mode	(fsabo_mode[FSAB_REQ_HI:0]),
 			     .fsabo_did		(fsabo_did[FSAB_DID_HI:0]),
@@ -411,7 +411,7 @@ module System(
 		       .sys_clk_n	(sys_clk_n),
 		       .sys_clk_p	(sys_clk_p),
 		       .sys_rst_n	(sys_rst_n),
-		       .Nrst		(Nrst),
+		       .rst_b		(rst_b),
 		       .fsabo_valid	(fsabo_valid),
 		       .fsabo_mode	(fsabo_mode[FSAB_REQ_HI:0]),
 		       .fsabo_did	(fsabo_did[FSAB_DID_HI:0]),
@@ -424,7 +424,7 @@ module System(
 
 	FSABPreload preload(/*AUTOINST*/
 			    // Outputs
-			    .Ncorerst		(Ncorerst),
+			    .rst_core_b		(rst_core_b),
 			    .pre__fsabo_valid	(pre__fsabo_valid),
 			    .pre__fsabo_mode	(pre__fsabo_mode[FSAB_REQ_HI:0]),
 			    .pre__fsabo_did	(pre__fsabo_did[FSAB_DID_HI:0]),
@@ -435,7 +435,7 @@ module System(
 			    .pre__fsabo_mask	(pre__fsabo_mask[FSAB_MASK_HI:0]),
 			    // Inputs
 			    .clk		(clk),
-			    .Nrst		(Nrst),
+			    .rst_b		(rst_b),
 			    .pre__fsabo_credit	(pre__fsabo_credit),
 			    .fsabi_valid	(fsabi_valid),
 			    .fsabi_did		(fsabi_did[FSAB_DID_HI:0]),
@@ -445,7 +445,7 @@ module System(
 	/* Fetch AUTO_TEMPLATE (
 		.jmp_0a(jmp),
 		.jmppc_0a(jmppc),
-		.Nrst(Ncorerst | Nrst),
+		.rst_b(rst_core_b | rst_b),
 		);
 	*/
 	Fetch fetch(
@@ -458,7 +458,7 @@ module System(
 		    .pc_1a		(pc_1a[31:0]),
 		    // Inputs
 		    .clk		(clk),
-		    .Nrst		(Ncorerst | Nrst),	 // Templated
+		    .rst_b		(rst_core_b | rst_b),	 // Templated
 		    .ic__rd_wait_0a	(ic__rd_wait_0a),
 		    .ic__rd_data_1a	(ic__rd_data_1a[31:0]),
 		    .stall_0a		(stall_0a),
@@ -469,7 +469,7 @@ module System(
 		.stall_1a(stall_cause_execute),
 		.flush_1a(execute_out_backflush | writeback_out_backflush),
 		.cpsr_1a(writeback_out_cpsr),
-		.Nrst(Ncorerst | Nrst),
+		.rst_b(rst_core_b | rst_b),
 		);
 	*/
 	Issue issue(
@@ -481,7 +481,7 @@ module System(
 		    .insn_2a		(insn_2a[31:0]),
 		    // Inputs
 		    .clk		(clk),
-		    .Nrst		(Ncorerst | Nrst),	 // Templated
+		    .rst_b		(rst_core_b | rst_b),	 // Templated
 		    .stall_1a		(stall_cause_execute),	 // Templated
 		    .flush_1a		(execute_out_backflush | writeback_out_backflush), // Templated
 		    .bubble_1a		(bubble_1a),
@@ -512,7 +512,7 @@ module System(
 		.write(regfile_write),
 		.write_reg(regfile_write_reg),
 		.write_data(regfile_write_data),
-		.Nrst(Ncorerst | Nrst),
+		.rst_b(rst_core_b | rst_b),
 		);
 	*/
 	wire [3:0] rf__read_3_4a;
@@ -526,7 +526,7 @@ module System(
 			.spsr		(regfile_spsr),		 // Templated
 			// Inputs
 			.clk		(clk),
-			.Nrst		(Ncorerst | Nrst),	 // Templated
+			.rst_b		(rst_core_b | rst_b),	 // Templated
 			.rf__read_0_1a	(rf__read_0_1a[3:0]),
 			.rf__read_1_1a	(rf__read_1_1a[3:0]),
 			.rf__read_2_1a	(rf__read_2_1a[3:0]),
@@ -570,7 +570,7 @@ module System(
 		.outstall_2a(stall_cause_execute),
 		.jmp_2a(jmp_out_execute),
 		.jmppc_2a(jmppc_out_execute),
-		.Nrst(Nrst | Ncorerst),
+		.rst_b(rst_b | rst_core_b),
 		);
 	*/	
 	Execute execute(
@@ -593,7 +593,7 @@ module System(
 			.op2_3a		(op2_3a[31:0]),
 			// Inputs
 			.clk		(clk),
-			.Nrst		(Nrst | Ncorerst),	 // Templated
+			.rst_b		(rst_b | rst_core_b),	 // Templated
 			.stall_2a	(stall_cause_memory),	 // Templated
 			.flush_2a	(writeback_out_backflush), // Templated
 			.bubble_2a	(bubble_2a),
@@ -620,7 +620,7 @@ module System(
 		.outcpsr(memory_out_cpsr),
 		.outspsr(memory_out_spsr),
 		.outcpsrup(memory_out_cpsrup),
-		.Nrst(Nrst | Ncorerst),
+		.rst_b(rst_b | rst_core_b),
 		.flush(writeback_out_backflush),
 		);
 		*/
@@ -648,7 +648,7 @@ module System(
 		      .outcpsrup	(memory_out_cpsrup),	 // Templated
 		      // Inputs
 		      .clk		(clk),
-		      .Nrst		(Nrst | Ncorerst),	 // Templated
+		      .rst_b		(rst_b | rst_core_b),	 // Templated
 		      .flush		(writeback_out_backflush), // Templated
 		      .dc__rw_wait_3a	(dc__rw_wait_3a),
 		      .dc__rd_data_3a	(dc__rd_data_3a[31:0]),
