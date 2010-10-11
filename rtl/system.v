@@ -489,6 +489,24 @@ module System(
 		    .pc_1a		(pc_1a[31:0]),
 		    .cpsr_1a		(writeback_out_cpsr));	 // Templated
 	
+`ifdef verilator
+	integer issued = 0;
+	integer cycles = 0;
+	integer last = 0;
+	always @(posedge clk) begin
+		cycles = cycles + 1;
+		if (!stall_cause_execute && !bubble_1a) begin
+			issued = issued + 1;
+			last = last + 1;
+		end
+		
+		if (cycles % 10000 == 0) begin
+			$display("PERF: time %5d, cycles %5d, issued %5d (last %5d/10000)", $time, cycles, issued, last);
+			last = 0;
+		end
+	end
+`endif
+	
 	/* RegFile AUTO_TEMPLATE (
 		.spsr(regfile_spsr),
 		.write(regfile_write),
