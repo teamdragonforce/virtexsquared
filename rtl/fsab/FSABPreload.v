@@ -54,7 +54,9 @@ module FSABPreload(/*AUTOARG*/
 	/*** FSAB preload state machine ***/
 	reg [63:0] bootmem [(BOOTMEM_SIZE-1):0];
 	initial begin
+		`ifdef verilator
 		assert(FSAB_DATA_HI == 63) else $error("FSAB_DATA_HI unsupported");
+		`endif
 		$readmemh("ram.hex64", bootmem);
 	end
 	
