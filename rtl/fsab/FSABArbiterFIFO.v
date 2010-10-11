@@ -100,10 +100,14 @@ module FSABArbiterFIFO(/*AUTOARG*/
 		if (!Nrst) begin
 			inp_cur_req_len_rem_1a <= 0;
 		end else begin
+			`ifdef verilator
 			if (inp_valid) 
 				$display("ARB[%2d]: %5d: RFIF control: valid %d, done %d, rem %d, inp len %d", myindex, $time, inp_valid, inp_cur_req_done_1a, inp_cur_req_len_rem_1a, inp_len);
+			`endif
 			if (inp_valid && inp_cur_req_done_1a && (inp_mode == FSAB_WRITE)) begin
+				`ifdef verilator
 				$display("ARB[%2d]: %5d: RFIF control: inp len %d", myindex, $time, inp_len);
+				`endif
 				inp_cur_req_len_rem_1a <= inp_len;
 			end else if (inp_valid && inp_cur_req_len_rem_1a != 0)
 				inp_cur_req_len_rem_1a <= inp_cur_req_len_rem_1a - 1;
