@@ -316,7 +316,6 @@ module System(
 		       .clk200_p	(clk200_p),
 		       .sys_clk_n	(sys_clk_n),
 		       .sys_clk_p	(sys_clk_p),
-		       .sys_rst_n	(sys_rst_n),
 		       .Nrst		(Nrst),
 		       .fsabo_valid	(fsabo_valid),
 		       .fsabo_mode	(fsabo_mode[FSAB_REQ_HI:0]),
