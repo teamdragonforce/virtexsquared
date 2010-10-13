@@ -20,7 +20,7 @@
 
 module Memory(
 	input clk,
-	input Nrst,
+	input rst_b,
 
 	input flush,
 
@@ -101,33 +101,56 @@ module Memory(
 	reg do_rd_data_latch;
 	reg [31:0] rd_data_latch = 32'hxxxxxxxx;
 
-	always @(posedge clk)
+	always @(posedge clk or negedge rst_b)
 	begin
-		outpc <= pc_3a;
-		outinsn <= insn_3a;
-		outbubble <= next_outbubble;
-		out_write_reg <= next_write_reg;
-		out_write_num <= next_write_num;
-		out_write_data <= next_write_data;
-		if (!dc__rw_wait_3a)
-			prev_offset <= offset;
-		prev_raddr <= raddr;
-		outcpsr <= next_outcpsr;
-		outspsr <= spsr_3a;
-		outcpsrup <= next_outcpsrup;
-		swp_state <= next_swp_state;
-		lsm_state <= next_lsm_state;
-		lsr_state <= next_lsr_state;
-		lsrh_state <= next_lsrh_state;
-		if (do_rd_data_latch)
-			rd_data_latch <= dc__rd_data_3a;
-		swp_oldval <= next_swp_oldval;
-		prevaddr <= addr;
+		if (!rst_b) begin
+			outpc <= 0;
+			outinsn <= 0;
+			outbubble <= 0;
+			out_write_reg <= 0;
+			out_write_num <= 0;
+			out_write_data <= 0;
+			prev_offset <= 0;
+			prev_raddr <= 0;
+			outcpsr <= 0;
+			outspsr <= 0;
+			outcpsrup <= 0;
+			swp_state <= 2'b01;
+			lsm_state <= 4'b0001;
+			lsr_state <= 4'b0001;
+			lsrh_state <= 3'b001;
+			rd_data_latch <= 0;
+			swp_oldval <= 0;
+			prevaddr <= 0;
+		end else begin
+			outpc <= pc_3a;
+			outinsn <= insn_3a;
+			outbubble <= next_outbubble;
+			out_write_reg <= next_write_reg;
+			out_write_num <= next_write_num;
+			out_write_data <= next_write_data;
+			if (!dc__rw_wait_3a)
+				prev_offset <= offset;
+			prev_raddr <= raddr;
+			outcpsr <= next_outcpsr;
+			outspsr <= spsr_3a;
+			outcpsrup <= next_outcpsrup;
+			swp_state <= next_swp_state;
+			lsm_state <= next_lsm_state;
+			lsr_state <= next_lsr_state;
+			lsrh_state <= next_lsrh_state;
+			if (do_rd_data_latch)
+				rd_data_latch <= dc__rd_data_3a;
+			swp_oldval <= next_swp_oldval;
+			prevaddr <= addr;
+		end
 	end
 	
 	reg delayedflush = 0;
-	always @(posedge clk)
-		if (flush && outstall /* halp! I can't do it now, maybe later? */)
+	always @(posedge clk or negedge rst_b)
+		if (!rst_b)
+			delayedflush <= 0;
+		else if (flush && outstall /* halp! I can't do it now, maybe later? */)
 			delayedflush <= 1;
 		else if (!outstall /* anything has been handled this time around */)
 			delayedflush <= 0;
@@ -595,9 +618,11 @@ module Memory(
 	end
 	
 	/* LDM/STM register control logic. */
-	always @(posedge clk)
-		if (!dc__rw_wait_3a || lsm_state != `LSM_MEMIO)
-		begin
+	always @(posedge clk or negedge rst_b)
+		if (!rst_b) begin
+			prev_reg <= 0;
+			regs <= 0;
+		end else if (!dc__rw_wait_3a || lsm_state != `LSM_MEMIO) begin
 			prev_reg <= cur_reg;
 			regs <= next_regs;
 		end

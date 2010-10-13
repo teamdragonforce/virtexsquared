@@ -3,7 +3,7 @@ module FSABArbiter(/*AUTOARG*/
    fsabo_credits, fsabo_valid, fsabo_mode, fsabo_did, fsabo_subdid,
    fsabo_addr, fsabo_len, fsabo_data, fsabo_mask,
    // Inputs
-   clk, Nrst, fsabo_valids, fsabo_modes, fsabo_dids, fsabo_subdids,
+   clk, rst_b, fsabo_valids, fsabo_modes, fsabo_dids, fsabo_subdids,
    fsabo_addrs, fsabo_lens, fsabo_datas, fsabo_masks, fsabo_credit
    );
 	`include "fsab_defines.vh"
@@ -11,7 +11,7 @@ module FSABArbiter(/*AUTOARG*/
 	parameter FSAB_DEVICES = 1;	/* Can be changed externally. */
 
 	input                                       clk;
-	input                                       Nrst;
+	input                                       rst_b;
 	
 	input [FSAB_DEVICES-1:0]                    fsabo_valids;
 	input [(FSAB_DEVICES*(FSAB_REQ_HI+1))-1:0]  fsabo_modes;
@@ -82,7 +82,7 @@ module FSABArbiter(/*AUTOARG*/
 				     .active		(fifo_active[i]),
 				     // Inputs
 				     .clk		(clk),
-				     .Nrst		(Nrst),
+				     .rst_b		(rst_b),
 				     .inp_valid		(fsabo_valids[i]),
 				     .inp_mode		(fsabo_modes[`ARB_BITS(FSAB_REQ_HI)]),
 				     .inp_did		(fsabo_dids[`ARB_BITS(FSAB_DID_HI)]),
@@ -99,8 +99,8 @@ module FSABArbiter(/*AUTOARG*/
 	/*** Outbound credit availability ***/
 	reg [FSAB_CREDITS_HI:0] fsab_credits = FSAB_INITIAL_CREDITS;
 	wire fsab_credit_avail = (fsab_credits != 0);
-	always @(posedge clk or negedge Nrst)
-		if (!Nrst) begin
+	always @(posedge clk or negedge rst_b)
+		if (!rst_b) begin
 			fsab_credits <= FSAB_INITIAL_CREDITS;
 		end else begin
 			if (fsabo_credit | (|fifo_start))
@@ -127,8 +127,8 @@ module FSABArbiter(/*AUTOARG*/
 	end
 	/* verilator lint_on WIDTH */ /* assigning an int to a reg */
 	
-	always @(posedge clk or negedge Nrst)
-		if (!Nrst) begin
+	always @(posedge clk or negedge rst_b)
+		if (!rst_b) begin
 			current_device <= {(FSAB_DEVICES_HI+1){1'b0}};
 		end else begin
 			if (new_selection)

@@ -1,9 +1,4 @@
-`define BUS_ICACHE 1
-`define BUS_DCACHE 0
-
 module System(
-`ifdef verilator
-`else
    // Outputs
    ddr2_a, ddr2_ba, ddr2_cas_n, ddr2_ck, ddr2_ck_n, ddr2_cke, ddr2_cs_n,
    ddr2_dm, ddr2_odt, ddr2_ras_n, ddr2_we_n, phy_init_done,
@@ -11,15 +6,12 @@ module System(
    ddr2_dq, ddr2_dqs, ddr2_dqs_n,
    // Inputs
    clk200_n, clk200_p, sys_clk_n, sys_clk_p, sys_rst_n,
-`endif
    clk, rst
    );
 
 	`include "memory_defines.vh"
 
 	input clk; input rst;
-`ifdef verilator
-`else
 	/* Ok, this autoinout thing has to go. */
 	
 	// Beginning of automatic inouts (from unused autoinst inouts)
@@ -48,70 +40,12 @@ module System(
 	output		ddr2_we_n;		// From mem of FSABMemory.v
 	output		phy_init_done;		// From mem of FSABMemory.v
 	// End of automatics
-`endif
 
 `include "fsab_defines.vh"
 `include "spam_defines.vh"
 	
-	wire [31:0] decode_out_op0, decode_out_op1, decode_out_op2, decode_out_spsr, decode_out_cpsr;
-	wire decode_out_carry;
-	
-	wire [3:0] regfile_read_0, regfile_read_1, regfile_read_2, regfile_read_3;
-	wire [31:0] regfile_rdata_0, regfile_rdata_1, regfile_rdata_2, regfile_rdata_3, regfile_spsr;
-	wire regfile_write;
-	wire [3:0] regfile_write_reg;
-	wire [31:0] regfile_write_data;
-	
-	wire execute_out_write_reg;
-	wire [3:0] execute_out_write_num;
-	wire [31:0] execute_out_write_data;
-	wire [31:0] execute_out_op0, execute_out_op1, execute_out_op2;
-	wire [31:0] execute_out_cpsr, execute_out_spsr;
-	wire execute_out_cpsrup;
-	
-	wire jmp_out_execute, jmp_out_writeback;
-	wire [31:0] jmppc_out_execute, jmppc_out_writeback;
-	wire jmp = jmp_out_execute | jmp_out_writeback;
-	wire [31:0] jmppc = jmppc_out_execute | jmppc_out_writeback;
-	
-	wire memory_out_write_reg;
-	wire [3:0] memory_out_write_num;
-	wire [31:0] memory_out_write_data;
-	wire [31:0] memory_out_cpsr, memory_out_spsr;
-	wire memory_out_cpsrup;
-	
-	wire [31:0] writeback_out_cpsr, writeback_out_spsr;
-
-	wire cp_req;
-	wire [31:0] cp_insn;
-	wire cp_ack = 0;
-	wire cp_busy = 0;
-	wire cp_rnw;
-	wire [31:0] cp_read = 0;
-	wire [31:0] cp_write;
-	
-	wire stall_cause_issue;
-	wire stall_cause_execute;
-	wire stall_cause_memory;
-	wire bubble_out_fetch;
-	wire bubble_out_issue;
-	wire bubble_out_execute;
-	wire bubble_out_memory;
-	wire [31:0] insn_out_fetch;
-	wire [31:0] insn_out_issue;
-	wire [31:0] insn_out_execute;
-	wire [31:0] insn_out_memory;
-	wire [31:0] pc_out_fetch;
-	wire [31:0] pc_out_issue;
-	wire [31:0] pc_out_execute;
-	wire [31:0] pc_out_memory;
-	
-	wire Nrst = ~rst;
-
-	
 	/*AUTOWIRE*/
 	// Beginning of automatic wires (for undeclared instantiated-module outputs)
-	wire		Ncorerst;		// From preload of FSABPreload.v
 	wire		cio__spami_busy_b;	// From conio of SPAM_ConsoleIO.v
 	wire [SPAM_DATA_HI:0] cio__spami_data;	// From conio of SPAM_ConsoleIO.v
 	wire [FSAB_ADDR_HI:0] dc__fsabo_addr;	// From core of Core.v
@@ -123,12 +57,12 @@ module System(
 	wire [FSAB_REQ_HI:0] dc__fsabo_mode;	// From core of Core.v
 	wire [FSAB_DID_HI:0] dc__fsabo_subdid;	// From core of Core.v
 	wire		dc__fsabo_valid;	// From core of Core.v
-	wire [FSAB_DATA_HI:0] fsabi_data;	// From simmem of FSABSimMemory.v, ...
-	wire [FSAB_DID_HI:0] fsabi_did;		// From simmem of FSABSimMemory.v, ...
-	wire [FSAB_DID_HI:0] fsabi_subdid;	// From simmem of FSABSimMemory.v, ...
-	wire		fsabi_valid;		// From simmem of FSABSimMemory.v, ...
+	wire [FSAB_DATA_HI:0] fsabi_data;	// From mem of FSABMemory.v
+	wire [FSAB_DID_HI:0] fsabi_did;		// From mem of FSABMemory.v
+	wire [FSAB_DID_HI:0] fsabi_subdid;	// From mem of FSABMemory.v
+	wire		fsabi_valid;		// From mem of FSABMemory.v
 	wire [FSAB_ADDR_HI:0] fsabo_addr;	// From fsabarbiter of FSABArbiter.v
-	wire		fsabo_credit;		// From simmem of FSABSimMemory.v, ...
+	wire		fsabo_credit;		// From mem of FSABMemory.v
 	wire [FSAB_DATA_HI:0] fsabo_data;	// From fsabarbiter of FSABArbiter.v
 	wire [FSAB_DID_HI:0] fsabo_did;		// From fsabarbiter of FSABArbiter.v
 	wire [FSAB_LEN_HI:0] fsabo_len;		// From fsabarbiter of FSABArbiter.v
@@ -154,6 +88,7 @@ module System(
 	wire [FSAB_REQ_HI:0] pre__fsabo_mode;	// From preload of FSABPreload.v
 	wire [FSAB_DID_HI:0] pre__fsabo_subdid;	// From preload of FSABPreload.v
 	wire		pre__fsabo_valid;	// From preload of FSABPreload.v
+	wire		rst_core_b;		// From preload of FSABPreload.v
 	wire [SPAM_ADDR_HI:0] spamo_addr;	// From core of Core.v
 	wire [SPAM_DATA_HI:0] spamo_data;	// From core of Core.v
 	wire [SPAM_DID_HI:0] spamo_did;		// From core of Core.v
@@ -161,18 +96,22 @@ module System(
 	wire		spamo_valid;		// From core of Core.v
 	// End of automatics
 
-	wire execute_out_backflush;
-	wire writeback_out_backflush;
+	wire rst_b = ~rst;
 
-	stfu_verilog_mode and_i_mean_it(/*AUTOINST*/
+`ifdef DUMMY
+	stfu_verilog_mode and_i_mean_it(
 					// Inputs
 					.cio__spami_busy_b(cio__spami_busy_b),
 					.cio__spami_data(cio__spami_data[SPAM_DATA_HI:0]));
-
+`endif
 	
 	wire spami_busy_b = cio__spami_busy_b;
 	wire [SPAM_DATA_HI:0] spami_data = cio__spami_data[SPAM_DATA_HI:0];
 
+	/* Core AUTO_TEMPLATE (
+		.rst_b(rst_core_b & rst_b),
+		);
+	*/
 	Core core(/*AUTOINST*/
 		  // Outputs
 		  .ic__fsabo_valid	(ic__fsabo_valid),
@@ -198,7 +137,7 @@ module System(
 		  .spamo_data		(spamo_data[SPAM_DATA_HI:0]),
 		  // Inputs
 		  .clk			(clk),
-		  .Nrst			(Nrst),
+		  .rst_b		(rst_core_b & rst_b),	 // Templated
 		  .ic__fsabo_credit	(ic__fsabo_credit),
 		  .dc__fsabo_credit	(dc__fsabo_credit),
 		  .fsabi_valid		(fsabi_valid),
@@ -253,7 +192,7 @@ module System(
 				.fsabo_mask	(fsabo_mask[FSAB_MASK_HI:0]),
 				// Inputs
 				.clk		(clk),
-				.Nrst		(Nrst),
+				.rst_b		(rst_b),
 				.fsabo_valids	({pre__fsabo_valid,ic__fsabo_valid,dc__fsabo_valid}), // Templated
 				.fsabo_modes	({pre__fsabo_mode[FSAB_REQ_HI:0],ic__fsabo_mode[FSAB_REQ_HI:0],dc__fsabo_mode[FSAB_REQ_HI:0]}), // Templated
 				.fsabo_dids	({pre__fsabo_did[FSAB_DID_HI:0],ic__fsabo_did[FSAB_DID_HI:0],dc__fsabo_did[FSAB_DID_HI:0]}), // Templated
@@ -265,27 +204,6 @@ module System(
 				.fsabo_credit	(fsabo_credit));
 	defparam fsabarbiter.FSAB_DEVICES = 3;
 
-`ifdef verilator
-	FSABSimMemory simmem(
-		/*AUTOINST*/
-			     // Outputs
-			     .fsabo_credit	(fsabo_credit),
-			     .fsabi_valid	(fsabi_valid),
-			     .fsabi_did		(fsabi_did[FSAB_DID_HI:0]),
-			     .fsabi_subdid	(fsabi_subdid[FSAB_DID_HI:0]),
-			     .fsabi_data	(fsabi_data[FSAB_DATA_HI:0]),
-			     // Inputs
-			     .clk		(clk),
-			     .Nrst		(Nrst),
-			     .fsabo_valid	(fsabo_valid),
-			     .fsabo_mode	(fsabo_mode[FSAB_REQ_HI:0]),
-			     .fsabo_did		(fsabo_did[FSAB_DID_HI:0]),
-			     .fsabo_subdid	(fsabo_subdid[FSAB_DID_HI:0]),
-			     .fsabo_addr	(fsabo_addr[FSAB_ADDR_HI:0]),
-			     .fsabo_len		(fsabo_len[FSAB_LEN_HI:0]),
-			     .fsabo_data	(fsabo_data[FSAB_DATA_HI:0]),
-			     .fsabo_mask	(fsabo_mask[FSAB_MASK_HI:0]));
-`else
 	FSABMemory mem(
 		/*AUTOINST*/
 		       // Outputs
@@ -316,7 +234,7 @@ module System(
 		       .clk200_p	(clk200_p),
 		       .sys_clk_n	(sys_clk_n),
 		       .sys_clk_p	(sys_clk_p),
-		       .Nrst		(Nrst),
+		       .rst_b		(rst_b),
 		       .fsabo_valid	(fsabo_valid),
 		       .fsabo_mode	(fsabo_mode[FSAB_REQ_HI:0]),
 		       .fsabo_did	(fsabo_did[FSAB_DID_HI:0]),
@@ -325,11 +243,10 @@ module System(
 		       .fsabo_len	(fsabo_len[FSAB_LEN_HI:0]),
 		       .fsabo_data	(fsabo_data[FSAB_DATA_HI:0]),
 		       .fsabo_mask	(fsabo_mask[FSAB_MASK_HI:0]));
-`endif
 
 	FSABPreload preload(/*AUTOINST*/
 			    // Outputs
-			    .Ncorerst		(Ncorerst),
+			    .rst_core_b		(rst_core_b),
 			    .pre__fsabo_valid	(pre__fsabo_valid),
 			    .pre__fsabo_mode	(pre__fsabo_mode[FSAB_REQ_HI:0]),
 			    .pre__fsabo_did	(pre__fsabo_did[FSAB_DID_HI:0]),
@@ -340,7 +257,7 @@ module System(
 			    .pre__fsabo_mask	(pre__fsabo_mask[FSAB_MASK_HI:0]),
 			    // Inputs
 			    .clk		(clk),
-			    .Nrst		(Nrst),
+			    .rst_b		(rst_b),
 			    .pre__fsabo_credit	(pre__fsabo_credit),
 			    .fsabi_valid	(fsabi_valid),
 			    .fsabi_did		(fsabi_did[FSAB_DID_HI:0]),
@@ -349,15 +266,6 @@ module System(
 
 endmodule
 
-module stfu_verilog_mode (/*AUTOARG*/
-   // Inputs
-   cio__spami_busy_b, cio__spami_data
-   );
-	`include "spam_defines.vh"
-	input                  cio__spami_busy_b;  // From conio of SPAM_ConsoleIO.v
-	input [SPAM_DATA_HI:0] cio__spami_data;    // From conio of SPAM_ConsoleIO.v
-endmodule
-
 // Local Variables:
-// verilog-library-directories:("." "console" "core" "fsab" "spam" "fsab/sim")
+// verilog-library-directories:("." "../console" "../core" "../fsab" "../spam" "../fsab/sim")
 // End:

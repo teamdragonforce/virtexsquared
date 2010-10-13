@@ -7,7 +7,7 @@ module FSABMemory(/*AUTOARG*/
    // Inouts
    ddr2_dq, ddr2_dqs, ddr2_dqs_n,
    // Inputs
-   clk200_n, clk200_p, sys_clk_n, sys_clk_p, Nrst, fsabo_valid,
+   clk200_n, clk200_p, sys_clk_n, sys_clk_p, rst_b, fsabo_valid,
    fsabo_mode, fsabo_did, fsabo_subdid, fsabo_addr, fsabo_len,
    fsabo_data, fsabo_mask
    );
@@ -36,7 +36,7 @@ module FSABMemory(/*AUTOARG*/
 	inout [DQS_WIDTH-1:0] ddr2_dqs_n;	// To/From the_mig of mig.v
 
 	output                       clk;
-	input                        Nrst;
+	input                        rst_b;
 	
 	input                        fsabo_valid;
 	input       [FSAB_REQ_HI:0]  fsabo_mode;
@@ -65,8 +65,8 @@ module FSABMemory(/*AUTOARG*/
 	wire irfif_empty_0a = (irfif_rpos_0a == irfif_wpos_0a);
 	wire irfif_full_0a = (irfif_wpos_0a == (irfif_rpos_0a + FSAB_INITIAL_CREDITS));
 	
-	always @(posedge clk or negedge Nrst)
-		if (!Nrst) begin
+	always @(posedge clk or negedge rst_b)
+		if (!rst_b) begin
 			irfif_wpos_0a <= 'h0;
 			irfif_rpos_0a <= 'h0;
 		end else begin
@@ -105,8 +105,8 @@ module FSABMemory(/*AUTOARG*/
 	wire fsabo_new_req_0a = fsabo_valid && fsabo_cur_req_done_0a;
 	assign irfif_wr_0a = fsabo_new_req_0a;
 	
-	always @(posedge clk or negedge Nrst)
-		if (!Nrst) begin
+	always @(posedge clk or negedge rst_b)
+		if (!rst_b) begin
 			fsabo_cur_req_len_rem_0a <= 0;
 		end else begin
 			if (fsabo_valid && fsabo_cur_req_done_0a && (fsabo_mode == FSAB_WRITE))
@@ -130,8 +130,8 @@ module FSABMemory(/*AUTOARG*/
 	wire idfif_full_0a = (idfif_wpos_0a == (idfif_rpos_0a + `MEM_IDFIF_MAX));
 	wire [`MEM_IDFIF_HI:0] idfif_avail_0a = idfif_wpos_0a - idfif_rpos_0a;
 	
-	always @(posedge clk or negedge Nrst)
-		if (!Nrst) begin
+	always @(posedge clk or negedge rst_b)
+		if (!rst_b) begin
 			idfif_wpos_0a <= 'h0;
 			idfif_rpos_0a <= 'h0;
 		end else begin
@@ -160,8 +160,8 @@ module FSABMemory(/*AUTOARG*/
 	reg [FSAB_DATA_HI:0] fsabo_prev_data;
 	reg [FSAB_MASK_HI:0] fsabo_prev_mask;
 
-	always @(posedge clk or negedge Nrst)
-		if (!Nrst) begin
+	always @(posedge clk or negedge rst_b)
+		if (!rst_b) begin
 			fsabo_prev_data <= 0;
 			fsabo_prev_mask <= {(FSAB_MASK_HI+1){1'h1}};
 		end else if (fsabo_valid) begin
@@ -170,8 +170,8 @@ module FSABMemory(/*AUTOARG*/
 		end
 
 	reg fsabo_want_prev = 0;
-	always @(posedge clk or negedge Nrst)
-		if (!Nrst) begin
+	always @(posedge clk or negedge rst_b)
+		if (!rst_b) begin
 			fsabo_want_prev <= 0;
 		end else if (fsabo_valid && !fsabo_want_prev || fsabo_new_req_0a) begin
 			fsabo_want_prev <= 1;
@@ -192,8 +192,8 @@ module FSABMemory(/*AUTOARG*/
 	reg [`MEM_ICNT_WIDTH:0] ifif_reqs_queued_0a = 0;
 	wire ifif_have_req = ifif_reqs_queued_0a != 0;
 
-	always @(posedge clk or negedge Nrst)
-		if (!Nrst) begin
+	always @(posedge clk or negedge rst_b)
+		if (!rst_b) begin
 			ifif_reqs_queued_0a <= 0;
 		end else begin
 			ifif_reqs_queued_0a <= ifif_reqs_queued_0a + (idfif_req_queued_0a ? 1 : 0)
@@ -215,8 +215,8 @@ module FSABMemory(/*AUTOARG*/
 //	wire odfif_full_0a = (odfif_wpos_0a == (odfif_rpos_0a + `MEM_ODFIF_MAX));
 //	wire [`MEM_ODFIF_HI:0] odfif_avail_0a = odfif_wpos_0a - odfif_rpos_0a;
 //
-//	always @(posedge clk or negedge Nrst)
-//		if (!Nrst) begin
+//	always @(posedge clk or negedge rst_b)
+//		if (!rst_b) begin
 //			odfif_wpos_0a <= 'h0;
 //			odfif_rpos_0a <= 'h0;
 //		end else begin
@@ -239,8 +239,8 @@ module FSABMemory(/*AUTOARG*/
 	/*** Pipe-throughs ***/
 	reg irfif_rd_1a = 0;
 	reg idfif_rd_1a = 0;
-	always @(posedge clk or negedge Nrst)
-		if (!Nrst) begin
+	always @(posedge clk or negedge rst_b)
+		if (!rst_b) begin
 			irfif_rd_1a <= 0;
 			idfif_rd_1a <= 0;
 		end else begin
@@ -318,8 +318,8 @@ module FSABMemory(/*AUTOARG*/
 //	integer j;
 //	reg [FSAB_DATA_HI:0] masked_data;
 
-	always @(posedge clk or negedge Nrst)
-		if (!Nrst) begin
+	always @(posedge clk or negedge rst_b)
+		if (!rst_b) begin
 			mem_cur_req_ddr_len_rem_0a <= 'h0;
 			mem_cur_req_active_1a <= 0;
 			mem_cur_req_addr_1a_r <= 0;
@@ -339,7 +339,6 @@ module FSABMemory(/*AUTOARG*/
 		end
 
 	/* mig AUTO_TEMPLATE (
-		.sys_rst_n(Nrst),
 		.app_af_addr(mem_cur_req_addr_1a),
 		.app_af_wren(irfif_rd_1a),
 		.app_wdf_data({idfif_data2_1a, idfif_data_1a}),
@@ -419,7 +418,7 @@ module FSABMemory(/*AUTOARG*/
 		 .sys_clk_n		(sys_clk_n),
 		 .clk200_p		(clk200_p),
 		 .clk200_n		(clk200_n),
-		 .sys_rst_n		(Nrst),			 // Templated
+		 .sys_rst_n		(sys_rst_n),
 		 .app_wdf_wren		(app_wdf_wren),
 		 .app_af_wren		(irfif_rd_1a),		 // Templated
 		 .app_af_addr		(mem_cur_req_addr_1a),	 // Templated

@@ -1,6 +1,6 @@
 module Execute(
 	input clk,
-	input Nrst,	/* XXX not used yet */
+	input rst_b,
 	
 	input stall_2a,
 	input flush_2a,
@@ -50,20 +50,32 @@ module Execute(
 	reg [31:0] next_write_data_3a;
 
 	Multiplier multiplier(
-		.clk(clk), .Nrst(Nrst),
+		.clk(clk), .rst_b(rst_b),
 		.start(mult_start), .acc0(mult_acc0), .in0(mult_in0),
 		.in1(mult_in1), .done(mult_done), .result(mult_result));
 	
 	ALU alu(
-		.clk(clk), .Nrst(Nrst),
+		.clk(clk), .rst_b(rst_b),
 		.in0(alu_in0_2a), .in1(alu_in1_2a), .cpsr(cpsr_2a), .op(alu_op_2a),
 		.setflags(alu_setflags_2a), .shifter_carry(carry_2a),
 		.result(alu_result_2a), .cpsr_out(alu_outcpsr_2a), .setres(alu_setres_2a));
 
-	always @(posedge clk)
+	always @(posedge clk or negedge rst_b)
 	begin
-		if (!stall_2a)
-		begin
+		if (!rst_b) begin
+			bubble_3a <= 0;
+			cpsr_3a <= 0;
+			spsr_3a <= 0;
+			cpsrup_3a <= 0;
+			write_reg_3a <= 0;
+			write_num_3a <= 0;
+			write_data_3a <= 0;
+			pc_3a <= 0;
+			insn_3a <= 0;
+			op0_3a <= 0;
+			op1_3a <= 0;
+			op2_3a <= 0;
+		end else if (!stall_2a) begin
 			bubble_3a <= next_bubble_3a;
 			cpsr_3a <= next_cpsr_3a;
 			spsr_3a <= next_spsr_3a;
@@ -80,15 +92,22 @@ module Execute(
 	end
 	
 	reg delayedflush_2a = 0;
-	always @(posedge clk)
-		if (flush_2a && outstall_2a /* halp! I can't do it now, maybe later? */)
-			delayedflush_2a <= 1;
-		else if (!outstall_2a /* anything has been handled this time around */)
+	always @(posedge clk or negedge rst_b)
+		if (!rst_b)
 			delayedflush_2a <= 0;
+		else begin
+			if (flush_2a && outstall_2a /* halp! I can't do it now, maybe later? */)
+				delayedflush_2a <= 1;
+			else if (!outstall_2a /* anything has been handled this time around */)
+				delayedflush_2a <= 0;
+		end
 
 	reg outstall_3a = 0;
-	always @(posedge clk)
-		outstall_3a <= outstall_2a;
+	always @(posedge clk or negedge rst_b)
+		if (!rst_b)
+			outstall_3a <= 0;
+		else
+			outstall_3a <= outstall_2a;
 	
 	always @(*)
 	begin
@@ -253,7 +272,7 @@ endmodule
 
 module Multiplier(
 	input clk,
-	input Nrst,	/* XXX not used yet */
+	input rst_b,
 	
 	input start,
 	input [31:0] acc0,
@@ -267,22 +286,30 @@ module Multiplier(
 	reg [31:0] multiplicand;
 	reg [31:0] acc;
 	
-	always @(posedge clk)
+	always @(posedge clk or negedge rst_b)
 	begin
-		if (start) begin
-			bitfield <= in0;
-			multiplicand <= in1;
-			acc <= acc0;
+		if (!rst_b) begin
 			done <= 0;
+			bitfield <= 0;
+			multiplicand <= 0;
+			acc <= 0;
+			result <= 0;
 		end else begin
-			bitfield <= {2'b00, bitfield[31:2]};
-			multiplicand <= {multiplicand[29:0], 2'b00};
-			acc <= acc +
-				(bitfield[0] ? multiplicand : 0) +
-				(bitfield[1] ? {multiplicand[30:0], 1'b0} : 0);
-			if (bitfield == 0) begin
-				result <= acc;
-				done <= 1;
+			if (start) begin
+				bitfield <= in0;
+				multiplicand <= in1;
+				acc <= acc0;
+				done <= 0;
+			end else begin
+				bitfield <= {2'b00, bitfield[31:2]};
+				multiplicand <= {multiplicand[29:0], 2'b00};
+				acc <= acc +
+					(bitfield[0] ? multiplicand : 0) +
+					(bitfield[1] ? {multiplicand[30:0], 1'b0} : 0);
+				if (bitfield == 0) begin
+					result <= acc;
+					done <= 1;
+				end
 			end
 		end
 	end
@@ -290,7 +317,7 @@ endmodule
 
 module ALU(
 	input clk,
-	input Nrst,	/* XXX not used yet */
+	input rst_b,	/* XXX not used yet */
 
 	input [31:0] in0,
 	input [31:0] in1,

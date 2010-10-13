@@ -1,18 +1,18 @@
 module FSABPreload(/*AUTOARG*/
    // Outputs
-   Ncorerst, pre__fsabo_valid, pre__fsabo_mode, pre__fsabo_did,
+   rst_core_b, pre__fsabo_valid, pre__fsabo_mode, pre__fsabo_did,
    pre__fsabo_subdid, pre__fsabo_addr, pre__fsabo_len,
    pre__fsabo_data, pre__fsabo_mask,
    // Inputs
-   clk, Nrst, pre__fsabo_credit, fsabi_valid, fsabi_did, fsabi_subdid,
-   fsabi_data
+   clk, rst_b, pre__fsabo_credit, fsabi_valid, fsabi_did,
+   fsabi_subdid, fsabi_data
    );
 
 	`include "fsab_defines.vh"
 	
 	input clk;
-	input Nrst;
-	output wire Ncorerst;
+	input rst_b;
+	output wire rst_core_b;
 	
 	/* FSAB interface */
 	output reg                  pre__fsabo_valid = 0;
@@ -41,8 +41,8 @@ module FSABPreload(/*AUTOARG*/
 	
 	reg [FSAB_CREDITS_HI:0] fsab_credits = FSAB_INITIAL_CREDITS;	/* XXX needs resettability */
 	wire fsab_credit_avail = (fsab_credits != 0);
-	always @(posedge clk or negedge Nrst) begin
-		if (!Nrst) begin
+	always @(posedge clk or negedge rst_b) begin
+		if (!rst_b) begin
 			fsab_credits <= FSAB_INITIAL_CREDITS;
 		end else begin
 			if (pre__fsabo_credit | start_trans)
@@ -64,11 +64,11 @@ module FSABPreload(/*AUTOARG*/
 	reg intrans = 0;
 	/* verilator lint_off WIDTH */ /* BOOTMEM_SIZE comparison */
 	assign start_trans = fsab_credit_avail && (curaddr != BOOTMEM_SIZE) && !intrans;
-	assign Ncorerst = ~(curaddr != BOOTMEM_SIZE);
+	assign rst_core_b = ~(curaddr != BOOTMEM_SIZE);
 	/* verilator lint_on WIDTH */
 	
-	always @(posedge clk or negedge Nrst) begin
-		if (!Nrst) begin
+	always @(posedge clk or negedge rst_b) begin
+		if (!rst_b) begin
 			curaddr <= {(BOOTMEM_HI+2){1'b0}};
 			intrans <= 0;
 			pre__fsabo_valid <= 0;
