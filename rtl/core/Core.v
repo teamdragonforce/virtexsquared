@@ -9,7 +9,8 @@ module Core(/*AUTOARG*/
    clk, rst_b, ic__fsabo_credit, dc__fsabo_credit, fsabi_valid,
    fsabi_did, fsabi_subdid, fsabi_data, spami_busy_b, spami_data
    );
-	input clk; input rst_b;
+	input clk;
+	input rst_b;
 
 	`include "fsab_defines.vh"
 	`include "spam_defines.vh"
@@ -40,17 +41,11 @@ module Core(/*AUTOARG*/
 	input                        ic__fsabo_credit;
 	input                        dc__fsabo_credit;
 	input                        fsabi_valid;
-	input wire [FSAB_DID_HI:0]   fsabi_did;
-	input wire [FSAB_DID_HI:0]   fsabi_subdid;
-	input wire [FSAB_DATA_HI:0]   fsabi_data;
+	input [FSAB_DID_HI:0]        fsabi_did;
+	input [FSAB_DID_HI:0]        fsabi_subdid;
+	input [FSAB_DATA_HI:0]       fsabi_data;
 	input                        spami_busy_b;
-	input wire [SPAM_DATA_HI:0]  spami_data;
-
-	wire                         regfile_write;
-	wire [3:0]                   regfile_write_reg;
-	wire [31:0]                  regfile_write_data;
-
-	wire [31:0]                  writeback_out_spsr;
+	input [SPAM_DATA_HI:0]       spami_data;
 
 	/*AUTOWIRE*/
 	// Beginning of automatic wires (for undeclared instantiated-module outputs)
@@ -91,6 +86,9 @@ module Core(/*AUTOARG*/
 	wire [31:0]	pc_1a;			// From fetch of Fetch.v
 	wire [31:0]	pc_2a;			// From issue of Issue.v
 	wire [31:0]	pc_3a;			// From execute of Execute.v
+	wire		regfile_write;		// From writeback of Writeback.v
+	wire [31:0]	regfile_write_data;	// From writeback of Writeback.v
+	wire [3:0]	regfile_write_reg;	// From writeback of Writeback.v
 	wire [31:0]	rf__rdata_0_1a;		// From regfile of RegFile.v
 	wire [31:0]	rf__rdata_1_1a;		// From regfile of RegFile.v
 	wire [31:0]	rf__rdata_2_1a;		// From regfile of RegFile.v
@@ -107,6 +105,7 @@ module Core(/*AUTOARG*/
 	wire [31:0]	write_data_3a;		// From execute of Execute.v
 	wire [3:0]	write_num_3a;		// From execute of Execute.v
 	wire		write_reg_3a;		// From execute of Execute.v
+	wire [31:0]	writeback_out_spsr;	// From writeback of Writeback.v
 	// End of automatics
 
 	wire jmp_out_writeback;
@@ -123,8 +122,7 @@ module Core(/*AUTOARG*/
 	wire execute_out_backflush = jmp;
 	wire writeback_out_backflush = jmp_out_writeback;
 
-	ICache icache(
-		/*AUTOINST*/
+	ICache icache(/*AUTOINST*/
 		      // Outputs
 		      .ic__rd_wait_0a	(ic__rd_wait_0a),
 		      .ic__rd_data_1a	(ic__rd_data_1a[31:0]),
@@ -147,105 +145,85 @@ module Core(/*AUTOARG*/
 		      .fsabi_subdid	(fsabi_subdid[FSAB_DID_HI:0]),
 		      .fsabi_data	(fsabi_data[FSAB_DATA_HI:0]));
 
-			DCache dcache(
-				/*AUTOINST*/
-				      // Outputs
-				      .dc__rw_wait_3a	(dc__rw_wait_3a),
-				      .dc__rd_data_3a	(dc__rd_data_3a[31:0]),
-				      .dc__fsabo_valid	(dc__fsabo_valid),
-				      .dc__fsabo_mode	(dc__fsabo_mode[FSAB_REQ_HI:0]),
-				      .dc__fsabo_did	(dc__fsabo_did[FSAB_DID_HI:0]),
-				      .dc__fsabo_subdid	(dc__fsabo_subdid[FSAB_DID_HI:0]),
-				      .dc__fsabo_addr	(dc__fsabo_addr[FSAB_ADDR_HI:0]),
-				      .dc__fsabo_len	(dc__fsabo_len[FSAB_LEN_HI:0]),
-				      .dc__fsabo_data	(dc__fsabo_data[FSAB_DATA_HI:0]),
-				      .dc__fsabo_mask	(dc__fsabo_mask[FSAB_MASK_HI:0]),
-				      .spamo_valid	(spamo_valid),
-				      .spamo_r_nw	(spamo_r_nw),
-				      .spamo_did	(spamo_did[SPAM_DID_HI:0]),
-				      .spamo_addr	(spamo_addr[SPAM_ADDR_HI:0]),
-				      .spamo_data	(spamo_data[SPAM_DATA_HI:0]),
-				      // Inputs
-				      .clk		(clk),
-				      .rst_b		(rst_b),
-				      .dc__addr_3a	(dc__addr_3a[31:0]),
-				      .dc__rd_req_3a	(dc__rd_req_3a),
-				      .dc__wr_req_3a	(dc__wr_req_3a),
-				      .dc__wr_data_3a	(dc__wr_data_3a[31:0]),
-				      .dc__fsabo_credit	(dc__fsabo_credit),
-				      .fsabi_valid	(fsabi_valid),
-				      .fsabi_did	(fsabi_did[FSAB_DID_HI:0]),
-				      .fsabi_subdid	(fsabi_subdid[FSAB_DID_HI:0]),
-				      .fsabi_data	(fsabi_data[FSAB_DATA_HI:0]),
-				      .spami_busy_b	(spami_busy_b),
-				      .spami_data	(spami_data[SPAM_DATA_HI:0]));
+	DCache dcache(/*AUTOINST*/
+		      // Outputs
+		      .dc__rw_wait_3a	(dc__rw_wait_3a),
+		      .dc__rd_data_3a	(dc__rd_data_3a[31:0]),
+		      .dc__fsabo_valid	(dc__fsabo_valid),
+		      .dc__fsabo_mode	(dc__fsabo_mode[FSAB_REQ_HI:0]),
+		      .dc__fsabo_did	(dc__fsabo_did[FSAB_DID_HI:0]),
+		      .dc__fsabo_subdid	(dc__fsabo_subdid[FSAB_DID_HI:0]),
+		      .dc__fsabo_addr	(dc__fsabo_addr[FSAB_ADDR_HI:0]),
+		      .dc__fsabo_len	(dc__fsabo_len[FSAB_LEN_HI:0]),
+		      .dc__fsabo_data	(dc__fsabo_data[FSAB_DATA_HI:0]),
+		      .dc__fsabo_mask	(dc__fsabo_mask[FSAB_MASK_HI:0]),
+		      .spamo_valid	(spamo_valid),
+		      .spamo_r_nw	(spamo_r_nw),
+		      .spamo_did	(spamo_did[SPAM_DID_HI:0]),
+		      .spamo_addr	(spamo_addr[SPAM_ADDR_HI:0]),
+		      .spamo_data	(spamo_data[SPAM_DATA_HI:0]),
+		      // Inputs
+		      .clk		(clk),
+		      .rst_b		(rst_b),
+		      .dc__addr_3a	(dc__addr_3a[31:0]),
+		      .dc__rd_req_3a	(dc__rd_req_3a),
+		      .dc__wr_req_3a	(dc__wr_req_3a),
+		      .dc__wr_data_3a	(dc__wr_data_3a[31:0]),
+		      .dc__fsabo_credit	(dc__fsabo_credit),
+		      .fsabi_valid	(fsabi_valid),
+		      .fsabi_did	(fsabi_did[FSAB_DID_HI:0]),
+		      .fsabi_subdid	(fsabi_subdid[FSAB_DID_HI:0]),
+		      .fsabi_data	(fsabi_data[FSAB_DATA_HI:0]),
+		      .spami_busy_b	(spami_busy_b),
+		      .spami_data	(spami_data[SPAM_DATA_HI:0]));
 
-					/* Fetch AUTO_TEMPLATE (
-					.jmp_0a(jmp),
-					.jmppc_0a(jmppc),
-				);
-				*/
-			       Fetch fetch(
-				       /*AUTOINST*/
-					   // Outputs
-					   .ic__rd_addr_0a	(ic__rd_addr_0a[31:0]),
-					   .ic__rd_req_0a	(ic__rd_req_0a),
-					   .bubble_1a		(bubble_1a),
-					   .insn_1a		(insn_1a[31:0]),
-					   .pc_1a		(pc_1a[31:0]),
-					   // Inputs
-					   .clk			(clk),
-					   .rst_b		(rst_b),
-					   .ic__rd_wait_0a	(ic__rd_wait_0a),
-					   .ic__rd_data_1a	(ic__rd_data_1a[31:0]),
-					   .stall_0a		(stall_0a),
-					   .jmp_0a		(jmp),		 // Templated
-					   .jmppc_0a		(jmppc));	 // Templated
+	/* Fetch AUTO_TEMPLATE (
+		.jmp_0a(jmp),
+		.jmppc_0a(jmppc),
+		);
+	*/
+	Fetch fetch(/*AUTOINST*/
+		    // Outputs
+		    .ic__rd_addr_0a	(ic__rd_addr_0a[31:0]),
+		    .ic__rd_req_0a	(ic__rd_req_0a),
+		    .bubble_1a		(bubble_1a),
+		    .insn_1a		(insn_1a[31:0]),
+		    .pc_1a		(pc_1a[31:0]),
+		    // Inputs
+		    .clk		(clk),
+		    .rst_b		(rst_b),
+		    .ic__rd_wait_0a	(ic__rd_wait_0a),
+		    .ic__rd_data_1a	(ic__rd_data_1a[31:0]),
+		    .stall_0a		(stall_0a),
+		    .jmp_0a		(jmp),			 // Templated
+		    .jmppc_0a		(jmppc));		 // Templated
 
-					       /* Issue AUTO_TEMPLATE (
-					       .stall_1a(stall_cause_execute),
-					       .flush_1a(execute_out_backflush | writeback_out_backflush),
-					       .cpsr_1a(writeback_out_cpsr),
-				       );
-				       */
-				      Issue issue(
-					      /*AUTOINST*/
-						  // Outputs
-						  .stall_0a		(stall_0a),
-						  .bubble_2a		(bubble_2a),
-						  .pc_2a		(pc_2a[31:0]),
-						  .insn_2a		(insn_2a[31:0]),
-						  // Inputs
-						  .clk			(clk),
-						  .rst_b		(rst_b),
-						  .stall_1a		(stall_cause_execute), // Templated
-						  .flush_1a		(execute_out_backflush | writeback_out_backflush), // Templated
-						  .bubble_1a		(bubble_1a),
-						  .insn_1a		(insn_1a[31:0]),
-						  .pc_1a		(pc_1a[31:0]),
-						  .cpsr_1a		(writeback_out_cpsr)); // Templated
+	/* Issue AUTO_TEMPLATE (
+		.stall_1a(stall_cause_execute),
+		.flush_1a(execute_out_backflush | writeback_out_backflush),
+		.cpsr_1a(writeback_out_cpsr),
+		);
+	*/
+	Issue issue(/*AUTOINST*/
+		    // Outputs
+		    .stall_0a		(stall_0a),
+		    .bubble_2a		(bubble_2a),
+		    .pc_2a		(pc_2a[31:0]),
+		    .insn_2a		(insn_2a[31:0]),
+		    // Inputs
+		    .clk		(clk),
+		    .rst_b		(rst_b),
+		    .stall_1a		(stall_cause_execute),	 // Templated
+		    .flush_1a		(execute_out_backflush | writeback_out_backflush), // Templated
+		    .bubble_1a		(bubble_1a),
+		    .insn_1a		(insn_1a[31:0]),
+		    .pc_1a		(pc_1a[31:0]),
+		    .cpsr_1a		(writeback_out_cpsr));	 // Templated
 
-						      `ifdef verilator
-							      integer issued = 0;
-							      integer cycles = 0;
-							      integer last = 0;
-							      always @(posedge clk) begin
-								      cycles = cycles + 1;
-								      if (!stall_cause_execute && !bubble_1a) begin
-									      issued = issued + 1;
-									      last = last + 1;
-								      end
 
-								      if (cycles % 10000 == 0) begin
-									      $display("PERF: time %5d, cycles %5d, issued %5d (last %5d/10000)", $time, cycles, issued, last);
-									      last = 0;
-								      end
-							      end
-						      `endif
-
-						      /* RegFile AUTO_TEMPLATE (
-						      .spsr(regfile_spsr),
-						      .write(regfile_write),
+	/* RegFile AUTO_TEMPLATE (
+		.spsr(regfile_spsr),
+		.write(regfile_write),
 		.write_reg(regfile_write_reg),
 		.write_data(regfile_write_data),
 		);
@@ -400,15 +378,43 @@ module Core(/*AUTOARG*/
 		      .write_num_3a	(write_num_3a[3:0]),
 		      .write_data_3a	(write_data_3a[31:0]));
 
-	Writeback writeback(
-		.clk(clk),
+	/* Writeback AUTO_TEMPLATE(
 		.inbubble(bubble_out_memory),
-		.write_reg(memory_out_write_reg), .write_num(memory_out_write_num), .write_data(memory_out_write_data),
-		.cpsr(memory_out_cpsr), .spsr(memory_out_spsr), .cpsrup(memory_out_cpsrup),
-		.regfile_write(regfile_write), .regfile_write_reg(regfile_write_reg), .regfile_write_data(regfile_write_data),
-		.outcpsr(writeback_out_cpsr), .outspsr(writeback_out_spsr), 
-		.jmp(jmp_out_writeback), .jmppc(jmppc_out_writeback));
+		.write_reg(memory_out_write_reg),
+		.write_num(memory_out_write_num[3:0]),
+		.write_data(memory_out_write_data[31:0]),
+		.cpsr(memory_out_cpsr[31:0]),
+		.spsr(memory_out_spsr[31:0]),
+		.cpsrup(memory_out_cpsrup),
+		.regfile_write(regfile_write),
+		.regfile_write_reg(regfile_write_reg[3:0]),
+		.regfile_write_data(regfile_write_data[31:0]),
+		.outcpsr(writeback_out_cpsr[31:0]),
+		.outspsr(writeback_out_spsr[31:0]), 
+		.jmp(jmp_out_writeback),
+		.jmppc(jmppc_out_writeback[31:0]),
+		);
+	*/
+	Writeback writeback(/*AUTOINST*/
+			    // Outputs
+			    .regfile_write	(regfile_write), // Templated
+			    .regfile_write_reg	(regfile_write_reg[3:0]), // Templated
+			    .regfile_write_data	(regfile_write_data[31:0]), // Templated
+			    .outcpsr		(writeback_out_cpsr[31:0]), // Templated
+			    .outspsr		(writeback_out_spsr[31:0]), // Templated
+			    .jmp		(jmp_out_writeback), // Templated
+			    .jmppc		(jmppc_out_writeback[31:0]), // Templated
+			    // Inputs
+			    .clk		(clk),
+			    .inbubble		(bubble_out_memory), // Templated
+			    .write_reg		(memory_out_write_reg), // Templated
+			    .write_num		(memory_out_write_num[3:0]), // Templated
+			    .write_data		(memory_out_write_data[31:0]), // Templated
+			    .cpsr		(memory_out_cpsr[31:0]), // Templated
+			    .spsr		(memory_out_spsr[31:0]), // Templated
+			    .cpsrup		(memory_out_cpsrup)); // Templated
 
+`ifdef verilator
 	reg [31:0] clockno = 0;
 	always @(posedge clk)
 	begin
@@ -421,4 +427,21 @@ module Core(/*AUTOARG*/
 		$display("%3d: MEMORY: Stall: %d, Bubble: %d, Instruction: %08x, PC: %08x, Reg: %d, [%08x -> %d]", clockno, stall_cause_memory, bubble_out_memory, insn_out_memory, pc_out_memory, memory_out_write_reg, memory_out_write_data, memory_out_write_num);
 		$display("%3d: WRITEB:                      CPSR %08x, SPSR %08x, Reg: %d [%08x -> %d], Jmp: %d [%08x]", clockno, writeback_out_cpsr, writeback_out_spsr, regfile_write, regfile_write_data, regfile_write_reg, jmp_out_writeback, jmppc_out_writeback);
 	end
+
+	integer issued = 0;
+	integer cycles = 0;
+	integer last = 0;
+	always @(posedge clk) begin
+		cycles = cycles + 1;
+		if (!stall_cause_execute && !bubble_1a) begin
+			issued = issued + 1;
+			last = last + 1;
+		end
+
+		if (cycles % 10000 == 0) begin
+			$display("PERF: time %5d, cycles %5d, issued %5d (last %5d/10000)", $time, cycles, issued, last);
+			last = 0;
+		end
+	end
+`endif
 endmodule
