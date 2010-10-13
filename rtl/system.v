@@ -53,62 +53,6 @@ module System(
 `include "fsab_defines.vh"
 `include "spam_defines.vh"
 	
-	wire [31:0] decode_out_op0, decode_out_op1, decode_out_op2, decode_out_spsr, decode_out_cpsr;
-	wire decode_out_carry;
-	
-	wire [3:0] regfile_read_0, regfile_read_1, regfile_read_2, regfile_read_3;
-	wire [31:0] regfile_rdata_0, regfile_rdata_1, regfile_rdata_2, regfile_rdata_3, regfile_spsr;
-	wire regfile_write;
-	wire [3:0] regfile_write_reg;
-	wire [31:0] regfile_write_data;
-	
-	wire execute_out_write_reg;
-	wire [3:0] execute_out_write_num;
-	wire [31:0] execute_out_write_data;
-	wire [31:0] execute_out_op0, execute_out_op1, execute_out_op2;
-	wire [31:0] execute_out_cpsr, execute_out_spsr;
-	wire execute_out_cpsrup;
-	
-	wire jmp_out_execute, jmp_out_writeback;
-	wire [31:0] jmppc_out_execute, jmppc_out_writeback;
-	wire jmp = jmp_out_execute | jmp_out_writeback;
-	wire [31:0] jmppc = jmppc_out_execute | jmppc_out_writeback;
-	
-	wire memory_out_write_reg;
-	wire [3:0] memory_out_write_num;
-	wire [31:0] memory_out_write_data;
-	wire [31:0] memory_out_cpsr, memory_out_spsr;
-	wire memory_out_cpsrup;
-	
-	wire [31:0] writeback_out_cpsr, writeback_out_spsr;
-
-	wire cp_req;
-	wire [31:0] cp_insn;
-	wire cp_ack = 0;
-	wire cp_busy = 0;
-	wire cp_rnw;
-	wire [31:0] cp_read = 0;
-	wire [31:0] cp_write;
-	
-	wire stall_cause_issue;
-	wire stall_cause_execute;
-	wire stall_cause_memory;
-	wire bubble_out_fetch;
-	wire bubble_out_issue;
-	wire bubble_out_execute;
-	wire bubble_out_memory;
-	wire [31:0] insn_out_fetch;
-	wire [31:0] insn_out_issue;
-	wire [31:0] insn_out_execute;
-	wire [31:0] insn_out_memory;
-	wire [31:0] pc_out_fetch;
-	wire [31:0] pc_out_issue;
-	wire [31:0] pc_out_execute;
-	wire [31:0] pc_out_memory;
-	
-	wire rst_b = ~rst;
-
-	
 	/*AUTOWIRE*/
 	// Beginning of automatic wires (for undeclared instantiated-module outputs)
 	wire		cio__spami_busy_b;	// From conio of SPAM_ConsoleIO.v
@@ -162,20 +106,20 @@ module System(
 	wire		spamo_valid;		// From core of Core.v
 	// End of automatics
 
-	wire execute_out_backflush;
-	wire writeback_out_backflush;
+	wire rst_b = ~rst;
 
-	stfu_verilog_mode and_i_mean_it(/*AUTOINST*/
+`ifdef DUMMY
+	stfu_verilog_mode and_i_mean_it(
 					// Inputs
 					.cio__spami_busy_b(cio__spami_busy_b),
 					.cio__spami_data(cio__spami_data[SPAM_DATA_HI:0]));
-
+`endif
 	
 	wire spami_busy_b = cio__spami_busy_b;
 	wire [SPAM_DATA_HI:0] spami_data = cio__spami_data[SPAM_DATA_HI:0];
 
 	/* Core AUTO_TEMPLATE (
-		.rst_b(rst_core_b | rst_b),
+		.rst_b(rst_core_b & rst_b),
 		);
 	*/
 	Core core(/*AUTOINST*/
@@ -203,7 +147,7 @@ module System(
 		  .spamo_data		(spamo_data[SPAM_DATA_HI:0]),
 		  // Inputs
 		  .clk			(clk),
-		  .rst_b		(rst_core_b | rst_b),	 // Templated
+		  .rst_b		(rst_core_b & rst_b),	 // Templated
 		  .ic__fsabo_credit	(ic__fsabo_credit),
 		  .dc__fsabo_credit	(dc__fsabo_credit),
 		  .fsabi_valid		(fsabi_valid),
@@ -354,15 +298,6 @@ module System(
 			    .fsabi_subdid	(fsabi_subdid[FSAB_DID_HI:0]),
 			    .fsabi_data		(fsabi_data[FSAB_DATA_HI:0]));
 
-endmodule
-
-module stfu_verilog_mode (/*AUTOARG*/
-   // Inputs
-   cio__spami_busy_b, cio__spami_data
-   );
-	`include "spam_defines.vh"
-	input                  cio__spami_busy_b;  // From conio of SPAM_ConsoleIO.v
-	input [SPAM_DATA_HI:0] cio__spami_data;    // From conio of SPAM_ConsoleIO.v
 endmodule
 
 // Local Variables:
