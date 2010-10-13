@@ -4,8 +4,8 @@ module FSABPreload(/*AUTOARG*/
    pre__fsabo_subdid, pre__fsabo_addr, pre__fsabo_len,
    pre__fsabo_data, pre__fsabo_mask,
    // Inputs
-   clk, rst_b, pre__fsabo_credit, fsabi_valid, fsabi_did, fsabi_subdid,
-   fsabi_data
+   clk, rst_b, pre__fsabo_credit, fsabi_valid, fsabi_did,
+   fsabi_subdid, fsabi_data
    );
 
 	`include "fsab_defines.vh"
@@ -54,7 +54,9 @@ module FSABPreload(/*AUTOARG*/
 	/*** FSAB preload state machine ***/
 	reg [63:0] bootmem [(BOOTMEM_SIZE-1):0];
 	initial begin
+		`ifdef verilator
 		assert(FSAB_DATA_HI == 63) else $error("FSAB_DATA_HI unsupported");
+		`endif
 		$readmemh("ram.hex64", bootmem);
 	end
 	
