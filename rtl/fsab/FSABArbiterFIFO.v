@@ -44,21 +44,49 @@ module FSABArbiterFIFO(/*AUTOARG*/
 	wire inp_credit_oclk;
 	reg [FSAB_CREDITS_HI:0] inp_credits_iclk = 'h0;
 	reg [FSAB_CREDITS_HI:0] inp_credits_oclk = 'h0;
+	wire [FSAB_CREDITS_HI:0] inp_credits_oclk_next = inp_credit_oclk ? (inp_credits_oclk + 1) : inp_credits_oclk;
 	
-	assign inp_credit = inp_credits_iclk != inp_credits_oclk /* XXX grey code */;
+	reg [FSAB_CREDITS_HI:0] inp_credits_g_oclk = 'h0;
+	reg [FSAB_CREDITS_HI:0] inp_credits_oclk_g_iclk_s1 = 'h0;
+	reg [FSAB_CREDITS_HI:0] inp_credits_oclk_g_iclk = 'h0;
+	
+	wire [FSAB_CREDITS_HI:0] inp_credits_g_iclk = (inp_credits_iclk >> 1) ^ inp_credits_iclk;
+	
+	assign inp_credit = inp_credits_oclk_g_iclk != inp_credits_g_iclk;
+	
+	/* The grey code must be flopped on both the oclk and the iclk
+	 * side:
+	 *
+	 *    inp_credits_oclk_next ->
+	 *    grey code ->
+	 *    FLOP OCLK -> (avoid glitches)
+	 *    FLOP ICLK -> 
+	 *    FLOP ICLK -> (avoid metastability)
+	 *    compare against iclk_g
+	 *
+	 * THIS MUST NOT BE REORDERED!
+	 */
 	
 	always @(posedge oclk or negedge oclk_rst_b)
-		if (!oclk_rst_b)
+		if (!oclk_rst_b) begin
 			inp_credits_oclk <= 'h0;
-		else if (inp_credit_oclk)
-			inp_credits_oclk <= inp_credits_oclk + 1;
+			inp_credits_g_oclk <= 'h0;
+		end else begin
+			inp_credits_oclk <= inp_credits_oclk_next;
+			inp_credits_g_oclk <= (inp_credits_oclk_next >> 1) ^ inp_credits_oclk_next;
+		end
 	
 	always @(posedge iclk or negedge iclk_rst_b)
-		if (!oclk_rst_b)
+		if (!iclk_rst_b) begin
 			inp_credits_iclk <= 'h0;
-		else if (inp_credit)
-			inp_credits_iclk <= inp_credits_iclk + 1;
-	
+			inp_credits_oclk_g_iclk_s1 <= 'h0;
+			inp_credits_oclk_g_iclk <= 'h0;
+		end else begin
+			inp_credits_oclk_g_iclk_s1 <= inp_credits_g_oclk;
+			inp_credits_oclk_g_iclk <= inp_credits_oclk_g_iclk_s1;
+			if (inp_credit)
+				inp_credits_iclk <= inp_credits_iclk + 1;
+		end
 	
 	/*** Inbound request FIFO (RFIF) ***/
 	reg [FSAB_CREDITS_HI:0] rfif_wpos_0a_iclk = 'h0;
