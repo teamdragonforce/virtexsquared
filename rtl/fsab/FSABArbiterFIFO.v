@@ -89,19 +89,36 @@ module FSABArbiterFIFO(/*AUTOARG*/
 		end
 	
 	/*** Inbound request FIFO (RFIF) ***/
-	reg [FSAB_CREDITS_HI:0] rfif_wpos_0a_iclk = 'h0;
-	reg [FSAB_CREDITS_HI:0] rfif_rpos_0a_oclk = 'h0;
-	reg [ARB_RFIF_HI:0] rfif_fifo [(FSAB_INITIAL_CREDITS-1):0];
 	wire rfif_wr_0a_iclk;
 	wire rfif_rd_0a_oclk;
+	reg [FSAB_CREDITS_HI:0] rfif_wpos_0a_iclk = 'h0;
+	wire [FSAB_CREDITS_HI:0] rfif_wpos_0a_iclk_next = rfif_wr_0a_iclk ? (rfif_wpos_0a_iclk + 'h1) : rfif_wpos_0a_iclk;
+	reg [FSAB_CREDITS_HI:0] rfif_rpos_0a_oclk = 'h0;
+	reg [ARB_RFIF_HI:0] rfif_fifo [(FSAB_INITIAL_CREDITS-1):0];
 	wire [ARB_RFIF_HI:0] rfif_wdat_0a_iclk;
 	reg [ARB_RFIF_HI:0] rfif_rdat_1a_oclk;
-	wire rfif_empty_0a_oclk = (rfif_rpos_0a_oclk == rfif_wpos_0a_iclk); /* XXX */
-	wire rfif_full_0a_iclk = (rfif_wpos_0a_iclk == (rfif_rpos_0a_oclk + FSAB_INITIAL_CREDITS)); /* XXX */
+	
+	reg [FSAB_CREDITS_HI:0] rfif_wpos_0a_g_iclk = 'h0;
+	reg [FSAB_CREDITS_HI:0] rfif_wpos_0a_iclk_g_oclk_s1 = 'h0;
+	reg [FSAB_CREDITS_HI:0] rfif_wpos_0a_iclk_g_oclk = 'h0;
+	
+	wire [FSAB_CREDITS_HI:0] rfif_rpos_0a_g_oclk = rfif_rpos_0a_oclk ^ (rfif_rpos_0a_oclk << 1);
+	
+	/* There is no issue here with empty showing up too late, because
+	 * only the write pointer is delayed; the read pointer remains
+	 * synchronous with the read operation.  So, 'empty' might return
+	 * empty for too long, but never for too short.
+	 */
+	wire rfif_empty_0a_oclk = (rfif_rpos_0a_g_oclk == rfif_wpos_0a_iclk_g_oclk);
+`ifdef verilator
+	/* This is ONLY valid in Verilator (not clock domain correct). */
+	wire rfif_full_0a_iclk = (rfif_wpos_0a_iclk == (rfif_rpos_0a_oclk + FSAB_INITIAL_CREDITS));
+`endif
 	
 	always @(posedge iclk or negedge iclk_rst_b)
 		if (!iclk_rst_b) begin
 			rfif_wpos_0a_iclk <= 'h0;
+			rfif_wpos_0a_g_iclk <= 0;
 		end else begin
 			if (rfif_wr_0a_iclk) begin
 				`ifdef verilator
@@ -110,11 +127,15 @@ module FSABArbiterFIFO(/*AUTOARG*/
 				rfif_fifo[rfif_wpos_0a_iclk[1:0]] <= rfif_wdat_0a_iclk;
 				rfif_wpos_0a_iclk <= rfif_wpos_0a_iclk + 'h1;
 			end
+			rfif_wpos_0a_iclk <= rfif_wpos_0a_iclk_next;
+			rfif_wpos_0a_g_iclk <= rfif_wpos_0a_iclk_next ^ (rfif_wpos_0a_iclk_next << 1);
 		end
 	
 	always @(posedge oclk or negedge oclk_rst_b)
 		if (!oclk_rst_b) begin
 			rfif_rpos_0a_oclk <= 'h0;
+			rfif_wpos_0a_iclk_g_oclk_s1 <= 1;
+			rfif_wpos_0a_iclk_g_oclk <= 1;
 		end else begin
 			if (rfif_rd_0a_oclk) begin
 				`ifdef verilator
@@ -124,6 +145,8 @@ module FSABArbiterFIFO(/*AUTOARG*/
 				rfif_rdat_1a_oclk <= rfif_fifo[rfif_rpos_0a_oclk[1:0]];
 				rfif_rpos_0a_oclk <= rfif_rpos_0a_oclk + 'h1;
 			end
+			rfif_wpos_0a_iclk_g_oclk_s1 <= rfif_wpos_0a_g_iclk;
+			rfif_wpos_0a_iclk_g_oclk <= rfif_wpos_0a_iclk_g_oclk_s1;
 		end
 	
 	`ifdef verilator
@@ -180,7 +203,6 @@ module FSABArbiterFIFO(/*AUTOARG*/
 	reg [FSAB_DATA_HI+1 + FSAB_MASK_HI:0] dfif_rdat_1a_oclk;
 	wire dfif_empty_0a_oclk = (dfif_rpos_0a_oclk == dfif_wpos_0a_iclk); /* XXX */
 	wire dfif_full_0a_iclk = (dfif_wpos_0a_iclk == (dfif_rpos_0a_oclk + `ARB_DFIF_MAX)); /* XXX */
-	wire [`ARB_DFIF_HI:0] dfif_avail_0a = dfif_wpos_0a_iclk - dfif_rpos_0a_oclk; /* XXX */
 	
 	always @(posedge oclk or negedge oclk_rst_b)
 		if (!oclk_rst_b) begin
