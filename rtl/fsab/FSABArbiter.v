@@ -81,8 +81,10 @@ module FSABArbiter(/*AUTOARG*/
 				     .empty_b		(fifo_empty_b[i]),
 				     .active		(fifo_active[i]),
 				     // Inputs
-				     .clk		(clk),
-				     .rst_b		(rst_b),
+				     .iclk		(clk),
+				     .iclk_rst_b	(rst_b),
+				     .oclk		(clk),
+				     .oclk_rst_b	(rst_b),
 				     .inp_valid		(fsabo_valids[i]),
 				     .inp_mode		(fsabo_modes[`ARB_BITS(FSAB_REQ_HI)]),
 				     .inp_did		(fsabo_dids[`ARB_BITS(FSAB_DID_HI)]),
