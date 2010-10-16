@@ -4,7 +4,8 @@ module FSABArbiter(/*AUTOARG*/
    fsabo_addr, fsabo_len, fsabo_data, fsabo_mask,
    // Inputs
    clk, rst_b, fsabo_valids, fsabo_modes, fsabo_dids, fsabo_subdids,
-   fsabo_addrs, fsabo_lens, fsabo_datas, fsabo_masks, fsabo_credit
+   fsabo_addrs, fsabo_lens, fsabo_datas, fsabo_masks, fsabo_clks,
+   fsabo_rst_bs, fsabo_credit
    );
 	`include "fsab_defines.vh"
 
@@ -22,6 +23,8 @@ module FSABArbiter(/*AUTOARG*/
 	input [(FSAB_DEVICES*(FSAB_DATA_HI+1))-1:0] fsabo_datas;
 	input [(FSAB_DEVICES*(FSAB_MASK_HI+1))-1:0] fsabo_masks;
 	output wire [FSAB_DEVICES-1:0]              fsabo_credits;
+	input [FSAB_DEVICES-1:0]                    fsabo_clks;
+	input [FSAB_DEVICES-1:0]                    fsabo_rst_bs;
 	
 	output wire                                 fsabo_valid;
 	output wire [FSAB_REQ_HI:0]                 fsabo_mode;
@@ -81,8 +84,8 @@ module FSABArbiter(/*AUTOARG*/
 				     .empty_b		(fifo_empty_b[i]),
 				     .active		(fifo_active[i]),
 				     // Inputs
-				     .iclk		(clk),
-				     .iclk_rst_b	(rst_b),
+				     .iclk		(fsabo_clks[i]),
+				     .iclk_rst_b	(fsabo_rst_bs[i]),
 				     .oclk		(clk),
 				     .oclk_rst_b	(rst_b),
 				     .inp_valid		(fsabo_valids[i]),

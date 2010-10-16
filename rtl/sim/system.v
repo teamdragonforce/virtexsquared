@@ -140,6 +140,8 @@ module System(
 		.fsabo_datas({pre__fsabo_data[FSAB_DATA_HI:0],ic__fsabo_data[FSAB_DATA_HI:0],dc__fsabo_data[FSAB_DATA_HI:0]}),
 		.fsabo_masks({pre__fsabo_mask[FSAB_MASK_HI:0],ic__fsabo_mask[FSAB_MASK_HI:0],dc__fsabo_mask[FSAB_MASK_HI:0]}),
 		.fsabo_credits({pre__fsabo_credit,ic__fsabo_credit,dc__fsabo_credit}),
+		.fsabo_clks({clk,clk,clk}),
+		.fsabo_rst_bs({rst_b,rst_b,rst_b}),
 		); */
 	FSABArbiter fsabarbiter(
 		/*AUTOINST*/
@@ -164,6 +166,8 @@ module System(
 				.fsabo_lens	({pre__fsabo_len[FSAB_LEN_HI:0],ic__fsabo_len[FSAB_LEN_HI:0],dc__fsabo_len[FSAB_LEN_HI:0]}), // Templated
 				.fsabo_datas	({pre__fsabo_data[FSAB_DATA_HI:0],ic__fsabo_data[FSAB_DATA_HI:0],dc__fsabo_data[FSAB_DATA_HI:0]}), // Templated
 				.fsabo_masks	({pre__fsabo_mask[FSAB_MASK_HI:0],ic__fsabo_mask[FSAB_MASK_HI:0],dc__fsabo_mask[FSAB_MASK_HI:0]}), // Templated
+				.fsabo_clks	({clk,clk,clk}), // Templated
+				.fsabo_rst_bs	({rst_b,rst_b,rst_b}), // Templated
 				.fsabo_credit	(fsabo_credit));
 	defparam fsabarbiter.FSAB_DEVICES = 3;
 

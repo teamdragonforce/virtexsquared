@@ -201,6 +201,8 @@ module System(
 				.fsabo_lens	({pre__fsabo_len[FSAB_LEN_HI:0],ic__fsabo_len[FSAB_LEN_HI:0],dc__fsabo_len[FSAB_LEN_HI:0]}), // Templated
 				.fsabo_datas	({pre__fsabo_data[FSAB_DATA_HI:0],ic__fsabo_data[FSAB_DATA_HI:0],dc__fsabo_data[FSAB_DATA_HI:0]}), // Templated
 				.fsabo_masks	({pre__fsabo_mask[FSAB_MASK_HI:0],ic__fsabo_mask[FSAB_MASK_HI:0],dc__fsabo_mask[FSAB_MASK_HI:0]}), // Templated
+				.fsabo_clks	(fsabo_clks[FSAB_DEVICES-1:0]),
+				.fsabo_rst_bs	(fsabo_rst_bs[FSAB_DEVICES-1:0]),
 				.fsabo_credit	(fsabo_credit));
 	defparam fsabarbiter.FSAB_DEVICES = 3;
 
