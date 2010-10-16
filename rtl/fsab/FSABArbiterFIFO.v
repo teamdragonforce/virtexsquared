@@ -134,8 +134,8 @@ module FSABArbiterFIFO(/*AUTOARG*/
 	always @(posedge oclk or negedge oclk_rst_b)
 		if (!oclk_rst_b) begin
 			rfif_rpos_0a_oclk <= 'h0;
-			rfif_wpos_0a_iclk_g_oclk_s1 <= 1;
-			rfif_wpos_0a_iclk_g_oclk <= 1;
+			rfif_wpos_0a_iclk_g_oclk_s1 <= 'h0;
+			rfif_wpos_0a_iclk_g_oclk <= 'h0;
 		end else begin
 			if (rfif_rd_0a_oclk) begin
 				`ifdef verilator
@@ -194,19 +194,47 @@ module FSABArbiterFIFO(/*AUTOARG*/
 `include "clog2.vh"
 `define ARB_DFIF_MAX ((FSAB_INITIAL_CREDITS * FSAB_LEN_MAX) - 1)
 `define ARB_DFIF_HI (clog2(`ARB_DFIF_MAX) - 1)
-	reg [`ARB_DFIF_HI:0] dfif_wpos_0a_iclk = 'h0;
-	reg [`ARB_DFIF_HI:0] dfif_rpos_0a_oclk = 'h0;
-	reg [FSAB_DATA_HI+1 + FSAB_MASK_HI:0] dfif_fifo [`ARB_DFIF_MAX:0];
 	wire dfif_wr_0a_iclk;
 	wire dfif_rd_0a_oclk;
+	reg [`ARB_DFIF_HI:0] dfif_wpos_0a_iclk = 'h0;
+	wire [`ARB_DFIF_HI:0] dfif_wpos_0a_iclk_next = dfif_wr_0a_iclk ? (dfif_wpos_0a_iclk + 'h1) : dfif_wpos_0a_iclk;
+	reg [`ARB_DFIF_HI:0] dfif_rpos_0a_oclk = 'h0;
+	reg [FSAB_DATA_HI+1 + FSAB_MASK_HI:0] dfif_fifo [`ARB_DFIF_MAX:0];
 	wire [FSAB_DATA_HI+1 + FSAB_MASK_HI:0] dfif_wdat_0a_iclk;
 	reg [FSAB_DATA_HI+1 + FSAB_MASK_HI:0] dfif_rdat_1a_oclk;
-	wire dfif_empty_0a_oclk = (dfif_rpos_0a_oclk == dfif_wpos_0a_iclk); /* XXX */
-	wire dfif_full_0a_iclk = (dfif_wpos_0a_iclk == (dfif_rpos_0a_oclk + `ARB_DFIF_MAX)); /* XXX */
+
+	reg [`ARB_DFIF_HI:0] dfif_wpos_0a_g_iclk = 'h0;
+	reg [`ARB_DFIF_HI:0] dfif_wpos_0a_iclk_g_oclk_s1 = 'h0;
+	reg [`ARB_DFIF_HI:0] dfif_wpos_0a_iclk_g_oclk = 'h0;
 	
+	wire [`ARB_DFIF_HI:0] dfif_rpos_0a_g_oclk = dfif_rpos_0a_oclk ^ (dfif_rpos_0a_oclk << 1);
+	
+	wire dfif_empty_0a_oclk = (dfif_rpos_0a_g_oclk == dfif_wpos_0a_iclk_g_oclk);
+`ifdef verilator
+	/* This is ONLY valid in Verilator (not clock domain correct). */
+	wire dfif_full_0a_iclk = (dfif_wpos_0a_iclk == (dfif_rpos_0a_oclk + `ARB_DFIF_MAX));
+`endif
+	
+	always @(posedge iclk or negedge iclk_rst_b)
+		if (!iclk_rst_b) begin
+			dfif_wpos_0a_iclk <= 'h0;
+			dfif_wpos_0a_g_iclk <= 0;
+		end else begin
+			if (dfif_wr_0a_iclk) begin
+				`ifdef verilator
+				$display("ARB[%2d]: %5d: writing to dfif (ad %d, %08b mask, %08x data)", myindex, $time, dfif_wpos_0a_iclk, inp_mask, inp_data);
+				`endif
+				dfif_fifo[dfif_wpos_0a_iclk] <= dfif_wdat_0a_iclk;
+			end
+			dfif_wpos_0a_iclk <= dfif_wpos_0a_iclk_next;
+			dfif_wpos_0a_g_iclk <= dfif_wpos_0a_iclk_next ^ (dfif_wpos_0a_iclk_next << 1);
+		end
+
 	always @(posedge oclk or negedge oclk_rst_b)
 		if (!oclk_rst_b) begin
 			dfif_rpos_0a_oclk <= 'h0;
+			dfif_wpos_0a_iclk_g_oclk_s1 <= 'h0;
+			dfif_wpos_0a_iclk_g_oclk <= 'h0;
 		end else begin
 			if (dfif_rd_0a_oclk) begin
 				`ifdef verilator
@@ -218,19 +246,8 @@ module FSABArbiterFIFO(/*AUTOARG*/
 			end else begin
 				dfif_rdat_1a_oclk <= {(FSAB_DATA_HI+1 + FSAB_MASK_HI+1){1'hx}};
 			end
-		end
-	
-	always @(posedge iclk or negedge iclk_rst_b)
-		if (!iclk_rst_b) begin
-			dfif_wpos_0a_iclk <= 'h0;
-		end else begin
-			if (dfif_wr_0a_iclk) begin
-				`ifdef verilator
-				$display("ARB[%2d]: %5d: writing to dfif (ad %d, %08b mask, %08x data)", myindex, $time, dfif_wpos_0a_iclk, inp_mask, inp_data);
-				`endif
-				dfif_fifo[dfif_wpos_0a_iclk] <= dfif_wdat_0a_iclk;
-				dfif_wpos_0a_iclk <= dfif_wpos_0a_iclk + 'h1;
-			end
+			dfif_wpos_0a_iclk_g_oclk_s1 <= dfif_wpos_0a_g_iclk;
+			dfif_wpos_0a_iclk_g_oclk <= dfif_wpos_0a_iclk_g_oclk_s1;
 		end
 	
 	`ifdef verilator
