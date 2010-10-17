@@ -55,7 +55,7 @@ unsigned int main_time = 0;
 
 double sc_time_stamp ()
 {
-	return main_time;
+	return main_time / 4.0f;
 }
 
 int main()
@@ -63,10 +63,12 @@ int main()
 	top = new Vsystem;
 	
 	top->clk = 0;
+	top->fsabi_clk = 0;
 	while (!Verilated::gotFinish())
 	{
-		top->clk = !top->clk;
-		top->fsabi_clk = top->clk;;
+		if (main_time % 2)
+			top->clk = !top->clk;
+		top->fsabi_clk = !top->fsabi_clk;
 		top->rst = 0;
 		top->eval();
 //		if (top->clk == 1)
