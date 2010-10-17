@@ -1,8 +1,8 @@
 module System(
-   clk, rst
+   clk, rst, fsabi_clk
    );
 
-	input clk; input rst;
+	input clk; input rst; input fsabi_clk;
 
 `include "fsab_defines.vh"
 `include "spam_defines.vh"
@@ -58,8 +58,6 @@ module System(
 	wire		spamo_r_nw;		// From core of Core.v
 	wire		spamo_valid;		// From core of Core.v
 	// End of automatics
-
-	wire fsabi_clk = clk;
 
 	wire rst_b = ~rst;
 	wire fsabi_rst_b = ~rst; /* XXX? */

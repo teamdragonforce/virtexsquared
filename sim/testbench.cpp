@@ -66,6 +66,7 @@ int main()
 	while (!Verilated::gotFinish())
 	{
 		top->clk = !top->clk;
+		top->fsabi_clk = top->clk;;
 		top->rst = 0;
 		top->eval();
 //		if (top->clk == 1)
