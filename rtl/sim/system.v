@@ -73,6 +73,8 @@ module System(
 
 	/* Core AUTO_TEMPLATE (
 		.rst_b(rst_core_b & rst_b),
+		.fsabi_clk(clk),
+		.fsabi_rst_b(rst_b),
 		);
 	*/
 	Core core(/*AUTOINST*/
@@ -107,6 +109,8 @@ module System(
 		  .fsabi_did		(fsabi_did[FSAB_DID_HI:0]),
 		  .fsabi_subdid		(fsabi_subdid[FSAB_DID_HI:0]),
 		  .fsabi_data		(fsabi_data[FSAB_DATA_HI:0]),
+		  .fsabi_clk		(clk),			 // Templated
+		  .fsabi_rst_b		(rst_b),		 // Templated
 		  .spami_busy_b		(spami_busy_b),
 		  .spami_data		(spami_data[SPAM_DATA_HI:0]));
 	

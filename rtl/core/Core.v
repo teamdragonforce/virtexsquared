@@ -7,7 +7,8 @@ module Core(/*AUTOARG*/
    spamo_valid, spamo_r_nw, spamo_did, spamo_addr, spamo_data,
    // Inputs
    clk, rst_b, ic__fsabo_credit, dc__fsabo_credit, fsabi_valid,
-   fsabi_did, fsabi_subdid, fsabi_data, spami_busy_b, spami_data
+   fsabi_did, fsabi_subdid, fsabi_data, fsabi_clk, fsabi_rst_b,
+   spami_busy_b, spami_data
    );
 	input clk;
 	input rst_b;
@@ -23,6 +24,7 @@ module Core(/*AUTOARG*/
 	output wire [FSAB_LEN_HI:0]  ic__fsabo_len;
 	output wire [FSAB_DATA_HI:0] ic__fsabo_data;
 	output wire [FSAB_MASK_HI:0] ic__fsabo_mask;
+	input                        ic__fsabo_credit;
 
 	output wire                  dc__fsabo_valid;
 	output wire [FSAB_REQ_HI:0]  dc__fsabo_mode;
@@ -32,18 +34,21 @@ module Core(/*AUTOARG*/
 	output wire [FSAB_LEN_HI:0]  dc__fsabo_len;
 	output wire [FSAB_DATA_HI:0] dc__fsabo_data;
 	output wire [FSAB_MASK_HI:0] dc__fsabo_mask;
+	input                        dc__fsabo_credit;
+
+	input                        fsabi_valid;
+	input [FSAB_DID_HI:0]        fsabi_did;
+	input [FSAB_DID_HI:0]        fsabi_subdid;
+	input [FSAB_DATA_HI:0]       fsabi_data;
+	input                        fsabi_clk;
+	input                        fsabi_rst_b;
+	
 	output wire                  spamo_valid;
 	output wire                  spamo_r_nw;
 	output wire [SPAM_DID_HI:0]  spamo_did;
 	output wire [SPAM_ADDR_HI:0] spamo_addr;
 	output wire [SPAM_DATA_HI:0] spamo_data;
-
-	input                        ic__fsabo_credit;
-	input                        dc__fsabo_credit;
-	input                        fsabi_valid;
-	input [FSAB_DID_HI:0]        fsabi_did;
-	input [FSAB_DID_HI:0]        fsabi_subdid;
-	input [FSAB_DATA_HI:0]       fsabi_data;
+	
 	input                        spami_busy_b;
 	input [SPAM_DATA_HI:0]       spami_data;
 
@@ -107,9 +112,6 @@ module Core(/*AUTOARG*/
 	wire		write_reg_3a;		// From execute of Execute.v
 	wire [31:0]	writeback_out_spsr;	// From writeback of Writeback.v
 	// End of automatics
-
-	wire fsabi_clk = clk;
-	wire fsabi_rst_b = rst_b;
 
 	wire jmp_out_writeback;
 	wire [31:0] jmppc_out_execute, jmppc_out_writeback, memory_out_spsr, memory_out_cpsr, writeback_out_cpsr, regfile_spsr, pc_out_memory, insn_out_memory, memory_out_write_data;
