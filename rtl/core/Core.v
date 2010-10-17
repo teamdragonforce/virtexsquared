@@ -108,6 +108,9 @@ module Core(/*AUTOARG*/
 	wire [31:0]	writeback_out_spsr;	// From writeback of Writeback.v
 	// End of automatics
 
+	wire fsabi_clk = clk;
+	wire fsabi_rst_b = rst_b;
+
 	wire jmp_out_writeback;
 	wire [31:0] jmppc_out_execute, jmppc_out_writeback, memory_out_spsr, memory_out_cpsr, writeback_out_cpsr, regfile_spsr, pc_out_memory, insn_out_memory, memory_out_write_data;
 	wire [3:0] memory_out_write_num;
@@ -174,6 +177,8 @@ module Core(/*AUTOARG*/
 		      .fsabi_did	(fsabi_did[FSAB_DID_HI:0]),
 		      .fsabi_subdid	(fsabi_subdid[FSAB_DID_HI:0]),
 		      .fsabi_data	(fsabi_data[FSAB_DATA_HI:0]),
+		      .fsabi_clk	(fsabi_clk),
+		      .fsabi_rst_b	(fsabi_rst_b),
 		      .spami_busy_b	(spami_busy_b),
 		      .spami_data	(spami_data[SPAM_DATA_HI:0]));
 

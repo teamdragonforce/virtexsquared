@@ -9,7 +9,8 @@ module DCache(/*AUTOARG*/
    // Inputs
    clk, rst_b, dc__addr_3a, dc__rd_req_3a, dc__wr_req_3a,
    dc__wr_data_3a, dc__fsabo_credit, fsabi_valid, fsabi_did,
-   fsabi_subdid, fsabi_data, spami_busy_b, spami_data
+   fsabi_subdid, fsabi_data, fsabi_clk, fsabi_rst_b, spami_busy_b,
+   spami_data
    );
 	`include "fsab_defines.vh"
 	`include "spam_defines.vh"
@@ -40,6 +41,8 @@ module DCache(/*AUTOARG*/
 	input      [FSAB_DID_HI:0]  fsabi_did;
 	input      [FSAB_DID_HI:0]  fsabi_subdid;
 	input      [FSAB_DATA_HI:0] fsabi_data;
+	input                       fsabi_clk;
+	input                       fsabi_rst_b;
 	
 	/* SPAM sidechannel interface */
 	output reg                  spamo_valid;
@@ -97,11 +100,7 @@ module DCache(/*AUTOARG*/
 	wire [31:0] curdata_hi_3a = cache_data_hi[{idx_3a,didx_word_3a}];
 	wire [31:0] curdata_lo_3a = cache_data_lo[{idx_3a,didx_word_3a}];
 	
-	reg [2:0] cache_fill_pos = 0;
 	reg read_pending = 0;
-	reg [31:0] fill_addr = 0;
-	wire [21:0] fill_tag = fill_addr[31:10];
-	wire [3:0] fill_idx = fill_addr[9:6];
 	wire start_read = rst_b && dc__rd_req_3a && !dc__addr_3a[31] && !cache_hit_3a && !read_pending && fsab_credit_avail;
 	always @(*)
 	begin
@@ -142,35 +141,98 @@ module DCache(/*AUTOARG*/
 		end
 	end
 	
+	reg [31:0] fill_addr = 0;
+	wire [21:0] fill_tag = fill_addr[31:10];
+	wire [3:0] fill_idx = fill_addr[9:6];
+
+	/* For signaling between the clock domains, there exists a 'current
+	 * read' signal that flops back and forth.  Since the FSABI clock
+	 * domain wants to know when a read starts, and also wants to
+	 * communicate back when it has finished a specific read without
+	 * annoying flag synchronization, the easiest mechanism is to
+	 * communicate which read the core domain is expecting, and have the
+	 * FSABI domain communicate back which read has most recently
+	 * completed.
+	 */
+	reg current_read = 0;
+	reg current_read_fclk_s1 = 0;
+	reg current_read_fclk = 0;
+	reg completed_read_fclk = 0;
+	reg completed_read_s1 = 0;
+	reg completed_read = 0;
 	always @(posedge clk or negedge rst_b) begin
 		if (!rst_b) begin
 			for (i = 0; i < 16; i = i + 1)
 				cache_valid[i] <= 1'b0;
 			read_pending <= 0;
-			cache_fill_pos <= 0;
 			fill_addr <= 0;
+			completed_read <= 0;
+			completed_read_s1 <= 0;
+			current_read <= 0;
 		end else begin
+			completed_read_s1 <= completed_read_fclk;
+			completed_read <= completed_read_s1;
+		
 			if (start_read) begin
 				read_pending <= 1;
-				cache_fill_pos <= 0;
+				current_read <= ~current_read;
 				fill_addr <= {dc__addr_3a[31:6], 6'b0};
-			end else if (fsabi_valid && (fsabi_did == FSAB_DID_CPU) && (fsabi_subdid == FSAB_SUBDID_CPU_DCACHE)) begin
-				$display("DCACHE: FILL: rd addr %08x; FSAB addr %08x; FSAB data %016x", dc__addr_3a, fill_addr, fsabi_data);
-				
-				cache_fill_pos <= cache_fill_pos + 1;
-				if (cache_fill_pos == 7) begin	/* Done? */
-					cache_tags[fill_idx] <= fill_tag;
-					cache_valid[fill_idx] <= 1;
-					read_pending <= 0;
-				end else
-					cache_valid[fill_idx] <= 0;
+				cache_valid[fill_idx] <= 0;
+			end else if ((completed_read == current_read) && read_pending) begin
+				cache_tags[fill_idx] <= fill_tag;
+				cache_valid[fill_idx] <= 1;
+				read_pending <= 0;
 			end
 			
 			/* Split this out because XST is kind of silly about this sort of thing. */
-			if ((fsabi_valid && (fsabi_did == FSAB_DID_CPU) && (fsabi_subdid == FSAB_SUBDID_CPU_DCACHE)) || (dc__wr_req_3a && cache_hit_3a && dc__addr_3a[2]))
-				cache_data_hi[dc__wr_req_3a ? {idx_3a,dc__addr_3a[5:3]} : {fill_idx,cache_fill_pos}] <= dc__wr_req_3a ? dc__wr_data_3a : fsabi_data[63:32];
-			if ((fsabi_valid && (fsabi_did == FSAB_DID_CPU) && (fsabi_subdid == FSAB_SUBDID_CPU_DCACHE)) || (dc__wr_req_3a && cache_hit_3a && ~dc__addr_3a[2]))
-				cache_data_lo[dc__wr_req_3a ? {idx_3a,dc__addr_3a[5:3]} : {fill_idx,cache_fill_pos}] <= dc__wr_req_3a ? dc__wr_data_3a : fsabi_data[31:0];
+			if (dc__wr_req_3a && cache_hit_3a && dc__addr_3a[2])
+				cache_data_hi[{idx_3a,dc__addr_3a[5:3]}] <= dc__wr_data_3a;
+			if (dc__wr_req_3a && cache_hit_3a && ~dc__addr_3a[2])
+				cache_data_lo[{idx_3a,dc__addr_3a[5:3]}] <= dc__wr_data_3a;
+		end
+	end
+	
+	/* Once read_pending is high, fill_addr is frozen until
+	 * read_complete is asserted.  By the time read_pending is
+	 * synchronized into the fsabi domain (and hence any logic in fsabi
+	 * can see it), fill_addr will have been stable for a long time, so
+	 * we do not need to synchronize it in.
+	 *
+	 * This does mean that read_pending must get synchronized in before
+	 * the FSAB begins returning data.  Luckily, there will be at least
+	 * two cycles of latency in arbitration synchronizers (if not the
+	 * rest of the arbitration and memory systems!), so we can be more
+	 * or less guaranteed of that.
+	 *
+	 * If we decide to make the memory system ultra low latency for some
+	 * reason later, then this will have to be revisited.
+	 */
+	reg [2:0] cache_fill_pos_fclk = 0;
+	reg current_read_1a_fclk = 0;
+
+	always @(posedge fsabi_clk or negedge fsabi_rst_b) begin
+		if (!fsabi_rst_b) begin
+			current_read_fclk_s1 <= 0;
+			current_read_fclk <= 0;
+			current_read_1a_fclk <= 0;
+			completed_read_fclk <= 0;
+			cache_fill_pos_fclk <= 0;
+		end else begin
+			current_read_fclk_s1 <= current_read;
+			current_read_fclk <= current_read_fclk_s1;
+			current_read_1a_fclk <= current_read_fclk;
+			
+			if (current_read_fclk ^ current_read_1a_fclk) begin
+				cache_fill_pos_fclk <= 0;
+			end else if (fsabi_valid && (fsabi_did == FSAB_DID_CPU) && (fsabi_subdid == FSAB_SUBDID_CPU_DCACHE)) begin
+				$display("DCACHE: FILL: rd addr %08x; FSAB addr %08x; FSAB data %016x", dc__addr_3a, fill_addr, fsabi_data);
+				
+				if (cache_fill_pos_fclk == 7)	/* Done? */
+					completed_read_fclk <= current_read_fclk;
+				cache_data_hi[{fill_idx,cache_fill_pos_fclk}] <= fsabi_data[63:32];
+				cache_data_lo[{fill_idx,cache_fill_pos_fclk}] <= fsabi_data[31:0];
+				cache_fill_pos_fclk <= cache_fill_pos_fclk + 1;
+			end
 		end
 	end
 	
@@ -193,7 +255,7 @@ module DCache(/*AUTOARG*/
 		end
 	end
 	
-	always @(posedge clk or negedge rst_b) /* XXX reset */ begin
+	always @(posedge clk or negedge rst_b) begin
 		if (!rst_b) begin
 			spam_intrans <= 0;
 			spam_timeout <= 0;
