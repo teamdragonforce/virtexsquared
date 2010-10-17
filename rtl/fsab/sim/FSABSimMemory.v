@@ -193,7 +193,8 @@ module FSABSimMemory(
 	                    (mem_cur_req_active_0a &&
 	                     (rfif_mode_1a == FSAB_WRITE) &&
 	                     (mem_cur_req_len_rem_0a != 'h1) &&
-	                     (mem_cur_req_len_rem_0a != 'h0));
+	                     (mem_cur_req_len_rem_0a != 'h0) &&
+	                     !dfif_empty_0a);
 	
 	assign mem_cur_req_addr_1a = rfif_rd_1a ?
 	                                 rfif_addr_1a :
