@@ -229,8 +229,16 @@ module DCache(/*AUTOARG*/
 				
 				if (cache_fill_pos_fclk == 7)	/* Done? */
 					completed_read_fclk <= current_read_fclk;
-				cache_data_hi[{fill_idx,cache_fill_pos_fclk}] <= fsabi_data[63:32];
-				cache_data_lo[{fill_idx,cache_fill_pos_fclk}] <= fsabi_data[31:0];
+				
+				// Workaround for suspected Verilator bug. 
+				// Hopefully it is possible to synthesize a block RAM with enough ports...
+				`ifdef verilator
+					cache_data_hi[{fill_idx,cache_fill_pos_fclk}] = fsabi_data[63:32];
+					cache_data_lo[{fill_idx,cache_fill_pos_fclk}] = fsabi_data[31:0];
+				`else
+					cache_data_hi[{fill_idx,cache_fill_pos_fclk}] <= fsabi_data[63:32];
+					cache_data_lo[{fill_idx,cache_fill_pos_fclk}] <= fsabi_data[31:0];
+				`endif
 				cache_fill_pos_fclk <= cache_fill_pos_fclk + 1;
 			end
 		end
