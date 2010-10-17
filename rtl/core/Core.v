@@ -146,7 +146,9 @@ module Core(/*AUTOARG*/
 		      .fsabi_valid	(fsabi_valid),
 		      .fsabi_did	(fsabi_did[FSAB_DID_HI:0]),
 		      .fsabi_subdid	(fsabi_subdid[FSAB_DID_HI:0]),
-		      .fsabi_data	(fsabi_data[FSAB_DATA_HI:0]));
+		      .fsabi_data	(fsabi_data[FSAB_DATA_HI:0]),
+		      .fsabi_clk	(fsabi_clk),
+		      .fsabi_rst_b	(fsabi_rst_b));
 
 	DCache dcache(/*AUTOINST*/
 		      // Outputs
