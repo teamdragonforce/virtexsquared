@@ -53,6 +53,8 @@ module FSABMemory(/*AUTOARG*/
 	output wire [FSAB_DID_HI:0]  fsabi_subdid;
 	output wire [FSAB_DATA_HI:0] fsabi_data;
 
+	/*** INBOUND ***/
+
 	/*** Inbound request FIFO (IRFIF) ***/
 `define SIMMEM_IRFIF_HI (FSAB_REQ_HI+1 + FSAB_DID_HI+1 + FSAB_DID_HI+1 + FSAB_ADDR_HI+1 + FSAB_LEN_HI)
 	reg [FSAB_CREDITS_HI:0] irfif_wpos_0a = 'h0;
@@ -199,42 +201,6 @@ module FSABMemory(/*AUTOARG*/
 			ifif_reqs_queued_0a <= ifif_reqs_queued_0a + (idfif_req_queued_0a ? 1 : 0)
 			                                           + (irfif_rd_0a ? -1 : 0);
 		end
-
-	/*** Outbound data FIFO (ODFIF) ***/
-//`define MEM_ODFIF_MAX ((FSAB_LEN_MAX)-1)
-//`define MEM_ODFIF_WIDTH (2*(FSAB_DATA_HI+1 + FSAB_MASK_HI)+1)
-//`define MEM_ODFIF_HI (2*(clog2(`MEM_ODFIF_MAX)-1)+1)
-//	reg [`MEM_ODFIF_HI:0] odfif_wpos_0a = 'h0;
-//	reg [`MEM_ODFIF_HI:0] odfif_rpos_0a = 'h0;
-//	reg [`MEM_ODFIF_WIDTH:0] odfif_fifo [`MEM_ODFIF_MAX:0];
-//	wire odfif_wr_0a;
-//	wire odfif_rd_0a;
-//	wire [FSAB_DATA_HI+1 + FSAB_MASK_HI:0] odfif_wdat_0a;
-//	reg [FSAB_DATA_HI+1 + FSAB_MASK_HI:0] odfif_rdat_1a;
-//	wire odfif_empty_0a = (odfif_rpos_0a == odfif_wpos_0a);
-//	wire odfif_full_0a = (odfif_wpos_0a == (odfif_rpos_0a + `MEM_ODFIF_MAX));
-//	wire [`MEM_ODFIF_HI:0] odfif_avail_0a = odfif_wpos_0a - odfif_rpos_0a;
-//
-//	always @(posedge clk or negedge rst_b)
-//		if (!rst_b) begin
-//			odfif_wpos_0a <= 'h0;
-//			odfif_rpos_0a <= 'h0;
-//		end else begin
-//			if (odfif_rd_0a) begin
-//				$display("SIMMEM: %5d: reading from odfif (ad %d, da %x)", $time, odfif_rpos_0a, odfif_fifo[odfif_rpos_0a]);
-//				/* NOTE: this FIFO style will NOT port to Xilinx! */
-//				odfif_rdat_1a <= odfif_fifo[odfif_rpos_0a];
-//				odfif_rpos_0a <= odfif_rpos_0a + 'h1;
-//			end else begin
-//				odfif_rdat_1a <= {(FSAB_DATA_HI+1 + FSAB_MASK_HI+1){1'hx}};
-//			end
-//			
-//			if (odfif_wr_0a) begin
-//				$display("SIMMEM: %5d: writing to idfif (ad %d, %08b mask, %08x data)", $time, idfif_wpos_0a, fsabo_mask, fsabo_data);
-//				odfif_fifo[odfif_wpos_0a] <= odfif_wdat_0a;
-//				odfif_wpos_0a <= odfif_wpos_0a + 'h1;
-//			end
-//		end
 	
 	/*** Pipe-throughs ***/
 	reg irfif_rd_1a = 0;
@@ -265,9 +231,8 @@ module FSABMemory(/*AUTOARG*/
 	wire                     app_wdf_wren;
 	wire                     app_af_afull;
 	wire                     app_wdf_afull;
-
-	wire [2*DQ_WIDTH-1:0]    rd_data_fifo_out;
-	
+	wire [2*DQ_WIDTH-1:0]    app_wdf_data;
+	wire [2*DM_WIDTH-1:0]    app_wdf_mask_data;
 	/* If we just finished reading from the idfif for the last time
 	 * (i.e., we just went inactive), then we can release a credit. 
 	 * This is as distinct from releasing a credit every time we read
@@ -296,27 +261,8 @@ module FSABMemory(/*AUTOARG*/
 	assign app_af_cmd = irfif_mode_1a == FSAB_WRITE ? MIG_WRITE : MIG_READ;
 
 	assign app_wdf_wren = irfif_mode_1a == FSAB_WRITE && idfif_rd_1a;
-	
-	/* TODO: totally false */
-	/*
-	assign fsabi_valid = mem_cur_req_active_0a &&
-	                     (irfif_mode_1a == FSAB_READ) &&
-	                     (mem_cur_req_len_rem_0a != 'h0);
-	assign fsabi_did = irfif_did_1a;
-	assign fsabi_subdid = irfif_subdid_1a;
-	*/
-
-	/* verilator lint_off WIDTH */
-	/*
-	assign fsabi_data = simmem[mem_cur_req_addr_1a[FSAB_ADDR_HI:3]];
-	*?
-	/* verilator lint_on WIDTH */
-	
-	/* This reg is not actually a flop; it is storage for behavioral
-	 * data masking.  */
-//	integer i;
-//	integer j;
-//	reg [FSAB_DATA_HI:0] masked_data;
+	assign app_wdf_data = {idfif_data2_1a, idfif_data_1a};
+	assign app_wdf_mask = {idfif_mask2_1a, idfif_mask_1a};
 
 	always @(posedge clk or negedge rst_b)
 		if (!rst_b) begin
@@ -338,11 +284,135 @@ module FSABMemory(/*AUTOARG*/
 				mem_cur_req_addr_1a_r <= mem_cur_req_addr_1a + (FSAB_DATA_HI + 1) / 8;
 		end
 
+	/*** OUTBOUND ***/
+
+	wire [2*DQ_WIDTH-1:0]    rd_data_fifo_out; 
+	wire                     rd_data_valid;
+	reg [FSAB_LEN_HI:0]      ofif_resp_len_rem_0a = 0;
+	wire                     ofif_resp_active_0a;
+
+	/*** Outbound request FIFO (ORFIF) ***/
+`define MEM_ORFIF_MAX ((FSAB_LEN_MAX)-1)
+`define MEM_ORFIF_WIDTH (FSAB_DID_HI+1 + FSAB_DID_HI+1 + FSAB_LEN_HI+1)
+`define MEM_ORFIF_IND_WIDTH (clog2(`MEM_ORFIF_MAX))
+	reg [`MEM_ORFIF_IND_WIDTH-1:0] orfif_wpos_0a = 'h0;
+	reg [`MEM_ORFIF_IND_WIDTH-1:0] orfif_rpos_0a = 'h0;
+	reg [`MEM_ORFIF_WIDTH-1:0] orfif_fifo [`MEM_ORFIF_MAX:0];
+	wire orfif_wr_0a;
+	wire orfif_rd_0a;
+	wire [`MEM_ORFIF_WIDTH-1:0] orfif_wdat_0a;
+	reg [`MEM_ORFIF_WIDTH-1:0] orfif_rdat_1a;
+	wire orfif_empty_0a = (orfif_rpos_0a == orfif_wpos_0a);
+	wire orfif_full_0a = (orfif_wpos_0a == (orfif_rpos_0a + `MEM_ORFIF_MAX));
+	wire [`MEM_ORFIF_IND_WIDTH-1:0] orfif_avail_0a = orfif_wpos_0a - orfif_rpos_0a;
+
+	always @(posedge clk or negedge rst_b)
+		if (!rst_b) begin
+			orfif_wpos_0a <= 'h0;
+			orfif_rpos_0a <= 'h0;
+		end else begin
+			if (orfif_rd_0a) begin
+				$display("SIMMEM: %5d: reading from orfif (ad %d, da %x)", $time, orfif_rpos_0a, orfif_fifo[orfif_rpos_0a]);
+				/* NOTE: this FIFO style will NOT port to Xilinx! */
+				orfif_rdat_1a <= orfif_fifo[orfif_rpos_0a];
+				orfif_rpos_0a <= orfif_rpos_0a + 'h1;
+			end else begin
+				orfif_rdat_1a <= {(FSAB_DATA_HI+1 + FSAB_MASK_HI+1){1'hx}};
+			end
+			
+			if (orfif_wr_0a) begin
+				$display("SIMMEM: %5d: writing to orfif (ad %d, %08b mask, %08x data)", $time, idfif_wpos_0a, fsabo_mask, fsabo_data);
+				orfif_fifo[orfif_wpos_0a] <= orfif_wdat_0a;
+				orfif_wpos_0a <= orfif_wpos_0a + 'h1;
+			end
+		end
+
+	/*** ORFIF demux & control ***/
+	wire [FSAB_DID_HI:0]  orfif_did_1a;
+	wire [FSAB_DID_HI:0]  orfif_subdid_1a;
+	wire [FSAB_LEN_HI:0]  orfif_len_1a;
+
+	assign orfif_wr_0a = irfif_rd_1a && irfif_mode_1a == FSAB_READ;
+	assign orfif_wdat_0a = {irfif_did_1a, irfif_subdid_1a, irfif_len_1a};
+	assign {orfif_did_1a, orfif_subdid_1a, orfif_len_1a} = orfif_rdat_1a;
+
+	/*** Outbound data FIFO (ODFIF) ***/
+`define MEM_ODFIF_MAX ((FSAB_LEN_MAX)-1)
+`define MEM_ODFIF_WIDTH (2*(FSAB_DATA_HI+1 + FSAB_MASK_HI)+1)
+`define MEM_ODFIF_HI (2*(clog2(`MEM_ODFIF_MAX)-1)+1)
+	reg [`MEM_ODFIF_HI:0] odfif_wpos_0a = 'h0;
+	reg [`MEM_ODFIF_HI:0] odfif_rpos_0a = 'h0;
+	reg [`MEM_ODFIF_WIDTH:0] odfif_fifo [`MEM_ODFIF_MAX:0];
+	wire odfif_wr_0a;
+	wire odfif_rd_0a;
+	wire [FSAB_DATA_HI+1 + FSAB_MASK_HI:0] odfif_wdat_0a;
+	reg [FSAB_DATA_HI+1 + FSAB_MASK_HI:0] odfif_rdat_1a;
+	wire odfif_empty_0a = (odfif_rpos_0a == odfif_wpos_0a);
+	wire odfif_full_0a = (odfif_wpos_0a == (odfif_rpos_0a + `MEM_ODFIF_MAX));
+	wire [`MEM_ODFIF_HI:0] odfif_avail_0a = odfif_wpos_0a - odfif_rpos_0a;
+
+	always @(posedge clk or negedge rst_b)
+		if (!rst_b) begin
+			odfif_wpos_0a <= 'h0;
+			odfif_rpos_0a <= 'h0;
+		end else begin
+			if (odfif_rd_0a) begin
+				$display("SIMMEM: %5d: reading from odfif (ad %d, da %x)", $time, odfif_rpos_0a, odfif_fifo[odfif_rpos_0a]);
+				/* NOTE: this FIFO style will NOT port to Xilinx! */
+				odfif_rdat_1a <= odfif_fifo[odfif_rpos_0a];
+				odfif_rpos_0a <= odfif_rpos_0a + 'h1;
+			end else begin
+				odfif_rdat_1a <= {(FSAB_DATA_HI+1 + FSAB_MASK_HI+1){1'hx}};
+			end
+			
+			if (odfif_wr_0a) begin
+				$display("SIMMEM: %5d: writing to odfif (ad %d, %08b mask, %08x data)", $time, idfif_wpos_0a, fsabo_mask, fsabo_data);
+				odfif_fifo[odfif_wpos_0a] <= odfif_wdat_0a;
+				odfif_wpos_0a <= odfif_wpos_0a + 'h1;
+			end
+		end
+
+	/*** ORFIF demux & control ***/
+	assign odfif_wdat_0a = rd_data_fifo_out;
+	assign odfif_wr_0a = rd_data_valid;
+	assign {odfif_data2_1a, odfif_data_1a} = odfif_rdat_1a;
+	
+	/*** Pipe-throughs ***/
+	reg orfif_rd_1a = 0;
+	reg odfif_rd_1a = 0;
+	always @(posedge clk or negedge rst_b)
+		if (!rst_b) begin
+			orfif_rd_1a <= 0;
+			odfif_rd_1a <= 0;
+		end else begin
+			orfif_rd_1a <= orfif_rd_0a;
+			odfif_rd_1a <= odfif_rd_0a;
+		end
+
+	always @(posedge clk or negedge rst_b)
+		if (!rst_b) begin
+			ofif_resp_len_rem_0a <= 0;
+		end else begin
+			if (orfif_rd_1a)
+				ofif_resp_len_rem_0a <= orfif_len_1a - 1;
+			else if (ofif_resp_len_rem_0a != 0)
+				ofif_resp_len_rem_0a = ofif_resp_len_rem_0a - 1;
+		end
+
+	assign orfif_rd_0a = !orfif_empty_0a && !ofif_resp_active_0a;
+	assign odfif_rd_0a = orfif_rd_0a || (ofif_resp_active_0a && !odfif_rd_1a);
+
+	assign ofif_resp_active_0a = (orfif_rd_1a && orfif_len_1a != 1) ||
+	                             (ofif_resp_len_rem_0a != 1 && ofif_resp_len_rem_0a != 0);
+
+	assign fsabi_data = (!odfif_rd_1a) ? odfif_data2_1a : odfif_data_1a;
+	assign fsabi_valid = orfif_rd_1a || ofif_resp_len_rem_0a != 0;
+	assign fsabi_did = orfif_did_1a;
+	assign fsabi_subdid = orfif_subdid_1a;
+
 	/* mig AUTO_TEMPLATE (
 		.app_af_addr(mem_cur_req_addr_1a),
 		.app_af_wren(irfif_rd_1a),
-		.app_wdf_data({idfif_data2_1a, idfif_data_1a}),
-		.app_wdf_mask_data({idfif_mask2_1a, idfif_mask_1a}),
 		);
 	*/
 	mig #(/*AUTOINSTPARAM*/
@@ -423,8 +493,8 @@ module FSABMemory(/*AUTOARG*/
 		 .app_af_wren		(irfif_rd_1a),		 // Templated
 		 .app_af_addr		(mem_cur_req_addr_1a),	 // Templated
 		 .app_af_cmd		(app_af_cmd[2:0]),
-		 .app_wdf_data		({idfif_data2_1a, idfif_data_1a}), // Templated
-		 .app_wdf_mask_data	({idfif_mask2_1a, idfif_mask_1a})); // Templated
+		 .app_wdf_data		(app_wdf_data[(APPDATA_WIDTH)-1:0]),
+		 .app_wdf_mask_data	(app_wdf_mask_data[(APPDATA_WIDTH/8)-1:0]));
 endmodule
 
 // Local Variables:
