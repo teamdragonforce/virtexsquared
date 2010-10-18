@@ -1,11 +1,11 @@
-NET "xtal" LOC="B8" | CLOCK_DEDICATED_ROUTE = FALSE | TNM_NET = xtal;
-TIMESPEC "TS_xtal"=PERIOD "xtal" 50 MHz HIGH 50%;
-//NET "coreclk" TNM = coreclk;
+//NET "xtal" LOC="B8" | CLOCK_DEDICATED_ROUTE = FALSE | TNM_NET = xtal;
+//TIMESPEC "TS_xtal"=PERIOD "xtal" 50 MHz HIGH 50%;
+NET "clk" LOC="AH15" | TNM = clk;
 
-//TIMESPEC TSctl = FROM coreclk TO CR_CTL 5ns;
-//TIMESPEC TSdatao = FROM coreclk TO CR_DATA 5ns;
-//TIMESPEC TSdatai = FROM CR_DATA TO coreclk 5ns;
-//TIMESPEC TSaddr = FROM coreclk TO CR_ADDR 5ns;
+//TIMESPEC TSctl = FROM clk TO CR_CTL 5ns;
+//TIMESPEC TSdatao = FROM clk TO CR_DATA 5ns;
+//TIMESPEC TSdatai = FROM CR_DATA TO clk 5ns;
+//TIMESPEC TSaddr = FROM clk TO CR_ADDR 5ns;
 
 ###
 ### Begin import from MIG generated ucf
@@ -156,71 +156,73 @@ NET  "ddr2_ck_n[1]"                              LOC = "F28" ;          #Bank 19
 ### End import 
 ###
 
-NET "cr_nADV" LOC="J4" | SLEW="fast" | TNM = CR_CTL;
-NET "cr_nCE" LOC="R6" | SLEW="fast" | TNM = CR_CTL;
-NET "cr_nOE" LOC="T2" | SLEW="fast" | TNM = CR_CTL;
-NET "cr_nWE" LOC="N7" | SLEW="fast" | TNM = CR_CTL;
-NET "cr_CRE" LOC="P7" | SLEW="fast" | TNM = CR_CTL;
-NET "cr_nLB" LOC="K5" | SLEW="fast" | TNM = CR_CTL;
-NET "cr_nUB" LOC="K4" | SLEW="fast" | TNM = CR_CTL;
-NET "cr_CLK" LOC="H5" | SLEW="fast" | TNM = CR_CTL;
+c
 
-NET "cr_DQ<0>" LOC="L1" | SLEW="fast" | TNM = CR_DATA;
-NET "cr_DQ<1>" LOC="L4" | SLEW="fast" | TNM = CR_DATA;
-NET "cr_DQ<2>" LOC="L6" | SLEW="fast" | TNM = CR_DATA;
-NET "cr_DQ<3>" LOC="M4" | SLEW="fast" | TNM = CR_DATA;
-NET "cr_DQ<4>" LOC="N5" | SLEW="fast" | TNM = CR_DATA;
-NET "cr_DQ<5>" LOC="P1" | SLEW="fast" | TNM = CR_DATA;
-NET "cr_DQ<6>" LOC="P2" | SLEW="fast" | TNM = CR_DATA;
-NET "cr_DQ<7>" LOC="R2" | SLEW="fast" | TNM = CR_DATA;
-NET "cr_DQ<8>" LOC="L3" | SLEW="fast" | TNM = CR_DATA;
-NET "cr_DQ<9>" LOC="L5" | SLEW="fast" | TNM = CR_DATA;
-NET "cr_DQ<10>" LOC="M3" | SLEW="fast" | TNM = CR_DATA;
-NET "cr_DQ<11>" LOC="M6" | SLEW="fast" | TNM = CR_DATA;
-NET "cr_DQ<12>" LOC="L2" | SLEW="fast" | TNM = CR_DATA;
-NET "cr_DQ<13>" LOC="N4" | SLEW="fast" | TNM = CR_DATA;
-NET "cr_DQ<14>" LOC="R3" | SLEW="fast" | TNM = CR_DATA;
-NET "cr_DQ<15>" LOC="T1" | SLEW="fast" | TNM = CR_DATA;
-
-NET "cr_A<0>" LOC="J1" | SLEW="fast" | TNM = CR_ADDR;
-NET "cr_A<1>" LOC="J2" | SLEW="fast" | TNM = CR_ADDR;
-NET "cr_A<2>" LOC="H4" | SLEW="fast" | TNM = CR_ADDR;
-NET "cr_A<3>" LOC="H1" | SLEW="fast" | TNM = CR_ADDR;
-NET "cr_A<4>" LOC="H2" | SLEW="fast" | TNM = CR_ADDR;
-NET "cr_A<5>" LOC="J5" | SLEW="fast" | TNM = CR_ADDR;
-NET "cr_A<6>" LOC="H3" | SLEW="fast" | TNM = CR_ADDR;
-NET "cr_A<7>" LOC="H6" | SLEW="fast" | TNM = CR_ADDR;
-NET "cr_A<8>" LOC="F1" | SLEW="fast" | TNM = CR_ADDR;
-NET "cr_A<9>" LOC="G3" | SLEW="fast" | TNM = CR_ADDR;
-NET "cr_A<10>" LOC="G6" | SLEW="fast" | TNM = CR_ADDR;
-NET "cr_A<11>" LOC="G5" | SLEW="fast" | TNM = CR_ADDR;
-NET "cr_A<12>" LOC="G4" | SLEW="fast" | TNM = CR_ADDR;
-NET "cr_A<13>" LOC="F2" | SLEW="fast" | TNM = CR_ADDR;
-NET "cr_A<14>" LOC="E1" | SLEW="fast" | TNM = CR_ADDR;
-NET "cr_A<15>" LOC="M5" | SLEW="fast" | TNM = CR_ADDR;
-NET "cr_A<16>" LOC="E2" | SLEW="fast" | TNM = CR_ADDR;
-NET "cr_A<17>" LOC="C2" | SLEW="fast" | TNM = CR_ADDR;
-NET "cr_A<18>" LOC="C1" | SLEW="fast" | TNM = CR_ADDR;
-NET "cr_A<19>" LOC="D2" | SLEW="fast" | TNM = CR_ADDR;
-NET "cr_A<20>" LOC="K3" | SLEW="fast" | TNM = CR_ADDR;
-NET "cr_A<21>" LOC="D1" | SLEW="fast" | TNM = CR_ADDR;
-NET "cr_A<22>" LOC="K6" | SLEW="fast" | TNM = CR_ADDR;
-NET "st_nCE" LOC="R5" | SLEW="fast" | TNM = CR_CTL;
-
-NET "vs" LOC = "u3" |SLEW = "fast";
-NET "hs" LOC = "t4" |SLEW = "fast";
-NET "r<2>" LOC = "r8";
-NET "r<1>" LOC = "t8";
-NET "r<0>" LOC = "r9";
-NET "g<2>" LOC = "p6";
-NET "g<1>" LOC = "p8";
-NET "g<0>" LOC = "n8";
-NET "b<1>" LOC = "u4";
-NET "b<0>" LOC = "u5";
-
-NET "rst" LOC="H13";
-NET "rstact" LOC="J14";
-
-NET "ps2c" LOC="R12" | CLOCK_DEDICATED_ROUTE = FALSE;
-NET "ps2d" LOC="P11";
+//NET "cr_nADV" LOC="J4" | SLEW="fast" | TNM = CR_CTL;
+//NET "cr_nCE" LOC="R6" | SLEW="fast" | TNM = CR_CTL;
+//NET "cr_nOE" LOC="T2" | SLEW="fast" | TNM = CR_CTL;
+//NET "cr_nWE" LOC="N7" | SLEW="fast" | TNM = CR_CTL;
+//NET "cr_CRE" LOC="P7" | SLEW="fast" | TNM = CR_CTL;
+//NET "cr_nLB" LOC="K5" | SLEW="fast" | TNM = CR_CTL;
+//NET "cr_nUB" LOC="K4" | SLEW="fast" | TNM = CR_CTL;
+//NET "cr_CLK" LOC="H5" | SLEW="fast" | TNM = CR_CTL;
+//
+//NET "cr_DQ<0>" LOC="L1" | SLEW="fast" | TNM = CR_DATA;
+//NET "cr_DQ<1>" LOC="L4" | SLEW="fast" | TNM = CR_DATA;
+//NET "cr_DQ<2>" LOC="L6" | SLEW="fast" | TNM = CR_DATA;
+//NET "cr_DQ<3>" LOC="M4" | SLEW="fast" | TNM = CR_DATA;
+//NET "cr_DQ<4>" LOC="N5" | SLEW="fast" | TNM = CR_DATA;
+//NET "cr_DQ<5>" LOC="P1" | SLEW="fast" | TNM = CR_DATA;
+//NET "cr_DQ<6>" LOC="P2" | SLEW="fast" | TNM = CR_DATA;
+//NET "cr_DQ<7>" LOC="R2" | SLEW="fast" | TNM = CR_DATA;
+//NET "cr_DQ<8>" LOC="L3" | SLEW="fast" | TNM = CR_DATA;
+//NET "cr_DQ<9>" LOC="L5" | SLEW="fast" | TNM = CR_DATA;
+//NET "cr_DQ<10>" LOC="M3" | SLEW="fast" | TNM = CR_DATA;
+//NET "cr_DQ<11>" LOC="M6" | SLEW="fast" | TNM = CR_DATA;
+//NET "cr_DQ<12>" LOC="L2" | SLEW="fast" | TNM = CR_DATA;
+//NET "cr_DQ<13>" LOC="N4" | SLEW="fast" | TNM = CR_DATA;
+//NET "cr_DQ<14>" LOC="R3" | SLEW="fast" | TNM = CR_DATA;
+//NET "cr_DQ<15>" LOC="T1" | SLEW="fast" | TNM = CR_DATA;
+//
+//NET "cr_A<0>" LOC="J1" | SLEW="fast" | TNM = CR_ADDR;
+//NET "cr_A<1>" LOC="J2" | SLEW="fast" | TNM = CR_ADDR;
+//NET "cr_A<2>" LOC="H4" | SLEW="fast" | TNM = CR_ADDR;
+//NET "cr_A<3>" LOC="H1" | SLEW="fast" | TNM = CR_ADDR;
+//NET "cr_A<4>" LOC="H2" | SLEW="fast" | TNM = CR_ADDR;
+//NET "cr_A<5>" LOC="J5" | SLEW="fast" | TNM = CR_ADDR;
+//NET "cr_A<6>" LOC="H3" | SLEW="fast" | TNM = CR_ADDR;
+//NET "cr_A<7>" LOC="H6" | SLEW="fast" | TNM = CR_ADDR;
+//NET "cr_A<8>" LOC="F1" | SLEW="fast" | TNM = CR_ADDR;
+//NET "cr_A<9>" LOC="G3" | SLEW="fast" | TNM = CR_ADDR;
+//NET "cr_A<10>" LOC="G6" | SLEW="fast" | TNM = CR_ADDR;
+//NET "cr_A<11>" LOC="G5" | SLEW="fast" | TNM = CR_ADDR;
+//NET "cr_A<12>" LOC="G4" | SLEW="fast" | TNM = CR_ADDR;
+//NET "cr_A<13>" LOC="F2" | SLEW="fast" | TNM = CR_ADDR;
+//NET "cr_A<14>" LOC="E1" | SLEW="fast" | TNM = CR_ADDR;
+//NET "cr_A<15>" LOC="M5" | SLEW="fast" | TNM = CR_ADDR;
+//NET "cr_A<16>" LOC="E2" | SLEW="fast" | TNM = CR_ADDR;
+//NET "cr_A<17>" LOC="C2" | SLEW="fast" | TNM = CR_ADDR;
+//NET "cr_A<18>" LOC="C1" | SLEW="fast" | TNM = CR_ADDR;
+//NET "cr_A<19>" LOC="D2" | SLEW="fast" | TNM = CR_ADDR;
+//NET "cr_A<20>" LOC="K3" | SLEW="fast" | TNM = CR_ADDR;
+//NET "cr_A<21>" LOC="D1" | SLEW="fast" | TNM = CR_ADDR;
+//NET "cr_A<22>" LOC="K6" | SLEW="fast" | TNM = CR_ADDR;
+//NET "st_nCE" LOC="R5" | SLEW="fast" | TNM = CR_CTL;
+//
+//NET "vs" LOC = "u3" |SLEW = "fast";
+//NET "hs" LOC = "t4" |SLEW = "fast";
+//NET "r<2>" LOC = "r8";
+//NET "r<1>" LOC = "t8";
+//NET "r<0>" LOC = "r9";
+//NET "g<2>" LOC = "p6";
+//NET "g<1>" LOC = "p8";
+//NET "g<0>" LOC = "n8";
+//NET "b<1>" LOC = "u4";
+//NET "b<0>" LOC = "u5";
+//
+//NET "rst" LOC="H13";
+//NET "rstact" LOC="J14";
+//
+//NET "ps2c" LOC="R12" | CLOCK_DEDICATED_ROUTE = FALSE;
+//NET "ps2d" LOC="P11";
 

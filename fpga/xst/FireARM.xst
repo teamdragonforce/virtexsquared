@@ -1,12 +1,12 @@
 set -tmpdir "xst/projnav.tmp"
-set -xsthdpdir "xst"
+SEt -xsthdpdir "xst"
 run
 -ifn FireARM.prj
 -ifmt mixed
 -ofn FireARM
 -ofmt NGC
 -p xc5vlx110t-ff1136-2
--top Console
+-top System
 -opt_mode Speed
 -opt_level 1
 -iuc NO

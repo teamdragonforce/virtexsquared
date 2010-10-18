@@ -429,7 +429,7 @@ module FSABMemory(/*AUTOARG*/
 			if (orfif_rd_1a)
 				ofif_resp_len_rem_0a <= orfif_len_1a - 1;
 			else if (ofif_resp_len_rem_0a != 0)
-				ofif_resp_len_rem_0a = ofif_resp_len_rem_0a - 1;
+				ofif_resp_len_rem_0a <= ofif_resp_len_rem_0a - 1;
 		end
 
 	assign orfif_rd_0a = !orfif_empty_0a && !ofif_resp_active_0a;
