@@ -53,6 +53,20 @@ module FSABMemory(/*AUTOARG*/
 	output wire [FSAB_DID_HI:0]  fsabi_subdid;
 	output wire [FSAB_DATA_HI:0] fsabi_data;
 
+`define OFIF_INITIAL_CREDITS FSAB_INITIAL_CREDITS
+`define OFIF_CREDIT_WIDTH (clog2(`OFIF_INITIAL_CREDITS))
+	reg [`OFIF_CREDIT_WIDTH-1:0] ofif_credits = `OFIF_INITIAL_CREDITS;
+	wire ofif_credit;
+	wire ofif_debit;
+	always @(posedge clk or negedge rst_b)
+		if (!rst_b) begin
+			ofif_credits <= `OFIF_INITIAL_CREDITS;
+		end else begin
+			ofif_credits <= ofif_credits
+			                + (ofif_debit ? -1 : 0)
+			                + (ofif_credit ? 1 : 0);
+		end
+
 	/*** INBOUND ***/
 
 	/*** Inbound request FIFO (IRFIF) ***/
@@ -203,6 +217,7 @@ module FSABMemory(/*AUTOARG*/
 		end
 	
 	/*** Pipe-throughs ***/
+	wire mem_stall_0a;
 	reg irfif_rd_1a = 0;
 	reg idfif_rd_1a = 0;
 	always @(posedge clk or negedge rst_b)
@@ -210,8 +225,10 @@ module FSABMemory(/*AUTOARG*/
 			irfif_rd_1a <= 0;
 			idfif_rd_1a <= 0;
 		end else begin
-			irfif_rd_1a <= irfif_rd_0a;
-			idfif_rd_1a <= idfif_rd_0a;
+			if (! mem_stall_0a) begin
+				irfif_rd_1a <= irfif_rd_0a;
+				idfif_rd_1a <= idfif_rd_0a;
+			end
 		end
 	
 	/*** Memory control logic ***/
@@ -222,7 +239,7 @@ module FSABMemory(/*AUTOARG*/
 	 */
 
 	reg  [FSAB_LEN_HI:0]  mem_cur_req_ddr_len_rem_0a = 'h0;
-	wire                  mem_cur_req_active_0a = 0;
+	wire                  mem_cur_req_active_0a;
 	reg                   mem_cur_req_active_1a = 0;
 	wire [FSAB_ADDR_HI:0] mem_cur_req_addr_1a;
 	reg  [FSAB_ADDR_HI:0] mem_cur_req_addr_1a_r = 0;
@@ -233,6 +250,7 @@ module FSABMemory(/*AUTOARG*/
 	wire                     app_wdf_afull;
 	wire [2*DQ_WIDTH-1:0]    app_wdf_data;
 	wire [2*DM_WIDTH-1:0]    app_wdf_mask_data;
+
 	/* If we just finished reading from the idfif for the last time
 	 * (i.e., we just went inactive), then we can release a credit. 
 	 * This is as distinct from releasing a credit every time we read
@@ -241,14 +259,25 @@ module FSABMemory(/*AUTOARG*/
 	 */
 	assign fsabo_credit = mem_cur_req_active_1a && !mem_cur_req_active_0a;
 	
-	/* TODO: This means that idfif does one read, then pauses one cycle,
-	 * then continues doing the read until we run out of data.  Can the
-	 * one-cycle pause be removed easily?
-	 */
-	assign irfif_rd_0a = ifif_have_req && !mem_cur_req_active_0a
+	assign irfif_rd_0a = !mem_stall_0a
+	                     && ifif_have_req && !mem_cur_req_active_0a
 	                     && phy_init_done && !app_af_afull && !app_wdf_afull;
-	assign idfif_rd_0a = irfif_rd_0a || /* We must always do a read from idfif on irfif. */
-	                     mem_cur_req_active_0a;
+	assign idfif_rd_0a = !mem_stall_0a &&
+	                     (irfif_rd_0a || /* We must always do a read from idfif on irfif. */
+	                      mem_cur_req_active_0a);
+
+	/* Stall when:
+	*   - it is the beginning of a request
+	*   - we need to avoid overflowing one of:
+	*     - the ODFIF
+	*     - the MIG write data FIFO
+	*     - the MIG read data FIFO
+	*/
+	assign mem_stall_0a = irfif_rd_1a &&
+	                      ((ofif_credits == 0 && irfif_mode_1a == FSAB_READ) ||
+	                       (app_wdf_afull && irfif_mode_1a == FSAB_WRITE) ||
+	                       app_af_afull);
+
 
 	assign mem_cur_req_active_0a = irfif_mode_1a == FSAB_WRITE &&
 	                               ((irfif_rd_1a && irfif_ddr_len_1a != 1) ||
@@ -259,10 +288,13 @@ module FSABMemory(/*AUTOARG*/
 	                                 mem_cur_req_addr_1a_r;
 
 	assign app_af_cmd = irfif_mode_1a == FSAB_WRITE ? MIG_WRITE : MIG_READ;
+	assign app_af_wren = irfif_rd_1a && !mem_stall_0a;
 
-	assign app_wdf_wren = irfif_mode_1a == FSAB_WRITE && idfif_rd_1a;
+	assign app_wdf_wren = irfif_mode_1a == FSAB_WRITE && idfif_rd_1a && !mem_stall_0a;
 	assign app_wdf_data = {idfif_data2_1a, idfif_data_1a};
 	assign app_wdf_mask = {idfif_mask2_1a, idfif_mask_1a};
+
+	assign ofif_debit = irfif_rd_1a && irfif_mode_1a == FSAB_READ;
 
 	always @(posedge clk or negedge rst_b)
 		if (!rst_b) begin
@@ -272,10 +304,11 @@ module FSABMemory(/*AUTOARG*/
 		end else begin
 			mem_cur_req_active_1a <= mem_cur_req_active_0a;
 		
-			if (irfif_rd_1a) begin
-				$display("SIMMEM: %5d: IRFIF was just read; it was a %d word %s at %08x", $time, irfif_len_1a, (irfif_mode_1a == FSAB_WRITE) ? "WRITE" : "READ", irfif_addr_1a);
+			if (irfif_rd_1a && ! mem_stall_0a) begin
+				mem_cur_req_ddr_len_rem_0a <= irfif_ddr_len_1a - 1;
+			end else if (irfif_rd_1a && mem_stall_0a) begin
 				mem_cur_req_ddr_len_rem_0a <= irfif_ddr_len_1a;
-			end else if (idfif_rd_0a)
+			end else if (app_wdf_wren)
 				mem_cur_req_ddr_len_rem_0a <= mem_cur_req_ddr_len_rem_0a - 1;
 			
 			if (irfif_rd_1a)
@@ -404,6 +437,8 @@ module FSABMemory(/*AUTOARG*/
 
 	assign ofif_resp_active_0a = (orfif_rd_1a && orfif_len_1a != 1) ||
 	                             (ofif_resp_len_rem_0a != 1 && ofif_resp_len_rem_0a != 0);
+
+	assign ofif_credit = fsabi_valid && !ofif_resp_active_0a;
 
 	assign fsabi_data = (!odfif_rd_1a) ? odfif_data2_1a : odfif_data_1a;
 	assign fsabi_valid = orfif_rd_1a || ofif_resp_len_rem_0a != 0;
