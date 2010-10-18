@@ -1,8 +1,8 @@
 module System(
-   clk, rst
+   clk, rst, fsabi_clk
    );
 
-	input clk; input rst;
+	input clk; input rst; input fsabi_clk;
 
 `include "fsab_defines.vh"
 `include "spam_defines.vh"
@@ -60,6 +60,7 @@ module System(
 	// End of automatics
 
 	wire rst_b = ~rst;
+	wire fsabi_rst_b = ~rst; /* XXX? */
 
 `ifdef DUMMY
 	stfu_verilog_mode and_i_mean_it(
@@ -107,6 +108,8 @@ module System(
 		  .fsabi_did		(fsabi_did[FSAB_DID_HI:0]),
 		  .fsabi_subdid		(fsabi_subdid[FSAB_DID_HI:0]),
 		  .fsabi_data		(fsabi_data[FSAB_DATA_HI:0]),
+		  .fsabi_clk		(fsabi_clk),
+		  .fsabi_rst_b		(fsabi_rst_b),
 		  .spami_busy_b		(spami_busy_b),
 		  .spami_data		(spami_data[SPAM_DATA_HI:0]));
 	
@@ -140,6 +143,10 @@ module System(
 		.fsabo_datas({pre__fsabo_data[FSAB_DATA_HI:0],ic__fsabo_data[FSAB_DATA_HI:0],dc__fsabo_data[FSAB_DATA_HI:0]}),
 		.fsabo_masks({pre__fsabo_mask[FSAB_MASK_HI:0],ic__fsabo_mask[FSAB_MASK_HI:0],dc__fsabo_mask[FSAB_MASK_HI:0]}),
 		.fsabo_credits({pre__fsabo_credit,ic__fsabo_credit,dc__fsabo_credit}),
+		.fsabo_clks({clk,clk,clk}),
+		.fsabo_rst_bs({rst_b,rst_b,rst_b}),
+		.clk(fsabi_clk),
+		.rst_b(fsabi_rst_b),
 		); */
 	FSABArbiter fsabarbiter(
 		/*AUTOINST*/
@@ -154,8 +161,8 @@ module System(
 				.fsabo_data	(fsabo_data[FSAB_DATA_HI:0]),
 				.fsabo_mask	(fsabo_mask[FSAB_MASK_HI:0]),
 				// Inputs
-				.clk		(clk),
-				.rst_b		(rst_b),
+				.clk		(fsabi_clk),	 // Templated
+				.rst_b		(fsabi_rst_b),	 // Templated
 				.fsabo_valids	({pre__fsabo_valid,ic__fsabo_valid,dc__fsabo_valid}), // Templated
 				.fsabo_modes	({pre__fsabo_mode[FSAB_REQ_HI:0],ic__fsabo_mode[FSAB_REQ_HI:0],dc__fsabo_mode[FSAB_REQ_HI:0]}), // Templated
 				.fsabo_dids	({pre__fsabo_did[FSAB_DID_HI:0],ic__fsabo_did[FSAB_DID_HI:0],dc__fsabo_did[FSAB_DID_HI:0]}), // Templated
@@ -164,9 +171,15 @@ module System(
 				.fsabo_lens	({pre__fsabo_len[FSAB_LEN_HI:0],ic__fsabo_len[FSAB_LEN_HI:0],dc__fsabo_len[FSAB_LEN_HI:0]}), // Templated
 				.fsabo_datas	({pre__fsabo_data[FSAB_DATA_HI:0],ic__fsabo_data[FSAB_DATA_HI:0],dc__fsabo_data[FSAB_DATA_HI:0]}), // Templated
 				.fsabo_masks	({pre__fsabo_mask[FSAB_MASK_HI:0],ic__fsabo_mask[FSAB_MASK_HI:0],dc__fsabo_mask[FSAB_MASK_HI:0]}), // Templated
+				.fsabo_clks	({clk,clk,clk}), // Templated
+				.fsabo_rst_bs	({rst_b,rst_b,rst_b}), // Templated
 				.fsabo_credit	(fsabo_credit));
 	defparam fsabarbiter.FSAB_DEVICES = 3;
 
+	/* FSABSimMemory AUTO_TEMPLATE (
+		.clk(fsabi_clk),
+		.rst_b(fsabi_rst_b),
+		); */
 	FSABSimMemory simmem(
 		/*AUTOINST*/
 			     // Outputs
@@ -176,8 +189,8 @@ module System(
 			     .fsabi_subdid	(fsabi_subdid[FSAB_DID_HI:0]),
 			     .fsabi_data	(fsabi_data[FSAB_DATA_HI:0]),
 			     // Inputs
-			     .clk		(clk),
-			     .rst_b		(rst_b),
+			     .clk		(fsabi_clk),	 // Templated
+			     .rst_b		(fsabi_rst_b),	 // Templated
 			     .fsabo_valid	(fsabo_valid),
 			     .fsabo_mode	(fsabo_mode[FSAB_REQ_HI:0]),
 			     .fsabo_did		(fsabo_did[FSAB_DID_HI:0]),

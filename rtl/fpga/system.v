@@ -144,6 +144,8 @@ module System(
 		  .fsabi_did		(fsabi_did[FSAB_DID_HI:0]),
 		  .fsabi_subdid		(fsabi_subdid[FSAB_DID_HI:0]),
 		  .fsabi_data		(fsabi_data[FSAB_DATA_HI:0]),
+		  .fsabi_clk		(fsabi_clk),
+		  .fsabi_rst_b		(fsabi_rst_b),
 		  .spami_busy_b		(spami_busy_b),
 		  .spami_data		(spami_data[SPAM_DATA_HI:0]));
 	
@@ -201,6 +203,8 @@ module System(
 				.fsabo_lens	({pre__fsabo_len[FSAB_LEN_HI:0],ic__fsabo_len[FSAB_LEN_HI:0],dc__fsabo_len[FSAB_LEN_HI:0]}), // Templated
 				.fsabo_datas	({pre__fsabo_data[FSAB_DATA_HI:0],ic__fsabo_data[FSAB_DATA_HI:0],dc__fsabo_data[FSAB_DATA_HI:0]}), // Templated
 				.fsabo_masks	({pre__fsabo_mask[FSAB_MASK_HI:0],ic__fsabo_mask[FSAB_MASK_HI:0],dc__fsabo_mask[FSAB_MASK_HI:0]}), // Templated
+				.fsabo_clks	(fsabo_clks[FSAB_DEVICES-1:0]),
+				.fsabo_rst_bs	(fsabo_rst_bs[FSAB_DEVICES-1:0]),
 				.fsabo_credit	(fsabo_credit));
 	defparam fsabarbiter.FSAB_DEVICES = 3;
 

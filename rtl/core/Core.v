@@ -7,7 +7,8 @@ module Core(/*AUTOARG*/
    spamo_valid, spamo_r_nw, spamo_did, spamo_addr, spamo_data,
    // Inputs
    clk, rst_b, ic__fsabo_credit, dc__fsabo_credit, fsabi_valid,
-   fsabi_did, fsabi_subdid, fsabi_data, spami_busy_b, spami_data
+   fsabi_did, fsabi_subdid, fsabi_data, fsabi_clk, fsabi_rst_b,
+   spami_busy_b, spami_data
    );
 	input clk;
 	input rst_b;
@@ -23,6 +24,7 @@ module Core(/*AUTOARG*/
 	output wire [FSAB_LEN_HI:0]  ic__fsabo_len;
 	output wire [FSAB_DATA_HI:0] ic__fsabo_data;
 	output wire [FSAB_MASK_HI:0] ic__fsabo_mask;
+	input                        ic__fsabo_credit;
 
 	output wire                  dc__fsabo_valid;
 	output wire [FSAB_REQ_HI:0]  dc__fsabo_mode;
@@ -32,18 +34,21 @@ module Core(/*AUTOARG*/
 	output wire [FSAB_LEN_HI:0]  dc__fsabo_len;
 	output wire [FSAB_DATA_HI:0] dc__fsabo_data;
 	output wire [FSAB_MASK_HI:0] dc__fsabo_mask;
+	input                        dc__fsabo_credit;
+
+	input                        fsabi_valid;
+	input [FSAB_DID_HI:0]        fsabi_did;
+	input [FSAB_DID_HI:0]        fsabi_subdid;
+	input [FSAB_DATA_HI:0]       fsabi_data;
+	input                        fsabi_clk;
+	input                        fsabi_rst_b;
+	
 	output wire                  spamo_valid;
 	output wire                  spamo_r_nw;
 	output wire [SPAM_DID_HI:0]  spamo_did;
 	output wire [SPAM_ADDR_HI:0] spamo_addr;
 	output wire [SPAM_DATA_HI:0] spamo_data;
-
-	input                        ic__fsabo_credit;
-	input                        dc__fsabo_credit;
-	input                        fsabi_valid;
-	input [FSAB_DID_HI:0]        fsabi_did;
-	input [FSAB_DID_HI:0]        fsabi_subdid;
-	input [FSAB_DATA_HI:0]       fsabi_data;
+	
 	input                        spami_busy_b;
 	input [SPAM_DATA_HI:0]       spami_data;
 
@@ -143,7 +148,9 @@ module Core(/*AUTOARG*/
 		      .fsabi_valid	(fsabi_valid),
 		      .fsabi_did	(fsabi_did[FSAB_DID_HI:0]),
 		      .fsabi_subdid	(fsabi_subdid[FSAB_DID_HI:0]),
-		      .fsabi_data	(fsabi_data[FSAB_DATA_HI:0]));
+		      .fsabi_data	(fsabi_data[FSAB_DATA_HI:0]),
+		      .fsabi_clk	(fsabi_clk),
+		      .fsabi_rst_b	(fsabi_rst_b));
 
 	DCache dcache(/*AUTOINST*/
 		      // Outputs
@@ -174,6 +181,8 @@ module Core(/*AUTOARG*/
 		      .fsabi_did	(fsabi_did[FSAB_DID_HI:0]),
 		      .fsabi_subdid	(fsabi_subdid[FSAB_DID_HI:0]),
 		      .fsabi_data	(fsabi_data[FSAB_DATA_HI:0]),
+		      .fsabi_clk	(fsabi_clk),
+		      .fsabi_rst_b	(fsabi_rst_b),
 		      .spami_busy_b	(spami_busy_b),
 		      .spami_data	(spami_data[SPAM_DATA_HI:0]));
 
