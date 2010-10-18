@@ -108,6 +108,10 @@ module System(
 	wire spami_busy_b = cio__spami_busy_b;
 	wire [SPAM_DATA_HI:0] spami_data = cio__spami_data[SPAM_DATA_HI:0];
 
+	parameter FSAB_DEVICES = 3;
+	wire [FSAB_DEVICES-1:0] fsabo_clks = {clk, clk, clk};
+	wire [FSAB_DEVICES-1:0] fsabo_rst_bs = {rst_b, rst_b, rst_b};
+
 	/* Core AUTO_TEMPLATE (
 		.rst_b(rst_core_b & rst_b),
 		);
@@ -170,6 +174,7 @@ module System(
 			     .sys_idata		(sys_idata[8:0]));
 
 	/* FSABArbiter AUTO_TEMPLATE (
+		.clk(fsabi_clk),
 		.fsabo_valids({pre__fsabo_valid,ic__fsabo_valid,dc__fsabo_valid}),
 		.fsabo_modes({pre__fsabo_mode[FSAB_REQ_HI:0],ic__fsabo_mode[FSAB_REQ_HI:0],dc__fsabo_mode[FSAB_REQ_HI:0]}),
 		.fsabo_dids({pre__fsabo_did[FSAB_DID_HI:0],ic__fsabo_did[FSAB_DID_HI:0],dc__fsabo_did[FSAB_DID_HI:0]}),
@@ -193,7 +198,7 @@ module System(
 				.fsabo_data	(fsabo_data[FSAB_DATA_HI:0]),
 				.fsabo_mask	(fsabo_mask[FSAB_MASK_HI:0]),
 				// Inputs
-				.clk		(clk),
+				.clk		(fsabi_clk),	 // Templated
 				.rst_b		(rst_b),
 				.fsabo_valids	({pre__fsabo_valid,ic__fsabo_valid,dc__fsabo_valid}), // Templated
 				.fsabo_modes	({pre__fsabo_mode[FSAB_REQ_HI:0],ic__fsabo_mode[FSAB_REQ_HI:0],dc__fsabo_mode[FSAB_REQ_HI:0]}), // Templated
@@ -206,8 +211,11 @@ module System(
 				.fsabo_clks	(fsabo_clks[FSAB_DEVICES-1:0]),
 				.fsabo_rst_bs	(fsabo_rst_bs[FSAB_DEVICES-1:0]),
 				.fsabo_credit	(fsabo_credit));
-	defparam fsabarbiter.FSAB_DEVICES = 3;
+	defparam fsabarbiter.FSAB_DEVICES = FSAB_DEVICES;
 
+	/* FSABMemory AUTO_TEMPLATE (
+		.clk(fsabi_clk),
+	); */
 	FSABMemory mem(
 		/*AUTOINST*/
 		       // Outputs
@@ -223,7 +231,7 @@ module System(
 		       .ddr2_ras_n	(ddr2_ras_n),
 		       .ddr2_we_n	(ddr2_we_n),
 		       .phy_init_done	(phy_init_done),
-		       .clk		(clk),
+		       .clk		(fsabi_clk),		 // Templated
 		       .fsabo_credit	(fsabo_credit),
 		       .fsabi_valid	(fsabi_valid),
 		       .fsabi_did	(fsabi_did[FSAB_DID_HI:0]),

@@ -446,6 +446,7 @@ module FSABMemory(/*AUTOARG*/
 	assign fsabi_subdid = orfif_subdid_1a;
 
 	/* mig AUTO_TEMPLATE (
+		.clk0_tb(clk),
 		.app_af_addr(mem_cur_req_addr_1a),
 		.app_af_wren(irfif_rd_1a),
 		);
@@ -507,7 +508,7 @@ module FSABMemory(/*AUTOARG*/
 		 .ddr2_dm		(ddr2_dm[DM_WIDTH-1:0]),
 		 .phy_init_done		(phy_init_done),
 		 .rst0_tb		(rst0_tb),
-		 .clk0_tb		(clk0_tb),
+		 .clk0_tb		(clk),			 // Templated
 		 .app_wdf_afull		(app_wdf_afull),
 		 .app_af_afull		(app_af_afull),
 		 .rd_data_valid		(rd_data_valid),
