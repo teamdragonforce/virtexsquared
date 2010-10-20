@@ -114,7 +114,7 @@ module Memory(
 			write_reg_4a <= 0;
 			write_num_4a <= 0;
 			next_write_data_4a <= 0;
-			next_write_data_mode_4a <= next_write_data_mode_3a;
+			next_write_data_mode_4a <= 0;
 			prev_offset <= 0;
 			prev_raddr <= 0;
 			cpsr_4a <= 0;
@@ -146,6 +146,36 @@ module Memory(
 			prevaddr <= addr;
 		end
 	end
+	
+	/*** Make sure to flush at some point, even if we were wedged ***/
+	reg delayedflush = 0;
+	always @(posedge clk or negedge rst_b)
+		if (!rst_b)
+			delayedflush <= 0;
+		else if (flush && stall_3a /* halp! I can't do it now, maybe later? */)
+			delayedflush <= 1;
+		else if (!stall_3a /* anything has been handled this time around */)
+			delayedflush <= 0;
+	
+	/*** Latch previously read data for R-M-W instructions ***/
+	reg dc__rd_req_4a = 0;
+	reg dc__rw_wait_4a = 0;
+	
+	reg [31:0] last_dc__rd_data_4a = 0;
+	always @(posedge clk or negedge rst_b)
+		if (!rst_b) begin
+			dc__rd_req_4a <= 0;
+			dc__rw_wait_4a <= 0;
+			last_dc__rd_data_4a <= 0;
+		end else begin
+			dc__rd_req_4a <= dc__rd_req_3a;
+			dc__rw_wait_4a <= dc__rw_wait_3a;
+			
+			if (dc__rd_req_4a && !dc__rw_wait_4a)
+				last_dc__rd_data_4a <= dc__rd_data_4a;
+		end
+	
+	wire [31:0] last_rd_data_4a = (dc__rd_req_4a && !dc__rw_wait_4a) ? dc__rd_data_4a : last_dc__rd_data_4a;
 	
 	/*** Clean up from left over write data messes, since this pipeline is asstarded ***/ 
 	reg [1:0] raddr_4a;
@@ -184,36 +214,6 @@ module Memory(
 		default: write_data_4a = 32'hxxxxxxxx;
 		endcase
 	end
-	
-	/*** Make sure to flush at some point, even if we were wedged ***/
-	reg delayedflush = 0;
-	always @(posedge clk or negedge rst_b)
-		if (!rst_b)
-			delayedflush <= 0;
-		else if (flush && stall_3a /* halp! I can't do it now, maybe later? */)
-			delayedflush <= 1;
-		else if (!stall_3a /* anything has been handled this time around */)
-			delayedflush <= 0;
-	
-	/*** Latch previously read data for R-M-W instructions ***/
-	reg dc__rd_req_4a = 0;
-	reg dc__rw_wait_4a = 0;
-	
-	reg [31:0] last_dc__rd_data_4a = 0;
-	always @(posedge clk or negedge rst_b)
-		if (!rst_b) begin
-			dc__rd_req_4a <= 0;
-			dc__rw_wait_4a <= 0;
-			last_dc__rd_data_4a <= 0;
-		end else begin
-			dc__rd_req_4a <= dc__rd_req_3a;
-			dc__rw_wait_4a <= dc__rw_wait_3a;
-			
-			if (dc__rd_req_4a && !dc__rw_wait_4a)
-				last_dc__rd_data_4a <= dc__rd_data_4a;
-		end
-	
-	wire [31:0] last_rd_data_4a = (dc__rd_req_4a && !dc__rw_wait_4a) ? dc__rd_data_4a : last_dc__rd_data_4a;
 	
 	/* Drive the state machines and stall. */
 	always @(*)
