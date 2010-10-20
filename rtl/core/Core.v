@@ -69,7 +69,7 @@ module Core(/*AUTOARG*/
 	wire		cpsrup_4a;		// From memory of Memory.v
 	wire [31:0]	dc__addr_3a;		// From memory of Memory.v
 	wire [2:0]	dc__data_size_3a;	// From memory of Memory.v
-	wire [31:0]	dc__rd_data_3a;		// From dcache of DCache.v
+	wire [31:0]	dc__rd_data_4a;		// From dcache of DCache.v
 	wire		dc__rd_req_3a;		// From memory of Memory.v
 	wire		dc__rw_wait_3a;		// From dcache of DCache.v
 	wire [31:0]	dc__wr_data_3a;		// From memory of Memory.v
@@ -169,7 +169,7 @@ module Core(/*AUTOARG*/
 	DCache dcache(/*AUTOINST*/
 		      // Outputs
 		      .dc__rw_wait_3a	(dc__rw_wait_3a),
-		      .dc__rd_data_3a	(dc__rd_data_3a[31:0]),
+		      .dc__rd_data_4a	(dc__rd_data_4a[31:0]),
 		      .dc__fsabo_valid	(dc__fsabo_valid),
 		      .dc__fsabo_mode	(dc__fsabo_mode[FSAB_REQ_HI:0]),
 		      .dc__fsabo_did	(dc__fsabo_did[FSAB_DID_HI:0]),
@@ -373,7 +373,7 @@ module Core(/*AUTOARG*/
 		      .rst_b		(rst_b),
 		      .flush		(writeback_out_backflush), // Templated
 		      .dc__rw_wait_3a	(dc__rw_wait_3a),
-		      .dc__rd_data_3a	(dc__rd_data_3a[31:0]),
+		      .dc__rd_data_4a	(dc__rd_data_4a[31:0]),
 		      .rf__rdata_3_3a	(rf__rdata_3_3a[31:0]),
 		      .cp_ack		(cp_ack),
 		      .cp_busy		(cp_busy),

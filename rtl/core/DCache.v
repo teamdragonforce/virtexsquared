@@ -2,7 +2,7 @@
 
 module DCache(/*AUTOARG*/
    // Outputs
-   dc__rw_wait_3a, dc__rd_data_3a, dc__fsabo_valid, dc__fsabo_mode,
+   dc__rw_wait_3a, dc__rd_data_4a, dc__fsabo_valid, dc__fsabo_mode,
    dc__fsabo_did, dc__fsabo_subdid, dc__fsabo_addr, dc__fsabo_len,
    dc__fsabo_data, dc__fsabo_mask, spamo_valid, spamo_r_nw, spamo_did,
    spamo_addr, spamo_data,
@@ -24,7 +24,7 @@ module DCache(/*AUTOARG*/
 	input             dc__wr_req_3a;
 	output reg        dc__rw_wait_3a;
 	input      [31:0] dc__wr_data_3a;
-	output reg [31:0] dc__rd_data_3a;
+	output reg [31:0] dc__rd_data_4a;
 
 	/* FSAB interface */
 	output reg                  dc__fsabo_valid;
@@ -97,8 +97,6 @@ module DCache(/*AUTOARG*/
 	
 	wire cache_hit_3a = cache_valid[idx_3a] && (cache_tags[idx_3a] == tag_3a);
 	
-	wire [31:0] curdata_hi_3a = cache_data_hi[{idx_3a,didx_word_3a}];
-	wire [31:0] curdata_lo_3a = cache_data_lo[{idx_3a,didx_word_3a}];
 	
 	reg read_pending = 0;
 	wire start_read = rst_b && dc__rd_req_3a && !dc__addr_3a[31] && !cache_hit_3a && !read_pending && fsab_credit_avail;
@@ -144,6 +142,9 @@ module DCache(/*AUTOARG*/
 	reg [31:0] fill_addr = 0;
 	wire [21:0] fill_tag = fill_addr[31:10];
 	wire [3:0] fill_idx = fill_addr[9:6];
+	
+	reg [31:0] curdata_hi_4a = 0;
+	reg [31:0] curdata_lo_4a = 0;
 
 	/* For signaling between the clock domains, there exists a 'current
 	 * read' signal that flops back and forth.  Since the FSABI clock
@@ -169,6 +170,8 @@ module DCache(/*AUTOARG*/
 			completed_read <= 0;
 			completed_read_s1 <= 0;
 			current_read <= 0;
+			curdata_hi_4a <= 32'h00000000;
+			curdata_lo_4a <= 32'h00000000;
 		end else begin
 			completed_read_s1 <= completed_read_fclk;
 			completed_read <= completed_read_s1;
@@ -184,11 +187,19 @@ module DCache(/*AUTOARG*/
 				read_pending <= 0;
 			end
 			
-			/* Split this out because XST is kind of silly about this sort of thing. */
-			if (dc__wr_req_3a && cache_hit_3a && dc__addr_3a[2])
-				cache_data_hi[{idx_3a,dc__addr_3a[5:3]}] <= dc__wr_data_3a;
-			if (dc__wr_req_3a && cache_hit_3a && ~dc__addr_3a[2])
-				cache_data_lo[{idx_3a,dc__addr_3a[5:3]}] <= dc__wr_data_3a;
+			/* This is written like this because XST is sort of silly about this sort of thing. */
+			
+			if ((dc__rd_req_3a || dc__wr_req_3a) && cache_hit_3a && dc__addr_3a[2]) begin
+				if (dc__wr_req_3a)
+					cache_data_hi[{idx_3a,dc__addr_3a[5:3]}] <= dc__wr_data_3a;
+				curdata_hi_4a <= cache_data_hi[{idx_3a,dc__addr_3a[5:3]}];
+			end
+			
+			if ((dc__rd_req_3a || dc__wr_req_3a) && cache_hit_3a && ~dc__addr_3a[2]) begin
+				if (dc__wr_req_3a)
+					cache_data_lo[{idx_3a,dc__addr_3a[5:3]}] <= dc__wr_data_3a;
+				curdata_lo_4a <= cache_data_lo[{idx_3a,dc__addr_3a[5:3]}];
+			end
 		end
 	end
 	
@@ -246,7 +257,8 @@ module DCache(/*AUTOARG*/
 	
 	/*** SPAM initiation logic ***/
 	reg spam_intrans = 0;
-	reg [7:0] spam_timeout = 0;
+	reg [7:0] spam_timeout_3a = 0;
+	reg [7:0] spam_timeout_4a = 0;
 	
 	always @(*) begin
 		spamo_valid = 1'b0;
@@ -266,32 +278,67 @@ module DCache(/*AUTOARG*/
 	always @(posedge clk or negedge rst_b) begin
 		if (!rst_b) begin
 			spam_intrans <= 0;
-			spam_timeout <= 0;
-		end else if (spamo_valid) begin
-			$display("SPAM: outbound valid");
-			spam_intrans <= 1;
-			spam_timeout <= 8'hFF;
-		end else if (spami_busy_b || (spam_timeout == 0)) begin
-			$display("SPAM: busy %d, timeout %d; done", spami_busy_b, spam_timeout);
-			spam_intrans <= 0;
-		end else if (spam_intrans)
-			spam_timeout <= spam_timeout - 1;
+			spam_timeout_3a <= 0;
+			spam_timeout_4a <= 0;
+		end else begin
+			spam_timeout_4a <= spam_timeout_3a;
+			
+			if (spamo_valid) begin
+				$display("SPAM: outbound valid");
+				spam_intrans <= 1;
+				spam_timeout_3a <= 8'hFF;
+			end else if (spami_busy_b || (spam_timeout_3a == 0)) begin
+				$display("SPAM: busy %d, timeout %d; done", spami_busy_b, spam_timeout_3a);
+				spam_intrans <= 0;
+			end else if (spam_intrans)
+				spam_timeout_3a <= spam_timeout_3a - 1;
+		end
+	end
+	
+	reg [31:0] spami_data_4a = 32'h0;
+	always @(posedge clk or negedge rst_b) begin
+		if (!rst_b) begin
+			spami_data_4a <= 32'h0;
+		end else begin
+			spami_data_4a <= spami_data;
+		end
 	end
 	
 	/*** Overall processor databus multiplexing logic ***/
+	reg [31:0] dc__addr_4a = 0;
+	reg dc__rw_wait_4a = 0;
+	reg dc__rd_req_4a = 0;
+	always @(posedge clk or negedge rst_b) begin
+		if (!rst_b) begin
+			dc__addr_4a <= 32'h0;
+			dc__rw_wait_4a <= 0;
+			dc__rd_req_4a <= 0;
+		end else begin
+			dc__addr_4a <= dc__addr_3a;
+			dc__rw_wait_4a <= dc__rw_wait_3a;
+			dc__rd_req_4a <= dc__rd_req_3a;
+		end
+	end
+	
 	always @(*) begin
 		if (!dc__addr_3a[31]) /* FSAB */ begin
 			dc__rw_wait_3a = (dc__rd_req_3a && !cache_hit_3a) || (dc__wr_req_3a && !fsab_credit_avail);
-			dc__rd_data_3a = dc__addr_3a[2] ? curdata_hi_3a : curdata_lo_3a;
-			if (!dc__rw_wait_3a && dc__rd_req_3a)
-				$display("DCACHE: READ COMPLETE: Addr %08x, data %08x", dc__addr_3a, dc__rd_data_3a);
 			if (dc__rd_req_3a && !cache_hit_3a)
 				$display("DCACHE: Stalling due to cache miss (credits %d)", fsab_credits);
 			if (dc__wr_req_3a && !fsab_credit_avail)
 				$display("DCACHE: Stalling due to insufficient credits to write");
 		end else /* SPAM */ begin
-			dc__rw_wait_3a = !spami_busy_b && ((spam_intrans && (spam_timeout != 0)) || spamo_valid);
-			dc__rd_data_3a = (spam_timeout == 0) ? 32'hDEADDEAD : spami_data;
+			dc__rw_wait_3a = !spami_busy_b && ((spam_intrans && (spam_timeout_3a != 0)) || spamo_valid);
+		end
+	end
+	
+	always @(*) begin
+		if (!dc__addr_4a[31]) /* FSAB */ begin
+			if (!dc__rw_wait_4a && dc__rd_req_4a)
+				$display("DCACHE: READ COMPLETE: Addr %08x, data %08x", dc__addr_4a, dc__rd_data_4a);
+			dc__rd_data_4a = dc__addr_4a[2] ? curdata_hi_4a : curdata_lo_4a;
+		end else /* SPAM */ begin
+			dc__rd_data_4a = (spam_timeout_4a == 0) ? 32'hDEADDEAD : spami_data_4a;
 		end
 	end
 endmodule
