@@ -60,25 +60,25 @@ module Memory(
 	input [31:0] write_data_3a,
 
 	/* outputs */
-	output reg outstall,
-	output reg outbubble,
-	output reg [31:0] outpc,
-	output reg [31:0] outinsn,
-	output reg out_write_reg = 1'b0,
-	output reg [3:0] out_write_num = 4'bxxxx,
-	output reg [31:0] out_write_data = 32'hxxxxxxxx,
-	output reg [31:0] outspsr = 32'hxxxxxxxx,
-	output reg [31:0] outcpsr = 32'hxxxxxxxx,
-	output reg outcpsrup = 1'hx
+	output reg stall_3a,
+	output reg bubble_4a,
+	output reg [31:0] pc_4a,
+	output reg [31:0] insn_4a,
+	output reg write_reg_4a = 1'b0,
+	output reg [3:0] write_num_4a = 4'bxxxx,
+	output reg [31:0] write_data_4a = 32'hxxxxxxxx,
+	output reg [31:0] spsr_4a = 32'hxxxxxxxx,
+	output reg [31:0] cpsr_4a = 32'hxxxxxxxx,
+	output reg cpsrup_4a = 1'hx
 	);
 
-	reg [31:0] addr, raddr, prev_raddr, next_regdata, next_outcpsr;
-	reg next_outcpsrup;
+	reg [31:0] addr, raddr, prev_raddr, next_regdata, cpsr_4a_next;
+	reg cpsrup_4a_next;
 	reg [31:0] prevaddr;
 	reg [3:0] next_regsel, cur_reg, prev_reg;
 	reg next_writeback;
 
-	reg next_outbubble;	
+	reg bubble_4a_next;	
 	reg next_write_reg;
 	reg [3:0] next_write_num;
 	reg [31:0] next_write_data;
@@ -104,17 +104,17 @@ module Memory(
 	always @(posedge clk or negedge rst_b)
 	begin
 		if (!rst_b) begin
-			outpc <= 0;
-			outinsn <= 0;
-			outbubble <= 0;
-			out_write_reg <= 0;
-			out_write_num <= 0;
-			out_write_data <= 0;
+			pc_4a <= 0;
+			insn_4a <= 0;
+			bubble_4a <= 0;
+			write_reg_4a <= 0;
+			write_num_4a <= 0;
+			write_data_4a <= 0;
 			prev_offset <= 0;
 			prev_raddr <= 0;
-			outcpsr <= 0;
-			outspsr <= 0;
-			outcpsrup <= 0;
+			cpsr_4a <= 0;
+			spsr_4a <= 0;
+			cpsrup_4a <= 0;
 			swp_state <= 2'b01;
 			lsm_state <= 4'b0001;
 			lsr_state <= 4'b0001;
@@ -123,18 +123,18 @@ module Memory(
 			swp_oldval <= 0;
 			prevaddr <= 0;
 		end else begin
-			outpc <= pc_3a;
-			outinsn <= insn_3a;
-			outbubble <= next_outbubble;
-			out_write_reg <= next_write_reg;
-			out_write_num <= next_write_num;
-			out_write_data <= next_write_data;
+			pc_4a <= pc_3a;
+			insn_4a <= insn_3a;
+			bubble_4a <= bubble_4a_next;
+			write_reg_4a <= next_write_reg;
+			write_num_4a <= next_write_num;
+			write_data_4a <= next_write_data;
 			if (!dc__rw_wait_3a)
 				prev_offset <= offset;
 			prev_raddr <= raddr;
-			outcpsr <= next_outcpsr;
-			outspsr <= spsr_3a;
-			outcpsrup <= next_outcpsrup;
+			cpsr_4a <= cpsr_4a_next;
+			spsr_4a <= spsr_3a;
+			cpsrup_4a <= cpsrup_4a_next;
 			swp_state <= next_swp_state;
 			lsm_state <= next_lsm_state;
 			lsr_state <= next_lsr_state;
@@ -150,15 +150,15 @@ module Memory(
 	always @(posedge clk or negedge rst_b)
 		if (!rst_b)
 			delayedflush <= 0;
-		else if (flush && outstall /* halp! I can't do it now, maybe later? */)
+		else if (flush && stall_3a /* halp! I can't do it now, maybe later? */)
 			delayedflush <= 1;
-		else if (!outstall /* anything has been handled this time around */)
+		else if (!stall_3a /* anything has been handled this time around */)
 			delayedflush <= 0;
 	
 	/* Drive the state machines and stall. */
 	always @(*)
 	begin
-		outstall = 1'b0;
+		stall_3a = 1'b0;
 		next_lsm_state = lsm_state;
 		next_lsr_state = lsr_state;
 		next_lsrh_state = lsrh_state;
@@ -167,84 +167,84 @@ module Memory(
 		`DECODE_ALU_SWP: if(!bubble_3a) begin
 			case(swp_state)
 			`SWP_READING: begin
-				outstall = 1'b1;
+				stall_3a = 1'b1;
 				if (!dc__rw_wait_3a)
 					next_swp_state = `SWP_WRITING;
 				$display("SWP: read stage");
 			end
 			`SWP_WRITING: begin
-				outstall = dc__rw_wait_3a;
+				stall_3a = dc__rw_wait_3a;
 				if(!dc__rw_wait_3a)
 					next_swp_state = `SWP_READING;
 				$display("SWP: write stage");
 			end
 			default: begin
-				outstall = 1'bx;
+				stall_3a = 1'bx;
 				next_swp_state = 2'bxx;
 			end
 			endcase
 		end
 		`DECODE_ALU_MULT: begin
-			outstall = 1'b0;	/* XXX work around for Xilinx bug */
+			stall_3a = 1'b0;	/* XXX work around for Xilinx bug */
 			next_lsrh_state = lsrh_state;
 		end
 		`DECODE_ALU_HDATA_REG,
 		`DECODE_ALU_HDATA_IMM: if(!bubble_3a) begin
 			case(lsrh_state)
 			`LSRH_MEMIO: begin
-				outstall = dc__rw_wait_3a;
+				stall_3a = dc__rw_wait_3a;
 				if(insn_3a[21] | !insn_3a[24]) begin
-					outstall = 1'b1;
+					stall_3a = 1'b1;
 					if(!dc__rw_wait_3a)
 						next_lsrh_state = `LSRH_BASEWB;
 				end
 				
 				if (flush) /* special case! */ begin
-					outstall = 1'b0;
+					stall_3a = 1'b0;
 					next_lsrh_state = `LSRH_MEMIO;
 				end
 				
 				$display("ALU_LDRSTRH: rd_req %d, wr_req %d", dc__rd_req_3a, dc__wr_req_3a);
 			end
 			`LSRH_BASEWB: begin
-				outstall = 1'b1;
+				stall_3a = 1'b1;
 				next_lsrh_state = `LSRH_WBFLUSH;
 			end
 			`LSRH_WBFLUSH: begin
-				outstall = 1'b0;
+				stall_3a = 1'b0;
 				next_lsrh_state = `LSRH_MEMIO;
 			end
 			default: begin
-				outstall = 1'bx;
+				stall_3a = 1'bx;
 				next_lsrh_state = 3'bxxx;
 			end
 			endcase
 		end
 		`DECODE_LDRSTR_UNDEFINED: begin end
 		`DECODE_LDRSTR: if(!bubble_3a) begin
-			outstall = dc__rw_wait_3a;
+			stall_3a = dc__rw_wait_3a;
 			case(lsr_state)
 			`LSR_MEMIO: begin
-				outstall = dc__rw_wait_3a;
+				stall_3a = dc__rw_wait_3a;
 				next_lsr_state = `LSR_MEMIO;
 				if (insn_3a[22] /* B */ && !insn_3a[20] /* L */) begin	/* i.e., strb */
-					outstall = 1'b1;
+					stall_3a = 1'b1;
 					if (!dc__rw_wait_3a)
 						next_lsr_state = `LSR_STRB_WR;
 				end else if (insn_3a[21] /* W */ || !insn_3a[24] /* P */) begin	/* writeback needed */
-					outstall = 1'b1;
+					stall_3a = 1'b1;
 					if (!dc__rw_wait_3a)
 						next_lsr_state = `LSR_BASEWB;
 				end
 				
 				if (flush) begin
-					outstall = 1'b0;
+					stall_3a = 1'b0;
 					next_lsr_state = `LSR_MEMIO;
 				end
 				$display("LDRSTR: rd_req %d, wr_req %d, raddr %08x, wait %d", dc__rd_req_3a, dc__wr_req_3a, raddr, dc__rw_wait_3a);
 			end
 			`LSR_STRB_WR: begin
-				outstall = 1;
+				stall_3a = 1;
 				if(insn_3a[21] /* W */ | !insn_3a[24] /* P */) begin
 					if(!dc__rw_wait_3a)
 						next_lsr_state = `LSR_BASEWB;
@@ -253,34 +253,34 @@ module Memory(
 				$display("LDRSTR: Handling STRB");
 			end
 			`LSR_BASEWB: begin
-				outstall = 1;
+				stall_3a = 1;
 				next_lsr_state = `LSR_WBFLUSH;
 			end
 			`LSR_WBFLUSH: begin
-				outstall = 0;
+				stall_3a = 0;
 				next_lsr_state = `LSR_MEMIO;
 			end
 			default: begin
-				outstall = 1'bx;
+				stall_3a = 1'bx;
 				next_lsr_state = 4'bxxxx;
 			end
 			endcase
-			$display("LDRSTR: Decoded, bubble %d, insn %08x, lsm state %b -> %b, stall %d", bubble_3a, insn_3a, lsr_state, next_lsr_state, outstall);
+			$display("LDRSTR: Decoded, bubble %d, insn %08x, lsm state %b -> %b, stall %d", bubble_3a, insn_3a, lsr_state, next_lsr_state, stall_3a);
 		end
 		`DECODE_LDMSTM: if(!bubble_3a) begin
-			outstall = dc__rw_wait_3a;
+			stall_3a = dc__rw_wait_3a;
 			case(lsm_state)
 			`LSM_SETUP: begin
-				outstall = 1'b1;
+				stall_3a = 1'b1;
 				next_lsm_state = `LSM_MEMIO;
 				if (flush) begin
-					outstall = 1'b0;
+					stall_3a = 1'b0;
 					next_lsm_state = `LSM_SETUP;
 				end
 				$display("LDMSTM: Round 1: base register: %08x, reg list %b", op0_3a, op1_3a[15:0]);
 			end
 			`LSM_MEMIO: begin
-				outstall = 1'b1;
+				stall_3a = 1'b1;
 				if(next_regs == 16'b0 && !dc__rw_wait_3a) begin
 					next_lsm_state = `LSM_BASEWB;
 				end
@@ -288,27 +288,27 @@ module Memory(
 				$display("LDMSTM: Stage 2: Writing: regs %b, next_regs %b, reg %d, wr_data %08x, addr %08x", regs, next_regs, cur_reg, rf__rdata_3_3a, dc__addr_3a);
 			end
 			`LSM_BASEWB: begin
-				outstall = 1;
+				stall_3a = 1;
 				next_lsm_state = `LSM_WBFLUSH;
 				$display("LDMSTM: Stage 3: Writing back");
 			end
 			`LSM_WBFLUSH: begin
-				outstall = 0;
+				stall_3a = 0;
 				next_lsm_state = `LSM_SETUP;
 			end
 			default: begin
-				outstall = 1'bx;
+				stall_3a = 1'bx;
 				next_lsm_state = 4'bxxxx;
 			end
 			endcase
-			$display("LDMSTM: Decoded, bubble %d, insn %08x, lsm state %b -> %b, stall %d", bubble_3a, insn_3a, lsm_state, next_lsm_state, outstall);
+			$display("LDMSTM: Decoded, bubble %d, insn %08x, lsm state %b -> %b, stall %d", bubble_3a, insn_3a, lsm_state, next_lsm_state, stall_3a);
 		end
 		`DECODE_LDCSTC: if(!bubble_3a) begin
 			$display("WARNING: Unimplemented LDCSTC");
 		end
 		`DECODE_CDP: if (!bubble_3a) begin
 			if (cp_busy) begin
-				outstall = 1;
+				stall_3a = 1;
 			end
 			if (!cp_ack) begin
 				/* XXX undefined instruction trap */
@@ -317,7 +317,7 @@ module Memory(
 		end
 		`DECODE_MRCMCR: if (!bubble_3a) begin
 			if (cp_busy) begin
-				outstall = 1;
+				stall_3a = 1;
 			end
 			if (!cp_ack) begin
 				$display("WARNING: Possible MRCMCR undefined instruction: cp_ack %d, cp_busy %d",cp_ack, cp_busy);
@@ -353,8 +353,8 @@ module Memory(
 		next_write_reg = write_reg_3a;
 		next_write_num = write_num_3a;
 		next_write_data = write_data_3a;
-		next_outcpsr = lsm_state == 4'b0010 ? outcpsr : cpsr_3a;
-		next_outcpsrup = cpsrup_3a;
+		cpsr_4a_next = lsm_state == 4'b0010 ? cpsr_4a : cpsr_3a;
+		cpsrup_4a_next = cpsrup_3a;
 		
 		casez(insn_3a)
 		`DECODE_ALU_SWP: if (!bubble_3a) begin
@@ -376,8 +376,8 @@ module Memory(
 			next_write_reg = write_reg_3a;	/* XXX workaround for ISE 10.1 bug */
 			next_write_num = write_num_3a;
 			next_write_data = write_data_3a;
-			next_outcpsr = lsm_state == 4'b0010 ? outcpsr : cpsr_3a;
-			next_outcpsrup = cpsrup_3a;
+			cpsr_4a_next = lsm_state == 4'b0010 ? cpsr_4a : cpsr_3a;
+			cpsrup_4a_next = cpsrup_3a;
 		end
 		`DECODE_ALU_HDATA_REG,
 		`DECODE_ALU_HDATA_IMM: if(!bubble_3a) begin
@@ -447,8 +447,8 @@ module Memory(
 				next_write_num = insn_3a[19:16];
 				next_write_data = insn_3a[23] ? op0_3a + {26'b0, prev_offset} : op0_3a - {26'b0, prev_offset};
 				if(cur_reg == 4'hF && insn_3a[22]) begin
-					next_outcpsr = spsr_3a;
-					next_outcpsrup = 1;
+					cpsr_4a_next = spsr_3a;
+					cpsrup_4a_next = 1;
 				end
 			end
 			`LSM_WBFLUSH:
@@ -460,16 +460,16 @@ module Memory(
 			next_write_reg = 1'bx;
 			next_write_num = 4'bxxxx;
 			next_write_data = 32'hxxxxxxxx;
-			next_outcpsr = 32'hxxxxxxxx;
-			next_outcpsrup = 1'bx;
+			cpsr_4a_next = 32'hxxxxxxxx;
+			cpsrup_4a_next = 1'bx;
 			if (insn_3a[20] == 1 /* load from coprocessor */)
 				if (insn_3a[15:12] != 4'hF /* Fuck you ARM */) begin
 					next_write_reg = 1'b1;
 					next_write_num = insn_3a[15:12];
 					next_write_data = cp_read;
 				end else begin
-					next_outcpsr = {cp_read[31:28], cpsr_3a[27:0]};
-					next_outcpsrup = 1;
+					cpsr_4a_next = {cp_read[31:28], cpsr_3a[27:0]};
+					cpsrup_4a_next = 1;
 				end
 		end
 		endcase
@@ -726,7 +726,7 @@ module Memory(
 	begin
 		do_rd_data_latch = 0;
 		
-		next_outbubble = bubble_3a;
+		bubble_4a_next = bubble_3a;
 		
 		lsrh_rddata = 32'hxxxxxxxx;
 		lsrh_rddata_s1 = 16'hxxxx;
@@ -740,7 +740,7 @@ module Memory(
 		/* XXX shit not given about endianness */
 		casez(insn_3a)
 		`DECODE_ALU_SWP: if(!bubble_3a) begin
-			next_outbubble = dc__rw_wait_3a;
+			bubble_4a_next = dc__rw_wait_3a;
 			case(swp_state)
 			`SWP_READING:
 				if(!dc__rw_wait_3a)
@@ -750,11 +750,11 @@ module Memory(
 			endcase
 		end
 		`DECODE_ALU_MULT: begin
-			next_outbubble = bubble_3a;	/* XXX workaround for Xilinx bug */
+			bubble_4a_next = bubble_3a;	/* XXX workaround for Xilinx bug */
 		end
 		`DECODE_ALU_HDATA_REG,
 		`DECODE_ALU_HDATA_IMM: if(!bubble_3a) begin
-			next_outbubble = dc__rw_wait_3a;
+			bubble_4a_next = dc__rw_wait_3a;
 			
 			/* rotate to correct position */
 			case(insn_3a[6:5])
@@ -777,14 +777,14 @@ module Memory(
 			case(lsrh_state)
 			`LSRH_MEMIO: begin end
 			`LSRH_BASEWB:
-				next_outbubble = 1'b0;
+				bubble_4a_next = 1'b0;
 			`LSRH_WBFLUSH: begin end
 			default: begin end
 			endcase
 		end
 		`DECODE_LDRSTR_UNDEFINED: begin end
 		`DECODE_LDRSTR: if(!bubble_3a) begin
-			next_outbubble = dc__rw_wait_3a;
+			bubble_4a_next = dc__rw_wait_3a;
 			/* rotate to correct position */
 			align_s1 = raddr[1] ? {dc__rd_data_3a[15:0], dc__rd_data_3a[31:16]} : dc__rd_data_3a;
 			align_s2 = raddr[0] ? {align_s1[7:0], align_s1[31:8]} : align_s1;
@@ -796,19 +796,19 @@ module Memory(
 					do_rd_data_latch = 1;
 			`LSR_STRB_WR: begin end
 			`LSR_BASEWB:
-				next_outbubble = 0;
+				bubble_4a_next = 0;
 			`LSR_WBFLUSH: begin end
 			default: begin end
 			endcase
 		end
 		/* XXX ldm/stm incorrect in that stupid case where one of the listed regs is the base reg */
 		`DECODE_LDMSTM: if(!bubble_3a) begin
-			next_outbubble = dc__rw_wait_3a;
+			bubble_4a_next = dc__rw_wait_3a;
 			case(lsm_state)
 			`LSM_SETUP: begin end
 			`LSM_MEMIO: begin end
 			`LSM_BASEWB:
-				next_outbubble = 0;
+				bubble_4a_next = 0;
 			`LSM_WBFLUSH: begin end
 			default: $stop;
 			endcase
@@ -816,18 +816,18 @@ module Memory(
 		`DECODE_LDCSTC: begin end
 		`DECODE_CDP: if(!bubble_3a) begin
 			if (cp_busy) begin
-				next_outbubble = 1;
+				bubble_4a_next = 1;
 			end
 		end
 		`DECODE_MRCMCR: if(!bubble_3a) begin
 			if (cp_busy) begin
-				next_outbubble = 1;
+				bubble_4a_next = 1;
 			end
 		end
 		default: begin end
 		endcase
 		
-		if ((flush || delayedflush) && !outstall)
-			next_outbubble = 1'b1;
+		if ((flush || delayedflush) && !stall_3a)
+			bubble_4a_next = 1'b1;
 	end
 endmodule

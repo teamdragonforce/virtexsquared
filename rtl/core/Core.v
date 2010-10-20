@@ -57,14 +57,16 @@ module Core(/*AUTOARG*/
 	wire		bubble_1a;		// From fetch of Fetch.v
 	wire		bubble_2a;		// From issue of Issue.v
 	wire		bubble_3a;		// From execute of Execute.v
-	wire		bubble_out_memory;	// From memory of Memory.v
+	wire		bubble_4a;		// From memory of Memory.v
 	wire		carry_2a;		// From decode of Decode.v
 	wire		cp_req;			// From memory of Memory.v
 	wire		cp_rnw;			// From memory of Memory.v
 	wire [31:0]	cp_write;		// From memory of Memory.v
 	wire [31:0]	cpsr_2a;		// From decode of Decode.v
 	wire [31:0]	cpsr_3a;		// From execute of Execute.v
+	wire [31:0]	cpsr_4a;		// From memory of Memory.v
 	wire		cpsrup_3a;		// From execute of Execute.v
+	wire		cpsrup_4a;		// From memory of Memory.v
 	wire [31:0]	dc__addr_3a;		// From memory of Memory.v
 	wire [2:0]	dc__data_size_3a;	// From memory of Memory.v
 	wire [31:0]	dc__rd_data_3a;		// From dcache of DCache.v
@@ -79,9 +81,8 @@ module Core(/*AUTOARG*/
 	wire [31:0]	insn_1a;		// From fetch of Fetch.v
 	wire [31:0]	insn_2a;		// From issue of Issue.v
 	wire [31:0]	insn_3a;		// From execute of Execute.v
+	wire [31:0]	insn_4a;		// From memory of Memory.v
 	wire		jmp_out_execute;	// From execute of Execute.v
-	wire		memory_out_cpsrup;	// From memory of Memory.v
-	wire		memory_out_write_reg;	// From memory of Memory.v
 	wire [31:0]	op0_2a;			// From decode of Decode.v
 	wire [31:0]	op0_3a;			// From execute of Execute.v
 	wire [31:0]	op1_2a;			// From decode of Decode.v
@@ -91,6 +92,7 @@ module Core(/*AUTOARG*/
 	wire [31:0]	pc_1a;			// From fetch of Fetch.v
 	wire [31:0]	pc_2a;			// From issue of Issue.v
 	wire [31:0]	pc_3a;			// From execute of Execute.v
+	wire [31:0]	pc_4a;			// From memory of Memory.v
 	wire		regfile_write;		// From writeback of Writeback.v
 	wire [31:0]	regfile_write_data;	// From writeback of Writeback.v
 	wire [3:0]	regfile_write_reg;	// From writeback of Writeback.v
@@ -104,17 +106,29 @@ module Core(/*AUTOARG*/
 	wire [3:0]	rf__read_3_3a;		// From memory of Memory.v
 	wire [31:0]	spsr_2a;		// From decode of Decode.v
 	wire [31:0]	spsr_3a;		// From execute of Execute.v
+	wire [31:0]	spsr_4a;		// From memory of Memory.v
 	wire		stall_0a;		// From issue of Issue.v
 	wire		stall_cause_execute;	// From execute of Execute.v
-	wire		stall_cause_memory;	// From memory of Memory.v
 	wire [31:0]	write_data_3a;		// From execute of Execute.v
+	wire [31:0]	write_data_4a;		// From memory of Memory.v
 	wire [3:0]	write_num_3a;		// From execute of Execute.v
+	wire [3:0]	write_num_4a;		// From memory of Memory.v
 	wire		write_reg_3a;		// From execute of Execute.v
+	wire		write_reg_4a;		// From memory of Memory.v
 	wire [31:0]	writeback_out_spsr;	// From writeback of Writeback.v
 	// End of automatics
 
 	wire jmp_out_writeback;
-	wire [31:0] jmppc_out_execute, jmppc_out_writeback, memory_out_spsr, memory_out_cpsr, writeback_out_cpsr, regfile_spsr, pc_out_memory, insn_out_memory, memory_out_write_data;
+	wire stall_cause_memory;
+	wire [31:0] jmppc_out_execute;
+	wire [31:0] jmppc_out_writeback;
+	wire [31:0] memory_out_spsr;
+	wire [31:0] memory_out_cpsr;
+	wire [31:0] writeback_out_cpsr;
+	wire [31:0] regfile_spsr;
+	wire [31:0] pc_out_memory;
+	wire [31:0] insn_out_memory;
+	wire [31:0] memory_out_write_data;
 	wire [3:0] memory_out_write_num;
 
 	wire jmp = jmp_out_execute | jmp_out_writeback;
@@ -237,7 +251,6 @@ module Core(/*AUTOARG*/
 		.write_data(regfile_write_data),
 		);
 	*/
-	wire [3:0] rf__read_3_4a;
 	RegFile regfile(
 		/*AUTOINST*/
 			// Outputs
@@ -329,16 +342,7 @@ module Core(/*AUTOARG*/
 
 	/* stall? */
 	/* Memory AUTO_TEMPLATE (
-		.outstall(stall_cause_memory),
-		.outbubble(bubble_out_memory), 
-		.outpc(pc_out_memory),
-		.outinsn(insn_out_memory),
-		.out_write_reg(memory_out_write_reg),
-		.out_write_num(memory_out_write_num), 
-		.out_write_data(memory_out_write_data),
-		.outcpsr(memory_out_cpsr),
-		.outspsr(memory_out_spsr),
-		.outcpsrup(memory_out_cpsrup),
+		.stall_3a(stall_cause_memory),
 		.flush(writeback_out_backflush),
 		);
 		*/
@@ -354,16 +358,16 @@ module Core(/*AUTOARG*/
 		      .cp_req		(cp_req),
 		      .cp_rnw		(cp_rnw),
 		      .cp_write		(cp_write[31:0]),
-		      .outstall		(stall_cause_memory),	 // Templated
-		      .outbubble	(bubble_out_memory),	 // Templated
-		      .outpc		(pc_out_memory),	 // Templated
-		      .outinsn		(insn_out_memory),	 // Templated
-		      .out_write_reg	(memory_out_write_reg),	 // Templated
-		      .out_write_num	(memory_out_write_num),	 // Templated
-		      .out_write_data	(memory_out_write_data), // Templated
-		      .outspsr		(memory_out_spsr),	 // Templated
-		      .outcpsr		(memory_out_cpsr),	 // Templated
-		      .outcpsrup	(memory_out_cpsrup),	 // Templated
+		      .stall_3a		(stall_cause_memory),	 // Templated
+		      .bubble_4a	(bubble_4a),
+		      .pc_4a		(pc_4a[31:0]),
+		      .insn_4a		(insn_4a[31:0]),
+		      .write_reg_4a	(write_reg_4a),
+		      .write_num_4a	(write_num_4a[3:0]),
+		      .write_data_4a	(write_data_4a[31:0]),
+		      .spsr_4a		(spsr_4a[31:0]),
+		      .cpsr_4a		(cpsr_4a[31:0]),
+		      .cpsrup_4a	(cpsrup_4a),
 		      // Inputs
 		      .clk		(clk),
 		      .rst_b		(rst_b),
@@ -388,13 +392,13 @@ module Core(/*AUTOARG*/
 		      .write_data_3a	(write_data_3a[31:0]));
 
 	/* Writeback AUTO_TEMPLATE(
-		.inbubble(bubble_out_memory),
-		.write_reg(memory_out_write_reg),
-		.write_num(memory_out_write_num[3:0]),
-		.write_data(memory_out_write_data[31:0]),
-		.cpsr(memory_out_cpsr[31:0]),
-		.spsr(memory_out_spsr[31:0]),
-		.cpsrup(memory_out_cpsrup),
+		.inbubble(bubble_4a),
+		.write_reg(write_reg_4a),
+		.write_num(write_num_4a[3:0]),
+		.write_data(write_data_4a[31:0]),
+		.cpsr(cpsr_4a[31:0]),
+		.spsr(spsr_4a[31:0]),
+		.cpsrup(cpsrup_4a),
 		.regfile_write(regfile_write),
 		.regfile_write_reg(regfile_write_reg[3:0]),
 		.regfile_write_data(regfile_write_data[31:0]),
@@ -415,13 +419,13 @@ module Core(/*AUTOARG*/
 			    .jmppc		(jmppc_out_writeback[31:0]), // Templated
 			    // Inputs
 			    .clk		(clk),
-			    .inbubble		(bubble_out_memory), // Templated
-			    .write_reg		(memory_out_write_reg), // Templated
-			    .write_num		(memory_out_write_num[3:0]), // Templated
-			    .write_data		(memory_out_write_data[31:0]), // Templated
-			    .cpsr		(memory_out_cpsr[31:0]), // Templated
-			    .spsr		(memory_out_spsr[31:0]), // Templated
-			    .cpsrup		(memory_out_cpsrup)); // Templated
+			    .inbubble		(bubble_4a),	 // Templated
+			    .write_reg		(write_reg_4a),	 // Templated
+			    .write_num		(write_num_4a[3:0]), // Templated
+			    .write_data		(write_data_4a[31:0]), // Templated
+			    .cpsr		(cpsr_4a[31:0]), // Templated
+			    .spsr		(spsr_4a[31:0]), // Templated
+			    .cpsrup		(cpsrup_4a));	 // Templated
 
 `ifdef verilator
 	reg [31:0] clockno = 0;
@@ -433,7 +437,7 @@ module Core(/*AUTOARG*/
 		$display("%3d: ISSUE:  Stall: %d, Bubble: %d, Instruction: %08x, PC: %08x", clockno, stall_0a, bubble_2a, insn_2a, pc_2a);
 		$display("%3d: DECODE:                      op0 %08x, op1 %08x, op2 %08x, carry %d", clockno, op0_2a, op1_2a, op2_2a, carry_2a);
 		$display("%3d: EXEC:   Stall: %d, Bubble: %d, Instruction: %08x, PC: %08x, Reg: %d, [%08x -> %d], Jmp: %d [%08x]", clockno, stall_cause_execute, bubble_3a, insn_3a, pc_3a, write_reg_3a, write_data_3a, write_num_3a, jmp_out_execute, jmppc_out_execute);
-		$display("%3d: MEMORY: Stall: %d, Bubble: %d, Instruction: %08x, PC: %08x, Reg: %d, [%08x -> %d]", clockno, stall_cause_memory, bubble_out_memory, insn_out_memory, pc_out_memory, memory_out_write_reg, memory_out_write_data, memory_out_write_num);
+		$display("%3d: MEMORY: Stall: %d, Bubble: %d, Instruction: %08x, PC: %08x, Reg: %d, [%08x -> %d]", clockno, stall_cause_memory, bubble_4a, insn_4a, pc_4a, write_reg_4a, write_data_4a, write_num_4a);
 		$display("%3d: WRITEB:                      CPSR %08x, SPSR %08x, Reg: %d [%08x -> %d], Jmp: %d [%08x]", clockno, writeback_out_cpsr, writeback_out_spsr, regfile_write, regfile_write_data, regfile_write_reg, jmp_out_writeback, jmppc_out_writeback);
 	end
 

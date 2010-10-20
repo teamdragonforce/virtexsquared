@@ -57,6 +57,7 @@ module System(
 	wire [FSAB_REQ_HI:0] dc__fsabo_mode;	// From core of Core.v
 	wire [FSAB_DID_HI:0] dc__fsabo_subdid;	// From core of Core.v
 	wire		dc__fsabo_valid;	// From core of Core.v
+	wire		fsabi_clk;		// From mem of FSABMemory.v
 	wire [FSAB_DATA_HI:0] fsabi_data;	// From mem of FSABMemory.v
 	wire [FSAB_DID_HI:0] fsabi_did;		// From mem of FSABMemory.v
 	wire [FSAB_DID_HI:0] fsabi_subdid;	// From mem of FSABMemory.v

@@ -39,7 +39,7 @@ module FSABPreload(/*AUTOARG*/
 	
 	wire start_trans;
 	
-	reg [FSAB_CREDITS_HI:0] fsab_credits = FSAB_INITIAL_CREDITS;	/* XXX needs resettability */
+	reg [FSAB_CREDITS_HI:0] fsab_credits = FSAB_INITIAL_CREDITS;
 	wire fsab_credit_avail = (fsab_credits != 0);
 	always @(posedge clk or negedge rst_b) begin
 		if (!rst_b) begin
