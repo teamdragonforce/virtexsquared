@@ -5,13 +5,11 @@ module System(
    // Inouts
    ddr2_dq, ddr2_dqs, ddr2_dqs_n,
    // Inputs
-   clk200_n, clk200_p, sys_clk_n, sys_clk_p, sys_rst_n,
-   clk, rst
+   clk200_n, clk200_p, sys_clk_n, sys_clk_p, sys_rst_n
    );
 
 	`include "memory_defines.vh"
 
-	input clk; input rst;
 	/* Ok, this autoinout thing has to go. */
 	
 	// Beginning of automatic inouts (from unused autoinst inouts)
@@ -96,22 +94,22 @@ module System(
 	wire		spamo_r_nw;		// From core of Core.v
 	wire		spamo_valid;		// From core of Core.v
 	// End of automatics
-
-	wire rst_b = ~rst;
-
-`ifdef DUMMY
-	stfu_verilog_mode and_i_mean_it(
-					// Inputs
-					.cio__spami_busy_b(cio__spami_busy_b),
-					.cio__spami_data(cio__spami_data[SPAM_DATA_HI:0]));
-`endif
+	
+	wire dcm_rst;
+	wire rst_b = ~(~sys_rst_n | dcm_rst);
 	
 	wire spami_busy_b = cio__spami_busy_b;
 	wire [SPAM_DATA_HI:0] spami_data = cio__spami_data[SPAM_DATA_HI:0];
 
+	wire clk;
+
 	parameter FSAB_DEVICES = 3;
 	wire [FSAB_DEVICES-1:0] fsabo_clks = {clk, clk, clk};
 	wire [FSAB_DEVICES-1:0] fsabo_rst_bs = {rst_b, rst_b, rst_b};
+
+	DCM dcm(.xtal(fsabi_clk),
+	              .clk(clk),
+	              .dcm_rst(dcm_rst));
 
 	/* Core AUTO_TEMPLATE (
 		.rst_b(rst_core_b & rst_b),
@@ -278,6 +276,33 @@ module System(
 			    .fsabi_data		(fsabi_data[FSAB_DATA_HI:0]));
 
 endmodule
+
+module DCM(input xtal, output clk, output dcm_rst);
+	wire locked, fb, clkdv_buf;
+	wire GND_BIT = 0;
+	assign dcm_rst = !locked;
+
+	BUFG CLKDV_BUFG_INST (.I(clkdv_buf),
+	                      .O(clk));
+	DCM_BASE DCM_SP_INST (.CLKIN(xtal), 
+	                      .CLKFB(fb),
+	                      .CLK0(fb),
+	                      .RST(GND_BIT), 
+	                      .CLKDV(clkdv_buf));
+	defparam DCM_SP_INST.CLK_FEEDBACK = "1X";
+	defparam DCM_SP_INST.CLKDV_DIVIDE = 2.0;
+	defparam DCM_SP_INST.CLKIN_DIVIDE_BY_2 = "FALSE";
+	defparam DCM_SP_INST.CLKIN_PERIOD = 8.000;
+	defparam DCM_SP_INST.CLKOUT_PHASE_SHIFT = "NONE";
+	defparam DCM_SP_INST.DESKEW_ADJUST = "SYSTEM_SYNCHRONOUS";
+	defparam DCM_SP_INST.DFS_FREQUENCY_MODE = "LOW";
+	defparam DCM_SP_INST.DLL_FREQUENCY_MODE = "LOW";
+	defparam DCM_SP_INST.DUTY_CYCLE_CORRECTION = "TRUE";
+	defparam DCM_SP_INST.FACTORY_JF = 16'hC080;
+	defparam DCM_SP_INST.PHASE_SHIFT = 0;
+	defparam DCM_SP_INST.STARTUP_WAIT = "TRUE";
+endmodule
+
 
 // Local Variables:
 // verilog-library-directories:("." "../console" "../core" "../fsab" "../spam" "../fsab/sim")

@@ -12,10 +12,9 @@ run
 -iuc NO
 -lso FireARM.lso
 -keep_hierarchy NO
--netlist_hierarchy as_optimized
 -rtlview Yes
 -glob_opt AllClockNets
--read_cores YES
+-read_cores NO
 -write_timing_constraints NO
 -cross_clock_analysis NO
 -hierarchy_separator /
