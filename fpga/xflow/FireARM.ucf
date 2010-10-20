@@ -1,3 +1,8 @@
+NET "sys_clk_ibufg_div" LOC="L18" | IOSTANDARD=LVCMOS18;
+NET "clk0_bufg_div" LOC="G15" | IOSTANDARD=LVCMOS18;
+NET "clk0_tb_div" LOC="AD26" | IOSTANDARD=LVCMOS18;
+NET "clk200_ibufg_div" LOC="G16" | IOSTANDARD=LVCMOS18;
+
 ###
 ### Begin import from MIG generated ucf
 ###

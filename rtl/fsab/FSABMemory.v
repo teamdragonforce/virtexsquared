@@ -2,12 +2,12 @@ module FSABMemory(/*AUTOARG*/
    // Outputs
    ddr2_a, ddr2_ba, ddr2_cas_n, ddr2_ck, ddr2_ck_n, ddr2_cke,
    ddr2_cs_n, ddr2_dm, ddr2_odt, ddr2_ras_n, ddr2_we_n, phy_init_done,
-   clk, fsabo_credit, fsabi_valid, fsabi_did, fsabi_subdid,
-   fsabi_data,
+   clk0_tb, rst0_tb, fsabo_credit, fsabi_valid, fsabi_did,
+   fsabi_subdid, fsabi_data,
    // Inouts
    ddr2_dq, ddr2_dqs, ddr2_dqs_n,
    // Inputs
-   clk200_n, clk200_p, sys_clk_n, sys_clk_p, rst_b, fsabo_valid,
+   clk200_n, clk200_p, sys_clk_n, sys_clk_p, sys_rst_n, fsabo_valid,
    fsabo_mode, fsabo_did, fsabo_subdid, fsabo_addr, fsabo_len,
    fsabo_data, fsabo_mask
    );
@@ -19,6 +19,7 @@ module FSABMemory(/*AUTOARG*/
 	input		clk200_p;		// To the_mig of mig.v
 	input		sys_clk_n;		// To the_mig of mig.v
 	input		sys_clk_p;		// To the_mig of mig.v
+	input		sys_rst_n;		// To the_mig of mig.v
 	output [ROW_WIDTH-1:0] ddr2_a;		// From the_mig of mig.v
 	output [BANK_WIDTH-1:0] ddr2_ba;	// From the_mig of mig.v
 	output		ddr2_cas_n;		// From the_mig of mig.v
@@ -35,8 +36,8 @@ module FSABMemory(/*AUTOARG*/
 	inout [DQS_WIDTH-1:0] ddr2_dqs;		// To/From the_mig of mig.v
 	inout [DQS_WIDTH-1:0] ddr2_dqs_n;	// To/From the_mig of mig.v
 
-	output                       clk;
-	input                        rst_b;
+	output                       clk0_tb;
+	output                       rst0_tb;
 	
 	input                        fsabo_valid;
 	input       [FSAB_REQ_HI:0]  fsabo_mode;
@@ -58,8 +59,8 @@ module FSABMemory(/*AUTOARG*/
 	reg [`OFIF_CREDIT_WIDTH-1:0] ofif_credits = `OFIF_INITIAL_CREDITS;
 	wire ofif_credit;
 	wire ofif_debit;
-	always @(posedge clk or negedge rst_b)
-		if (!rst_b) begin
+	always @(posedge clk0_tb or negedge rst0_tb)
+		if (!rst0_tb) begin
 			ofif_credits <= `OFIF_INITIAL_CREDITS;
 		end else begin
 			ofif_credits <= ofif_credits
@@ -81,8 +82,8 @@ module FSABMemory(/*AUTOARG*/
 	wire irfif_empty_0a = (irfif_rpos_0a == irfif_wpos_0a);
 	wire irfif_full_0a = (irfif_wpos_0a == (irfif_rpos_0a + FSAB_INITIAL_CREDITS));
 	
-	always @(posedge clk or negedge rst_b)
-		if (!rst_b) begin
+	always @(posedge clk0_tb or negedge rst0_tb)
+		if (!rst0_tb) begin
 			irfif_wpos_0a <= 'h0;
 			irfif_rpos_0a <= 'h0;
 		end else begin
@@ -121,8 +122,8 @@ module FSABMemory(/*AUTOARG*/
 	wire fsabo_new_req_0a = fsabo_valid && fsabo_cur_req_done_0a;
 	assign irfif_wr_0a = fsabo_new_req_0a;
 	
-	always @(posedge clk or negedge rst_b)
-		if (!rst_b) begin
+	always @(posedge clk0_tb or negedge rst0_tb)
+		if (!rst0_tb) begin
 			fsabo_cur_req_len_rem_0a <= 0;
 		end else begin
 			if (fsabo_valid && fsabo_cur_req_done_0a && (fsabo_mode == FSAB_WRITE))
@@ -146,8 +147,8 @@ module FSABMemory(/*AUTOARG*/
 	wire idfif_full_0a = (idfif_wpos_0a == (idfif_rpos_0a + `MEM_IDFIF_MAX));
 	wire [`MEM_IDFIF_HI:0] idfif_avail_0a = idfif_wpos_0a - idfif_rpos_0a;
 	
-	always @(posedge clk or negedge rst_b)
-		if (!rst_b) begin
+	always @(posedge clk0_tb or negedge rst0_tb)
+		if (!rst0_tb) begin
 			idfif_wpos_0a <= 'h0;
 			idfif_rpos_0a <= 'h0;
 		end else begin
@@ -176,8 +177,8 @@ module FSABMemory(/*AUTOARG*/
 	reg [FSAB_DATA_HI:0] fsabo_prev_data;
 	reg [FSAB_MASK_HI:0] fsabo_prev_mask;
 
-	always @(posedge clk or negedge rst_b)
-		if (!rst_b) begin
+	always @(posedge clk0_tb or negedge rst0_tb)
+		if (!rst0_tb) begin
 			fsabo_prev_data <= 0;
 			fsabo_prev_mask <= {(FSAB_MASK_HI+1){1'h1}};
 		end else if (fsabo_valid) begin
@@ -186,8 +187,8 @@ module FSABMemory(/*AUTOARG*/
 		end
 
 	reg fsabo_want_prev = 0;
-	always @(posedge clk or negedge rst_b)
-		if (!rst_b) begin
+	always @(posedge clk0_tb or negedge rst0_tb)
+		if (!rst0_tb) begin
 			fsabo_want_prev <= 0;
 		end else if (fsabo_valid && !fsabo_want_prev || fsabo_new_req_0a) begin
 			fsabo_want_prev <= 1;
@@ -208,8 +209,8 @@ module FSABMemory(/*AUTOARG*/
 	reg [`MEM_ICNT_WIDTH:0] ifif_reqs_queued_0a = 0;
 	wire ifif_have_req = ifif_reqs_queued_0a != 0;
 
-	always @(posedge clk or negedge rst_b)
-		if (!rst_b) begin
+	always @(posedge clk0_tb or negedge rst0_tb)
+		if (!rst0_tb) begin
 			ifif_reqs_queued_0a <= 0;
 		end else begin
 			ifif_reqs_queued_0a <= ifif_reqs_queued_0a + (idfif_req_queued_0a ? 1 : 0)
@@ -220,8 +221,8 @@ module FSABMemory(/*AUTOARG*/
 	wire mem_stall_0a;
 	reg irfif_rd_1a = 0;
 	reg idfif_rd_1a = 0;
-	always @(posedge clk or negedge rst_b)
-		if (!rst_b) begin
+	always @(posedge clk0_tb or negedge rst0_tb)
+		if (!rst0_tb) begin
 			irfif_rd_1a <= 0;
 			idfif_rd_1a <= 0;
 		end else begin
@@ -296,8 +297,8 @@ module FSABMemory(/*AUTOARG*/
 
 	assign ofif_debit = irfif_rd_1a && irfif_mode_1a == FSAB_READ;
 
-	always @(posedge clk or negedge rst_b)
-		if (!rst_b) begin
+	always @(posedge clk0_tb or negedge rst0_tb)
+		if (!rst0_tb) begin
 			mem_cur_req_ddr_len_rem_0a <= 'h0;
 			mem_cur_req_active_1a <= 0;
 			mem_cur_req_addr_1a_r <= 0;
@@ -339,8 +340,8 @@ module FSABMemory(/*AUTOARG*/
 	wire orfif_full_0a = (orfif_wpos_0a == (orfif_rpos_0a + `MEM_ORFIF_MAX));
 	wire [`MEM_ORFIF_IND_WIDTH-1:0] orfif_avail_0a = orfif_wpos_0a - orfif_rpos_0a;
 
-	always @(posedge clk or negedge rst_b)
-		if (!rst_b) begin
+	always @(posedge clk0_tb or negedge rst0_tb)
+		if (!rst0_tb) begin
 			orfif_wpos_0a <= 'h0;
 			orfif_rpos_0a <= 'h0;
 		end else begin
@@ -384,8 +385,8 @@ module FSABMemory(/*AUTOARG*/
 	wire odfif_full_0a = (odfif_wpos_0a == (odfif_rpos_0a + `MEM_ODFIF_MAX));
 	wire [`MEM_ODFIF_HI:0] odfif_avail_0a = odfif_wpos_0a - odfif_rpos_0a;
 
-	always @(posedge clk or negedge rst_b)
-		if (!rst_b) begin
+	always @(posedge clk0_tb or negedge rst0_tb)
+		if (!rst0_tb) begin
 			odfif_wpos_0a <= 'h0;
 			odfif_rpos_0a <= 'h0;
 		end else begin
@@ -413,8 +414,8 @@ module FSABMemory(/*AUTOARG*/
 	/*** Pipe-throughs ***/
 	reg orfif_rd_1a = 0;
 	reg odfif_rd_1a = 0;
-	always @(posedge clk or negedge rst_b)
-		if (!rst_b) begin
+	always @(posedge clk0_tb or negedge rst0_tb)
+		if (!rst0_tb) begin
 			orfif_rd_1a <= 0;
 			odfif_rd_1a <= 0;
 		end else begin
@@ -422,8 +423,8 @@ module FSABMemory(/*AUTOARG*/
 			odfif_rd_1a <= odfif_rd_0a;
 		end
 
-	always @(posedge clk or negedge rst_b)
-		if (!rst_b) begin
+	always @(posedge clk0_tb or negedge rst0_tb)
+		if (!rst0_tb) begin
 			ofif_resp_len_rem_0a <= 0;
 		end else begin
 			if (orfif_rd_1a)
@@ -446,10 +447,8 @@ module FSABMemory(/*AUTOARG*/
 	assign fsabi_subdid = orfif_subdid_1a;
 
 	/* mig AUTO_TEMPLATE (
-		.clk0_tb(clk),
 		.app_af_addr(mem_cur_req_addr_1a),
 		.app_af_wren(irfif_rd_1a),
-		.sys_rst_n(rst_b),
 		);
 	*/
 	mig #(/*AUTOINSTPARAM*/
@@ -509,7 +508,7 @@ module FSABMemory(/*AUTOARG*/
 		 .ddr2_dm		(ddr2_dm[DM_WIDTH-1:0]),
 		 .phy_init_done		(phy_init_done),
 		 .rst0_tb		(rst0_tb),
-		 .clk0_tb		(clk),			 // Templated
+		 .clk0_tb		(clk0_tb),
 		 .app_wdf_afull		(app_wdf_afull),
 		 .app_af_afull		(app_af_afull),
 		 .rd_data_valid		(rd_data_valid),
@@ -544,25 +543,25 @@ module FSABMemory(/*AUTOARG*/
 
 	chipscope_ila ila0 (
 		.CONTROL(control0), // INOUT BUS [35:0]
-		.CLK(clk), // IN
+		.CLK(clk0_tb), // IN
 		.TRIG0({0, fsabo_valid, fsabo_mode, fsabo_did, fsabo_subdid, fsabo_addr, fsabo_len, fsabo_data, fsabo_mask}) // IN BUS [255:0]
 	);
 
 	chipscope_ila ila1 (
 		.CONTROL(control1), // INOUT BUS [35:0]
-		.CLK(clk), // IN
+		.CLK(clk0_tb), // IN
 		.TRIG0({0, fsabi_valid, fsabi_did, fsabi_subdid, fsabi_data}) // IN BUS [255:0]
 	);
 
 	chipscope_ila ila2 (
 		.CONTROL(control2), // INOUT BUS [35:0]
-		.CLK(clk), // IN
+		.CLK(clk0_tb), // IN
 		.TRIG0({0, phy_init_done, app_af_wren, app_af_cmd, app_af_addr, app_af_afull, app_wdf_wren, app_wdf_data, app_wdf_mask_data, app_wdf_afull}) // IN BUS [255:0]
 	);
 
 	chipscope_ila ila3 (
 		.CONTROL(control3), // INOUT BUS [35:0]
-		.CLK(clk), // IN
+		.CLK(clk0_tb), // IN
 		.TRIG0({0, rd_data_valid, rd_data_fifo_out}) // IN BUS [255:0]
 	);
 

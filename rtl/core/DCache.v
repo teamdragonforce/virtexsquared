@@ -170,8 +170,6 @@ module DCache(/*AUTOARG*/
 			completed_read <= 0;
 			completed_read_s1 <= 0;
 			current_read <= 0;
-			curdata_hi_4a <= 32'h00000000;
-			curdata_lo_4a <= 32'h00000000;
 		end else begin
 			completed_read_s1 <= completed_read_fclk;
 			completed_read <= completed_read_s1;
