@@ -449,6 +449,7 @@ module FSABMemory(/*AUTOARG*/
 		.clk0_tb(clk),
 		.app_af_addr(mem_cur_req_addr_1a),
 		.app_af_wren(irfif_rd_1a),
+		.sys_rst_n(rst_b),
 		);
 	*/
 	mig #(/*AUTOINSTPARAM*/
@@ -531,6 +532,42 @@ module FSABMemory(/*AUTOARG*/
 		 .app_af_cmd		(app_af_cmd[2:0]),
 		 .app_wdf_data		(app_wdf_data[(APPDATA_WIDTH)-1:0]),
 		 .app_wdf_mask_data	(app_wdf_mask_data[(APPDATA_WIDTH/8)-1:0]));
+
+	wire [35:0] control0, control1, control2, control3;
+
+	chipscope_icon icon (
+		.CONTROL0(control0), // INOUT BUS [35:0]
+		.CONTROL1(control1), // INOUT BUS [35:0]
+		.CONTROL2(control2), // INOUT BUS [35:0]
+		.CONTROL3(control3)  // INOUT BUS [35:0]
+	);
+
+	chipscope_ila ila0 (
+		.CONTROL(control0), // INOUT BUS [35:0]
+		.CLK(clk), // IN
+		.TRIG0({0, fsabo_valid, fsabo_mode, fsabo_did, fsabo_subdid, fsabo_addr, fsabo_len, fsabo_data, fsabo_mask}) // IN BUS [255:0]
+	);
+
+	chipscope_ila ila1 (
+		.CONTROL(control1), // INOUT BUS [35:0]
+		.CLK(clk), // IN
+		.TRIG0({0, fsabi_valid, fsabi_did, fsabi_subdid, fsabi_data}) // IN BUS [255:0]
+	);
+
+	chipscope_ila ila2 (
+		.CONTROL(control2), // INOUT BUS [35:0]
+		.CLK(clk), // IN
+		.TRIG0({0, phy_init_done, app_af_wren, app_af_cmd, app_af_addr, app_af_afull, app_wdf_wren, app_wdf_data, app_wdf_mask_data, app_wdf_afull}) // IN BUS [255:0]
+	);
+
+	chipscope_ila ila3 (
+		.CONTROL(control3), // INOUT BUS [35:0]
+		.CLK(clk), // IN
+		.TRIG0({0, rd_data_valid, rd_data_fifo_out}) // IN BUS [255:0]
+	);
+
+
+
 endmodule
 
 // Local Variables:
