@@ -95,8 +95,8 @@ module FSABArbiterFIFO(/*AUTOARG*/
 	wire [FSAB_CREDITS_HI:0] rfif_wpos_0a_iclk_next = rfif_wr_0a_iclk ? (rfif_wpos_0a_iclk + 'h1) : rfif_wpos_0a_iclk;
 	reg [FSAB_CREDITS_HI:0] rfif_rpos_0a_oclk = 'h0;
 	reg [ARB_RFIF_HI:0] rfif_fifo [(FSAB_INITIAL_CREDITS-1):0];
-	wire [ARB_RFIF_HI:0] rfif_wdat_0a_iclk;
-	reg [ARB_RFIF_HI:0] rfif_rdat_1a_oclk;
+	reg [ARB_RFIF_HI:0] rfif_wdat_0a_iclk = 'h0;
+	reg [ARB_RFIF_HI:0] rfif_rdat_1a_oclk = 'h0;
 	
 	reg [FSAB_CREDITS_HI:0] rfif_wpos_0a_g_iclk = 'h0;
 	reg [FSAB_CREDITS_HI:0] rfif_wpos_0a_iclk_g_oclk_s1 = 'h0;
@@ -166,7 +166,8 @@ module FSABArbiterFIFO(/*AUTOARG*/
 	/* rfif_rd is assigned later */
 	
 	assign {rfif_mode_1a, rfif_did_1a, rfif_subdid_1a, rfif_addr_1a, rfif_len_1a} = rfif_rdat_1a_oclk;
-	assign rfif_wdat_0a_iclk = {inp_mode, inp_did, inp_subdid, inp_addr, inp_len};
+	always @(*)
+		rfif_wdat_0a_iclk = {inp_mode, inp_did, inp_subdid, inp_addr, inp_len};
 	reg [FSAB_LEN_HI:0] inp_cur_req_len_rem_1a = 0;
 	wire inp_cur_req_done_1a = (inp_cur_req_len_rem_1a == 0 /* we were done long ago */ || 
 	                            inp_cur_req_len_rem_1a == 1 /* last cycle (1a) was the last word;

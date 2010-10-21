@@ -1,16 +1,12 @@
-module System(
+module System(/*AUTOARG*/
    // Outputs
-   ddr2_a, ddr2_ba, ddr2_cas_n, ddr2_ck, ddr2_ck_n, ddr2_cke, ddr2_cs_n,
-   ddr2_dm, ddr2_odt, ddr2_ras_n, ddr2_we_n, phy_init_done,
+   ddr2_a, ddr2_ba, ddr2_cas_n, ddr2_ck, ddr2_ck_n, ddr2_cke,
+   ddr2_cs_n, ddr2_dm, ddr2_odt, ddr2_ras_n, ddr2_we_n, phy_init_done,
+   sys_clk_ibufg_div, clk0_bufg_div, clk0_tb_div, clk200_ibufg_div,
    // Inouts
    ddr2_dq, ddr2_dqs, ddr2_dqs_n,
    // Inputs
-   clk200_n, clk200_p, sys_clk_n, sys_clk_p, sys_rst_n,
-
-   sys_clk_ibufg_div,
-   clk0_bufg_div,
-   clk0_tb_div,
-   clk200_ibufg_div
+   clk200_n, clk200_p, sys_clk_n, sys_clk_p, sys_rst_n
    );
 
 	`include "memory_defines.vh"
@@ -50,7 +46,7 @@ module System(
 
 `include "fsab_defines.vh"
 `include "spam_defines.vh"
-	
+
 	/*AUTOWIRE*/
 	// Beginning of automatic wires (for undeclared instantiated-module outputs)
 	wire		cio__spami_busy_b;	// From conio of SPAM_ConsoleIO.v
@@ -121,8 +117,10 @@ module System(
 	              .clk(clk),
 	              .dcm_rst(dcm_rst));
 
+	/* XXX: fsabi_rst_b synch? */
 	/* Core AUTO_TEMPLATE (
 		.rst_b(rst_core_b & rst_b),
+		.fsabi_rst_b(rst_core_b & rst_b),
 		);
 	*/
 	Core core(/*AUTOINST*/
@@ -158,7 +156,7 @@ module System(
 		  .fsabi_subdid		(fsabi_subdid[FSAB_DID_HI:0]),
 		  .fsabi_data		(fsabi_data[FSAB_DATA_HI:0]),
 		  .fsabi_clk		(fsabi_clk),
-		  .fsabi_rst_b		(fsabi_rst_b),
+		  .fsabi_rst_b		(rst_core_b & rst_b),	 // Templated
 		  .spami_busy_b		(spami_busy_b),
 		  .spami_data		(spami_data[SPAM_DATA_HI:0]));
 	
@@ -322,7 +320,8 @@ module DCM(input xtal, output clk, output dcm_rst);
 	                      .CLKFB(fb),
 	                      .CLK0(fb),
 	                      .RST(GND_BIT), 
-	                      .CLKDV(clkdv_buf));
+	                      .CLKDV(clkdv_buf),
+	                      .LOCKED(locked));
 	defparam DCM_SP_INST.CLK_FEEDBACK = "1X";
 	defparam DCM_SP_INST.CLKDV_DIVIDE = 2.0;
 	defparam DCM_SP_INST.CLKIN_DIVIDE_BY_2 = "FALSE";

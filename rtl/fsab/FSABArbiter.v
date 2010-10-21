@@ -9,7 +9,7 @@ module FSABArbiter(/*AUTOARG*/
    );
 	`include "fsab_defines.vh"
 
-	parameter FSAB_DEVICES = 1;	/* Can be changed externally. */
+	parameter FSAB_DEVICES = 3;	/* Can be changed externally. */
 
 	input                                       clk;
 	input                                       rst_b;

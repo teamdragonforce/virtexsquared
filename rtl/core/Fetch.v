@@ -15,7 +15,7 @@ module Fetch(
 	output reg  [31:0] pc_1a = 32'hFFFFFFFC);
 	
 	reg qjmp = 0;	/* A jump has been queued up while we were waiting. */
-	reg [31:0] qjmppc;
+	reg [31:0] qjmppc = 32'hxxxxxxxx;
 	always @(posedge clk or negedge rst_b)
 		if (!rst_b)
 			qjmp <= 0;

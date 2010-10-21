@@ -16,13 +16,13 @@ module FSABPreload(/*AUTOARG*/
 	
 	/* FSAB interface */
 	output reg                  pre__fsabo_valid = 0;
-	output reg [FSAB_REQ_HI:0]  pre__fsabo_mode = 0;
-	output reg [FSAB_DID_HI:0]  pre__fsabo_did = 0;
-	output reg [FSAB_DID_HI:0]  pre__fsabo_subdid = 0;
+	output reg [FSAB_REQ_HI:0]  pre__fsabo_mode = FSAB_WRITE;
+	output reg [FSAB_DID_HI:0]  pre__fsabo_did = {(FSAB_DID_HI+1){1'b1}};
+	output reg [FSAB_DID_HI:0]  pre__fsabo_subdid = {(FSAB_DID_HI+1){1'b0}};
 	output reg [FSAB_ADDR_HI:0] pre__fsabo_addr = 0;
-	output reg [FSAB_LEN_HI:0]  pre__fsabo_len = 0;
+	output reg [FSAB_LEN_HI:0]  pre__fsabo_len = 8;
 	output reg [FSAB_DATA_HI:0] pre__fsabo_data = 0;
-	output reg [FSAB_MASK_HI:0] pre__fsabo_mask = 0;
+	output reg [FSAB_MASK_HI:0] pre__fsabo_mask = 8'hFF;
 	input                       pre__fsabo_credit;
 	
 	input                       fsabi_valid;
