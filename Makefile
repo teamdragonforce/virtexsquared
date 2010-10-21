@@ -17,7 +17,7 @@ default:
 
 ###############################################################################
 
-sim: .DUMMY $(RUNDIR)/stamps/sim
+sim-genrtl: .DUMMY $(RUNDIR)/stamps/sim-genrtl
 
 $(RUNDIR)/stamps/sim-genrtl:
 	@echo "Copying RTL for simulation to $(RUNDIR)/sim/rtl..."
@@ -29,17 +29,23 @@ $(RUNDIR)/stamps/sim-genrtl:
 	@cp sim/* $(RUNDIR)/sim
 	@touch $(RUNDIR)/stamps/sim-genrtl
 
+sim-verilate: .DUMMY $(RUNDIR)/stamps/sim-verilate
+
 $(RUNDIR)/stamps/sim-verilate: $(RUNDIR)/stamps/sim-genrtl
 	@echo "Building simulator source with Verilator into $(RUNDIR)/sim/obj_dir..."
 	@mkdir -p $(RUNDIR)/sim/obj_dir
 	cd $(RUNDIR)/sim; verilator -Irtl --cc rtl/system.v testbench.cpp --exe --assert
 	@touch $(RUNDIR)/stamps/sim-verilate
 
+sim-build: .DUMMY $(RUNDIR)/stamps/sim-build
+
 $(RUNDIR)/stamps/sim-build: $(RUNDIR)/stamps/sim-verilate
 	@echo "Building simulator from Verilated source into $(RUNDIR)/sim/obj_dir..."
 	make -C $(RUNDIR)/sim/obj_dir -f Vsystem.mk
 	ln -sf obj_dir/Vsystem $(RUNDIR)/sim/
 	@touch $(RUNDIR)/stamps/sim-build
+
+sim: .DUMMY $(RUNDIR)/stamps/sim
 
 $(RUNDIR)/stamps/sim: $(RUNDIR)/stamps/sim-build
 	@echo "Simulator built in $(RUNDIR)/sim."
@@ -52,9 +58,9 @@ FPGA_TARGET = FireARM
 # not actually used? also needs to be changed in fgpa/xst/FireARM.xst
 PART = xc5vlx110t-ff1136-2
 
-fpga: .DUMMY $(RUNDIR)/stamps/fpga
-
 # XXX: should we generate the .xst file?
+fpga-genrtl: .DUMMY $(RUNDIR)/stamps/fpga-genrtl
+
 $(RUNDIR)/stamps/fpga-genrtl:
 	@echo "FPGA RTL is currently UNSYNTHESIZABLE...?"
 	@echo "Copying RTL for synthesis to $(RUNDIR)/fpga/xst..."
@@ -70,11 +76,15 @@ $(RUNDIR)/stamps/fpga-genrtl:
 	@cp fpga/xst/* $(RUNDIR)/fpga/xst
 	@touch $(RUNDIR)/stamps/fpga-genrtl
 
+fpga-synth: .DUMMY $(RUNDIR)/stamps/fpga-synth
+
 $(RUNDIR)/stamps/fpga-synth: $(RUNDIR)/stamps/fpga-genrtl
 	@echo "Synthesizing in $(RUNDIR)/fpga/xst..."
 	@touch $(RUNDIR)/stamps/fpga-synth-start
 	cd $(RUNDIR)/fpga/xst; xst -ifn $(FPGA_TARGET).xst -ofn $(FPGA_TARGET).syr
 	@touch $(RUNDIR)/stamps/fpga-synth
+
+fpga-xflow-prep: .DUMMY $(RUNDIR)/stamps/fpga-xflow-prep
 
 $(RUNDIR)/stamps/fpga-xflow-prep: $(RUNDIR)/stamps/fpga-synth
 	@echo "Copying files for back-end flow to $(RUNDIR)/fpga/xflow..."
@@ -83,12 +93,16 @@ $(RUNDIR)/stamps/fpga-xflow-prep: $(RUNDIR)/stamps/fpga-synth
 	@cp $(RUNDIR)/fpga/xst/$(FPGA_TARGET).ngc $(RUNDIR)/fpga/xflow
 	@touch $(RUNDIR)/stamps/fpga-xflow-prep
 
+fpga-xflow: .DUMMY $(RUNDIR)/stamps/fpga-xflow
+
 $(RUNDIR)/stamps/fpga-xflow: $(RUNDIR)/stamps/fpga-xflow-prep
 	@echo "Running back-end flow in $(RUNDIR)/fpga/xflow..."
 	@touch $(RUNDIR)/stamps/fpga-xflow-start
 	cd $(RUNDIR)/fpga/xflow; xflow -p $(PART) -implement balanced.opt -config bitgen.opt $(FPGA_TARGET).ngc
 	@touch $(RUNDIR)/stamps/fpga-xflow
 	@ln -s xflow/$(FPGA_TARGET).bit $(RUNDIR)/fpga/
+
+fpga: .DUMMY $(RUNDIR)/stamps/fpga
 
 $(RUNDIR)/stamps/fpga: $(RUNDIR)/stamps/fpga-xflow
 	@echo "Bit file generated in $(RUNDIR)/fpga/xflow."
