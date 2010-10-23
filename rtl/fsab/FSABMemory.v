@@ -535,13 +535,13 @@ module FSABMemory(/*AUTOARG*/
 	chipscope_ila ila0 (
 		.CONTROL(control0), // INOUT BUS [35:0]
 		.CLK(clk0_tb), // IN
-		.TRIG0({0, rst0_tb, fsabo_mode, fsabo_did, fsabo_subdid, fsabo_addr, fsabo_len, fsabo_data, fsabo_mask, fsabo_credit, fsabo_valid}) // IN BUS [255:0]
+		.TRIG0({0, rst0_tb, fsabo_mode[0], fsabo_did[3:0], fsabo_subdid[3:0], fsabo_addr[30:0], fsabo_len[2:0], fsabo_data[63:0], fsabo_mask[7:0], fsabo_credit, fsabo_valid}) // IN BUS [255:0]
 	);
 
 	chipscope_ila ila1 (
 		.CONTROL(control1), // INOUT BUS [35:0]
 		.CLK(clk0_tb), // IN
-		.TRIG0({0, rst0_tb,  fsabi_did, fsabi_subdid, fsabi_data, fsabi_valid}) // IN BUS [255:0]
+		.TRIG0({0, rst0_tb, fsabi_did[3:0], fsabi_subdid[3:0], fsabi_data[63:0], fsabi_valid}) // IN BUS [255:0]
 	);
 
 	chipscope_ila ila2 (
