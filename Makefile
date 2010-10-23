@@ -23,6 +23,7 @@ $(RUNDIR)/stamps/symlinks:
 	@echo "Creating run symlinks"
 	if [ -h runs/run_0a ] ; then mv runs/run_0a runs/run_1a ; fi
 	ln -s $(RUN) runs/run_0a
+	@mkdir -p $(RUNDIR)/stamps
 	@touch $(RUNDIR)/stamps/symlinks
 
 sim-symlinks: .DUMMY $(RUNDIR)/stamps/sim-symlinks
