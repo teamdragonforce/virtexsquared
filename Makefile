@@ -1,4 +1,4 @@
-RUNTIME := $(shell date +R%Y%m%d-%H%M)
+RUNTIME := $(shell date +R%Y%m%d-%H%M%S)
 RUN ?= $(RUNTIME)
 RUNDIR ?= runs/$(RUN)
 
@@ -17,9 +17,18 @@ default:
 
 ###############################################################################
 
+symlinks: .DUMMY
+	@echo "Creating run symlinks"
+	if [ -h runs/run_0a ] ; then mv runs/run_0a runs/run_1a ; fi
+	ln -s $(RUN) runs/run_0a
+
+sim-symlinks: .DUMMY symlinks
+	if [ -h runs/sim_0a ] ; then mv runs/sim_0a runs/sim_1a ; fi
+	ln -s $(RUN) runs/sim_0a
+
 sim-genrtl: .DUMMY $(RUNDIR)/stamps/sim-genrtl
 
-$(RUNDIR)/stamps/sim-genrtl:
+$(RUNDIR)/stamps/sim-genrtl: sim-symlinks
 	@echo "Copying RTL for simulation to $(RUNDIR)/sim/rtl..."
 	@mkdir -p $(RUNDIR)/stamps
 	@mkdir -p $(RUNDIR)/sim/rtl
@@ -58,10 +67,14 @@ FPGA_TARGET = FireARM
 # not actually used? also needs to be changed in fgpa/xst/FireARM.xst
 PART = xc5vlx110t-ff1136-2
 
+fpga-symlinks: .DUMMY symlinks
+	if [ -h runs/fpga_0a ] ; then mv runs/fpga_0a runs/fpga_1a ; fi
+	ln -s $(RUN) runs/fpga_0a
+
 # XXX: should we generate the .xst file?
 fpga-genrtl: .DUMMY $(RUNDIR)/stamps/fpga-genrtl
 
-$(RUNDIR)/stamps/fpga-genrtl:
+$(RUNDIR)/stamps/fpga-genrtl: fpga-symlinks
 	@echo "FPGA RTL is currently UNSYNTHESIZABLE...?"
 	@echo "Copying RTL for synthesis to $(RUNDIR)/fpga/xst..."
 	@mkdir -p $(RUNDIR)/stamps
@@ -106,19 +119,9 @@ $(RUNDIR)/stamps/fpga-xflow: $(RUNDIR)/stamps/fpga-xflow-prep
 	@figlet "Bit file generated! Go program the FPGA now."
 	@echo -en "\n\n\n"
 
-fpga-cdc: .DUMMY $(RUNDIR)/stamps/fpga-cdc
-
-$(RUNDIR)/stamps/fpga-cdc: $(RUNDIR)/stamps/fpga-xflow
-	@echo "Generating CDC file..."
-	@touch $(RUNDIR)/stamps/fpga-cdc-start
-	rm -f $(RUNDIR)/fpga/xflow/$(FPGA_TARGET)_fpga_edline.*
-	cd $(RUNDIR)/fpga/xflow; echo "Y" | fpga_edline -p cdc_script.scr $(FPGA_TARGET).ncd $(FPGA_TARGET).pcf
-	@echo "CDC file generated in $(RUNDIR)/fpga/xflow."
-	@touch $(RUNDIR)/stamps/fpga-cdc
-
 fpga: .DUMMY $(RUNDIR)/stamps/fpga
 
-$(RUNDIR)/stamps/fpga: $(RUNDIR)/stamps/fpga-cdc
+$(RUNDIR)/stamps/fpga: $(RUNDIR)/stamps/fpga-xflow
 	@echo "Done!!!"
 	@touch $(RUNDIR)/stamps/fpga
 
