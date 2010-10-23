@@ -214,7 +214,6 @@ module System(/*AUTOARG*/
 			     .sys_idata		(sys_idata[8:0]));
 	
 	wire [35:0] control_vio;
-	chipscope_icon_2 icon2 (.CONTROL0(control_vio));
 	chipscope_vio vio(.CONTROL(control_vio), .CLK(cclk), .SYNC_IN({sys_odata[8], sys_odata[7:0] & {8{sys_odata[7:0]}}}));
 
 	/* FSABArbiter AUTO_TEMPLATE (
@@ -288,6 +287,7 @@ module System(/*AUTOARG*/
 		       .ddr2_dq		(ddr2_dq[DQ_WIDTH-1:0]),
 		       .ddr2_dqs	(ddr2_dqs[DQS_WIDTH-1:0]),
 		       .ddr2_dqs_n	(ddr2_dqs_n[DQS_WIDTH-1:0]),
+		       .control_vio	(control_vio[35:0]),
 		       // Inputs
 		       .clk200_n	(clk200_n),
 		       .clk200_p	(clk200_p),

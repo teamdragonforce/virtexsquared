@@ -5,7 +5,7 @@ module FSABMemory(/*AUTOARG*/
    clk0_tb, rst0_tb, fsabo_credit, fsabi_valid, fsabi_did,
    fsabi_subdid, fsabi_data,
    // Inouts
-   ddr2_dq, ddr2_dqs, ddr2_dqs_n,
+   ddr2_dq, ddr2_dqs, ddr2_dqs_n, control_vio,
    // Inputs
    clk200_n, clk200_p, sys_clk_n, sys_clk_p, sys_rst_n, fsabo_valid,
    fsabo_mode, fsabo_did, fsabo_subdid, fsabo_addr, fsabo_len,
@@ -35,6 +35,8 @@ module FSABMemory(/*AUTOARG*/
 	inout [DQ_WIDTH-1:0] ddr2_dq;		// To/From the_mig of mig.v
 	inout [DQS_WIDTH-1:0] ddr2_dqs;		// To/From the_mig of mig.v
 	inout [DQS_WIDTH-1:0] ddr2_dqs_n;	// To/From the_mig of mig.v
+	
+	inout [35:0] control_vio;
 
 	output                       clk0_tb;
 	output                       rst0_tb;
@@ -506,13 +508,13 @@ module FSABMemory(/*AUTOARG*/
 		 .app_wdf_data		(app_wdf_data[(APPDATA_WIDTH)-1:0]),
 		 .app_wdf_mask_data	(app_wdf_mask_data[(APPDATA_WIDTH/8)-1:0]));
 
-	wire [35:0] control0, control1, control2, control3;
+	wire [35:0] control0, control1, control2;
 
 	chipscope_icon icon (
 		.CONTROL0(control0), // INOUT BUS [35:0]
 		.CONTROL1(control1), // INOUT BUS [35:0]
 		.CONTROL2(control2), // INOUT BUS [35:0]
-		.CONTROL3(control3)  // INOUT BUS [35:0]
+		.CONTROL3(control_vio)  // INOUT BUS [35:0]
 	);
 
 	chipscope_ila ila0 (
@@ -537,12 +539,6 @@ module FSABMemory(/*AUTOARG*/
 		.CONTROL(control2), // INOUT BUS [35:0]
 		.CLK(clk0_tb), // IN
 		.TRIG0({0, rst0_tb, phy_init_done, app_af_wren, app_af_cmd, app_af_addr, app_af_afull, app_wdf_wren, app_wdf_data, app_wdf_mask_data, app_wdf_afull}) // IN BUS [255:0]
-	);
-
-	chipscope_ila ila3 (
-		.CONTROL(control3), // INOUT BUS [35:0]
-		.CLK(clk0_tb), // IN
-		.TRIG0({0, rst0_tb, rd_data_valid, rd_data_fifo_out}) // IN BUS [255:0]
 	);
 
 endmodule
