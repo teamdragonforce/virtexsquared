@@ -46,10 +46,10 @@ TIMESPEC "TS_SYS_CLK" = PERIOD "SYS_CLK" 8 ns HIGH 50 %;
 NET "mem/the_mig/u_ddr2_infrastructure/clk200_ibufg" TNM_NET = "SYS_CLK_200";
 TIMESPEC "TS_SYS_CLK_200" = PERIOD "SYS_CLK_200" 5 ns HIGH 50 %;
 
-NET "fsabi_clk" TNM_NET = "FSABI_CLK";
+NET "fclk" TNM_NET = "FSABI_CLK";
 TIMESPEC "TS_FSABI_CLK" = PERIOD "FSABI_CLK" 8 ns HIGH 50 %;
 
-NET "clk" TNM_NET = "MAIN_CLK";
+NET "cclk" TNM_NET = "MAIN_CLK";
 TIMESPEC "TS_MAIN_CLK" = PERIOD "MAIN_CLK" 16 ns HIGH 50 %;
 
 ############################################################################
