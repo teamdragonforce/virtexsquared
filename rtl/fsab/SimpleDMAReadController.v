@@ -3,11 +3,11 @@ module SimpleDMAReadController(/*AUTOARG*/
    dmac__fsabo_valid, dmac__fsabo_mode, dmac__fsabo_did,
    dmac__fsabo_subdid, dmac__fsabo_addr, dmac__fsabo_len,
    dmac__fsabo_data, dmac__fsabo_mask, dmac__spami_busy_b,
-   dmac__spami_data, data,
+   dmac__spami_data,
    // Inputs
    clk, rst_b, dmac__fsabo_credit, fsabi_clk, fsabi_rst_b,
    fsabi_valid, fsabi_did, fsabi_subdid, fsabi_data, spamo_valid,
-   spamo_r_nw, spamo_did, spamo_addr, spamo_data, request
+   spamo_r_nw, spamo_did, spamo_addr, spamo_data
    );
 
 	`include "fsab_defines.vh"
@@ -26,7 +26,6 @@ module SimpleDMAReadController(/*AUTOARG*/
 	output reg [FSAB_DATA_HI:0] dmac__fsabo_data = 0;
 	output reg [FSAB_MASK_HI:0] dmac__fsabo_mask = 0;
 	input                       dmac__fsabo_credit;
-	input                       request;
 	
 	input                       fsabi_clk;
 	input                       fsabi_rst_b;
@@ -41,10 +40,8 @@ module SimpleDMAReadController(/*AUTOARG*/
 	input      [SPAM_ADDR_HI:0] spamo_addr;
 	input      [SPAM_DATA_HI:0] spamo_data;
 
-	output reg [FSAB_DATA_HI:0] data;
-	output reg                  ready = 0; 
 	output reg                  dmac__spami_busy_b = 0;
-	output reg [SPAM_DATA_HI:0] dmac__spami_data = 'h0;
+	output reg [63:0]           dmac__spami_data = 'h0;
 	
 	`include "clog2.vh"
 	parameter FIFO_DEPTH = 128;
@@ -66,9 +63,13 @@ module SimpleDMAReadController(/*AUTOARG*/
 	end
 `endif
 
+	/* FSAB Logic Begin */
+
 	/*** Queue of all the things read so far. ***/
 	reg [FSAB_DATA_HI:0] fifo [(FIFO_DEPTH-1):0];
-	reg [FIFO_HI:0] curr_fifo_length = 0;
+	reg [(FIFO_HI+1):0] curr_fifo_length = 0;
+        reg [FIFO_HI:0] fifo_rpos = 0;
+	reg [FIFO_HI:0] fifo_wpos = 0;
 	reg [FSAB_ADDR_HI:0] next_fsab_addr = DEFAULT_ADDR;
 
 	wire start_read;	
@@ -85,9 +86,9 @@ module SimpleDMAReadController(/*AUTOARG*/
 		if (!rst_b) begin
 			fsab_credits <= FSAB_INITIAL_CREDITS;
 		end else begin
-			if (dmac__fsabo_credit | start_trans)
-				$display("PRELOAD: Credits: %d (+%d, -%d)", fsab_credits, dmac__fsabo_credit, start_trans);
-			fsab_credits <= fsab_credits + (dmac__fsabo_credit ? 1 : 0) - (start_trans ? 1 : 0);
+			if (dmac__fsabo_credit | dmac__fsabo_valid)
+				$display("PRELOAD: Credits: %d (+%d, -%d)", fsab_credits, dmac__fsabo_credit, dmac__fsabo_valid);
+			fsab_credits <= fsab_credits + (dmac__fsabo_credit ? 1 : 0) - (dmac__fsabo_valid ? 1 : 0);
 		end
 	end
 
@@ -106,7 +107,7 @@ module SimpleDMAReadController(/*AUTOARG*/
 		dmac__fsabo_addr = {(FSAB_ADDR_HI+1){1'bx}};
 		dmac__fsabo_len = {{FSAB_LEN_HI+1}{1'bx}};
 		dmac__fsabo_data = {{FSAB_DATA_HI+1}{1'bx}};
-		dmac__fsabo_mask = {{FSAB_MASK_HI+1}{1'bx}}
+		dmac__fsabo_mask = {{FSAB_MASK_HI+1}{1'bx}};
 		if (start_read && rst_b)
 		begin
 			dmac__fsabo_valid = 1;
@@ -141,30 +142,36 @@ module SimpleDMAReadController(/*AUTOARG*/
 				read_pending <= 1;
 				current_read <= ~current_read;
 			end else if ((completed_read == current_read) && read_pending) begin
+				$display("DMAC_FIFO: Read %d", fsabi_data);
 				read_pending <= 0;
-				fifo[curr_fifo_length] <= fsabi_data;
+				fifo[fifo_wpos] <= fsabi_data;
+				fifo_wpos <= fifo_wpos + 'h1;
 				curr_fifo_length <= curr_fifo_length + 1;
 				next_fsab_addr <= next_fsab_addr + 8;		
 			end
 		end
 	end
 
+        wire request;
+	/* TODO: this logic is probably wrong */
+        assign request = spamo_valid && spamo_r_nw && (spamo_did == SPAM_DID) && ((spamo_addr & SPAM_ADDRMASK) == (SPAM_ADDRPFX & SPAM_ADDRMASK));
+
 	always @(posedge clk or negedge rst_b) begin
 		if (!rst_b) begin
-
+			dmac__spami_busy_b <= 0;
 		end else begin
 			if (request && (curr_fifo_length > 0)) begin
-				data <= fifo[0]; 	
-				for (i = 1; i < curr_fifo_length; i = i+1) begin
-					fifo[i] <= fifo[i-1];	
-				end
+				$display("DMAC: Read %d", fifo[fifo_rpos]);
+				dmac__spami_data <= fifo[fifo_rpos];
+				fifo_rpos <= fifo_rpos + 'h1;
 				curr_fifo_length <= curr_fifo_length - 1;
-				ready <= 1;
-			end else if (request) begin
-				ready <= 0;
-			end
+				dmac__spami_busy_b <= 1;
+			end else 
+				dmac__spami_busy_b <= 0;
 		end
 	end
+
+	reg current_read_1a_fclk = 0;
 				
 	always @(posedge fsabi_clk or negedge fsabi_rst_b) begin
 		if (!fsabi_rst_b) begin
@@ -172,13 +179,18 @@ module SimpleDMAReadController(/*AUTOARG*/
 			current_read_fclk <= 0;
 			completed_read_fclk <= 0;
 		end else begin
+			current_read_fclk_s1 <= current_read;
+			current_read_fclk <= current_read_fclk_s1;
+			current_read_1a_fclk <= current_read_fclk;
 			if (current_read_fclk ^ current_read_1a_fclk) begin
 
-			end if (fsabi_valid && (fsabi_did == FSAB_DID) && (fsabi_subdid = FSAB_SUBDID)) begin
+			end if (fsabi_valid && (fsabi_did == FSAB_DID) && (fsabi_subdid == FSAB_SUBDID)) begin
 				completed_read_fclk <= current_read_fclk;
 				fsabi_old_data <= fsabi_data;
 			end
 		end
 	end
+
+	/* FSAB Logic End */
 
 endmodule
