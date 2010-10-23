@@ -21,7 +21,7 @@ symlinks: .DUMMY $(RUNDIR)/stamps/symlinks
 
 $(RUNDIR)/stamps/symlinks:
 	@echo "Creating run symlinks"
-	if [ -h runs/run_0a ] ; then mv runs/run_0a runs/run_1a ; fi
+	if [ -h runs/run_0a ] ; then rm runs/run_1a; mv runs/run_0a runs/run_1a ; fi
 	ln -s $(RUN) runs/run_0a
 	@mkdir -p $(RUNDIR)/stamps
 	@touch $(RUNDIR)/stamps/symlinks
@@ -29,7 +29,7 @@ $(RUNDIR)/stamps/symlinks:
 sim-symlinks: .DUMMY $(RUNDIR)/stamps/sim-symlinks
 
 $(RUNDIR)/stamps/sim-symlinks:  $(RUNDIR)/stamps/symlinks
-	if [ -h runs/sim_0a ] ; then mv runs/sim_0a runs/sim_1a ; fi
+	if [ -h runs/sim_0a ] ; then rm runs/sim_1a; mv runs/sim_0a runs/sim_1a ; fi
 	ln -s $(RUN) runs/sim_0a
 	@touch $(RUNDIR)/stamps/sim-symlinks
 
@@ -77,7 +77,7 @@ PART = xc5vlx110t-ff1136-2
 fpga-symlinks: $(RUNDIR)/stamps/fpga-symlinks
 
 $(RUNDIR)/stamps/fpga-symlinks:  $(RUNDIR)/stamps/symlinks
-	if [ -h runs/fpga_0a ] ; then mv runs/fpga_0a runs/fpga_1a ; fi
+	if [ -h runs/fpga_0a ] ; then rm runs/fpga_1a; mv runs/fpga_0a runs/fpga_1a ; fi
 	ln -s $(RUN) runs/fpga_0a
 	@touch $(RUNDIR)/stamps/fpga-symlinks
 
