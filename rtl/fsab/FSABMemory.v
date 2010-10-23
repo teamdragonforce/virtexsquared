@@ -69,6 +69,9 @@ module FSABMemory(/*AUTOARG*/
 		end
 
 	/*** INBOUND ***/
+	reg [FSAB_LEN_HI:0] fsabo_cur_req_len_rem_0a = 0;
+	wire fsabo_cur_req_done_0a;
+	wire fsabo_new_req_0a;
 
 	/*** Inbound request FIFO (IRFIF) ***/
 `define SIMMEM_IRFIF_HI (FSAB_REQ_HI+1 + FSAB_DID_HI+1 + FSAB_DID_HI+1 + FSAB_ADDR_HI+1 + FSAB_LEN_HI)
@@ -115,9 +118,8 @@ module FSABMemory(/*AUTOARG*/
 	assign irfif_ddr_len_1a = (irfif_len_1a + 1) / 2;
 	assign irfif_wdat_0a = {fsabo_mode, fsabo_did, fsabo_subdid,
 	                       fsabo_addr, fsabo_len};
-	reg [FSAB_LEN_HI:0] fsabo_cur_req_len_rem_0a = 0;
-	wire fsabo_cur_req_done_0a = (fsabo_cur_req_len_rem_0a==0);
-	wire fsabo_new_req_0a = fsabo_valid && fsabo_cur_req_done_0a;
+	assign fsabo_cur_req_done_0a = (fsabo_cur_req_len_rem_0a==0);
+	assign fsabo_new_req_0a = fsabo_valid && fsabo_cur_req_done_0a;
 	assign irfif_wr_0a = fsabo_new_req_0a;
 	
 	always @(posedge clk0_tb or posedge rst0_tb)
@@ -238,6 +240,8 @@ module FSABMemory(/*AUTOARG*/
 	reg  [FSAB_LEN_HI:0]  mem_cur_req_ddr_len_rem_0a = 'h0;
 	wire                  mem_cur_req_active_0a;
 	reg                   mem_cur_req_active_1a = 0;
+	wire                  reading_req_0a;
+	reg                   reading_req_1a = 0;
 	wire [FSAB_ADDR_HI:0] mem_cur_req_addr_1a;
 	reg  [FSAB_ADDR_HI:0] mem_cur_req_addr_1a_r = 0;
 
@@ -256,7 +260,8 @@ module FSABMemory(/*AUTOARG*/
 	 * from irfif, which is incorrect because there may not yet be space
 	 * in the idfif yet.
 	 */
-	assign fsabo_credit = mem_cur_req_active_1a && !mem_cur_req_active_0a;
+	assign fsabo_credit = reading_req_1a &&
+	                      (!reading_req_0a || irfif_rd_0a);
 	
 	assign irfif_rd_0a = !mem_stall_0a
 	                     && ifif_have_req && !mem_cur_req_active_0a
@@ -278,6 +283,7 @@ module FSABMemory(/*AUTOARG*/
 	                       app_af_afull);
 
 
+	assign reading_req_0a = idfif_rd_0a || mem_stall_0a;
 	assign mem_cur_req_active_0a = irfif_mode_1a == FSAB_WRITE &&
 	                               ((irfif_rd_1a && irfif_ddr_len_1a != 1) ||
 	                                (mem_cur_req_ddr_len_rem_0a != 1 && mem_cur_req_ddr_len_rem_0a != 0));
@@ -301,8 +307,10 @@ module FSABMemory(/*AUTOARG*/
 			mem_cur_req_ddr_len_rem_0a <= 'h0;
 			mem_cur_req_active_1a <= 0;
 			mem_cur_req_addr_1a_r <= 0;
+			reading_req_0a <= 0;
 		end else begin
 			mem_cur_req_active_1a <= mem_cur_req_active_0a;
+			reading_req_1a <= reading_req_0a;
 		
 			if (irfif_rd_1a && ! mem_stall_0a) begin
 				mem_cur_req_ddr_len_rem_0a <= irfif_ddr_len_1a - 1;
