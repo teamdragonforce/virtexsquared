@@ -1,12 +1,11 @@
 module System(/*AUTOARG*/
    // Outputs
    ddr2_a, ddr2_ba, ddr2_cas_n, ddr2_ck, ddr2_ck_n, ddr2_cke,
-   ddr2_cs_n, ddr2_dm, ddr2_odt, ddr2_ras_n, ddr2_we_n, phy_init_done,
-   sys_clk_ibufg_div, clk0_bufg_div, clk0_tb_div, clk200_ibufg_div,
+   ddr2_cs_n, ddr2_dm, ddr2_odt, ddr2_ras_n, ddr2_we_n, leds,
    // Inouts
    ddr2_dq, ddr2_dqs, ddr2_dqs_n,
    // Inputs
-   clk200_n, clk200_p, sys_clk_n, sys_clk_p, sys_rst_n
+   clk200_n, clk200_p, sys_clk_n, sys_clk_p, sys_rst_n, corerst_btn
    );
 
 	`include "memory_defines.vh"
@@ -24,6 +23,7 @@ module System(/*AUTOARG*/
 	input		sys_clk_n;		// To mem of FSABMemory.v
 	input		sys_clk_p;		// To mem of FSABMemory.v
 	input		sys_rst_n;		// To mem of FSABMemory.v
+	input           corerst_btn;
 	// End of automatics
 	// Beginning of automatic outputs (from unused autoinst outputs)
 	output [ROW_WIDTH-1:0] ddr2_a;		// From mem of FSABMemory.v
@@ -37,11 +37,7 @@ module System(/*AUTOARG*/
 	output [ODT_WIDTH-1:0] ddr2_odt;	// From mem of FSABMemory.v
 	output		ddr2_ras_n;		// From mem of FSABMemory.v
 	output		ddr2_we_n;		// From mem of FSABMemory.v
-	output		phy_init_done;		// From mem of FSABMemory.v
-	output sys_clk_ibufg_div;
-	output clk0_bufg_div;
-	output clk0_tb_div;
-	output clk200_ibufg_div;
+	output [7:0] leds;
 	// End of automatics
 
 `include "fsab_defines.vh"
@@ -83,6 +79,7 @@ module System(/*AUTOARG*/
 	wire [FSAB_REQ_HI:0] ic__fsabo_mode;	// From core of Core.v
 	wire [FSAB_DID_HI:0] ic__fsabo_subdid;	// From core of Core.v
 	wire		ic__fsabo_valid;	// From core of Core.v
+	wire		phy_init_done;		// From mem of FSABMemory.v
 	wire [FSAB_ADDR_HI:0] pre__fsabo_addr;	// From preload of FSABPreload.v
 	wire		pre__fsabo_credit;	// From fsabarbiter of FSABArbiter.v
 	wire [FSAB_DATA_HI:0] pre__fsabo_data;	// From preload of FSABPreload.v
@@ -102,7 +99,11 @@ module System(/*AUTOARG*/
 	// End of automatics
 	
 	wire dcm_rst;
-	wire rst_b = ~(rst0_tb | dcm_rst);
+	reg [2:0] corerstbtn_ext = 0;
+	always @(posedge fsabi_clk)
+		corerstbtn_ext <= {corerstbtn_ext[1:0], corerst_btn};
+	wire corerstbtn_n = ~corerstbtn_ext[2];
+	wire rst_b = ~(rst0_tb | dcm_rst) & ~corerst_btn;
 	
 	wire spami_busy_b = cio__spami_busy_b;
 	wire [SPAM_DATA_HI:0] spami_data = cio__spami_data[SPAM_DATA_HI:0];
@@ -115,7 +116,8 @@ module System(/*AUTOARG*/
 
 	DCM dcm(.xtal(fsabi_clk),
 	              .clk(clk),
-	              .dcm_rst(dcm_rst));
+	              .rst_in(rst0_tb),
+	              .rst_out(dcm_rst));
 
 	/* XXX: fsabi_rst_b synch? */
 	/* Core AUTO_TEMPLATE (
@@ -182,6 +184,7 @@ module System(/*AUTOARG*/
 
 	/* FSABArbiter AUTO_TEMPLATE (
 		.clk(fsabi_clk),
+		.rst(~corerst_btn),
 		.fsabo_valids({pre__fsabo_valid,ic__fsabo_valid,dc__fsabo_valid}),
 		.fsabo_modes({pre__fsabo_mode[FSAB_REQ_HI:0],ic__fsabo_mode[FSAB_REQ_HI:0],dc__fsabo_mode[FSAB_REQ_HI:0]}),
 		.fsabo_dids({pre__fsabo_did[FSAB_DID_HI:0],ic__fsabo_did[FSAB_DID_HI:0],dc__fsabo_did[FSAB_DID_HI:0]}),
@@ -264,29 +267,35 @@ module System(/*AUTOARG*/
 		       .fsabo_data	(fsabo_data[FSAB_DATA_HI:0]),
 		       .fsabo_mask	(fsabo_mask[FSAB_MASK_HI:0]));
 
-	wire sys_clk_ibufg = mem.the_mig.u_ddr2_infrastructure.sys_clk_ibufg;
-	reg [31:0] sys_clk_ibufg_counter = 0;
-	assign sys_clk_ibufg_div = sys_clk_ibufg_counter[26];
-	always @(posedge sys_clk_ibufg)
-		sys_clk_ibufg_counter <= sys_clk_ibufg_counter + 1;
-
-	wire clk0_bufg = mem.the_mig.u_ddr2_infrastructure.clk0_bufg;
-	reg [31:0] clk0_bufg_counter = 0;
-	assign clk0_bufg_div = clk0_bufg_counter[26];
-	always @(posedge clk0_bufg)
-		clk0_bufg_counter <= clk0_bufg_counter + 1;
-
 	wire clk0_tb = fsabi_clk;
 	reg [31:0] clk0_tb_counter = 0;
-	assign clk0_tb_div = clk0_tb_counter[26];
+	wire clk0_tb_div = clk0_tb_counter[26];
 	always @(posedge clk0_tb)
 		clk0_tb_counter <= clk0_tb_counter + 1;
 
-	wire clk200_ibufg = mem.the_mig.u_ddr2_infrastructure.clk200_ibufg;
-	reg [31:0] clk200_ibufg_counter = 0;
-	assign clk200_ibufg_div = clk200_ibufg_counter[26];
-	always @(posedge clk200_ibufg)
-		clk200_ibufg_counter <= clk200_ibufg_counter + 1;
+	reg [31:0] clk_counter = 0;
+	assign clk_div = clk_counter[26];
+	always @(posedge clk)
+		clk_counter <= clk_counter + 1;
+	
+	reg fsabo_triggered = 0;
+	reg [21:0] fsabo_recent = 0;
+	always @(posedge fsabi_clk or negedge rst_b)
+		if (!rst_b) begin
+			fsabo_recent <= 0;
+			fsabo_triggered <= 0;
+		end else begin
+			if (fsabo_valid) begin
+				fsabo_recent <= 1;
+				fsabo_triggered <= 1;
+			end else if (fsabo_recent == 22'd5000000)
+				fsabo_recent <= 0;
+			else if (fsabo_recent != 22'd0)
+				fsabo_recent <= fsabo_recent + 1;
+		end
+		
+	assign leds = {'b0, fsabo_triggered, fsabo_recent != 0, clk_div, clk0_tb_div, phy_init_done};
+
 
 	FSABPreload preload(/*AUTOINST*/
 			    // Outputs
@@ -309,7 +318,7 @@ module System(/*AUTOARG*/
 			    .fsabi_data		(fsabi_data[FSAB_DATA_HI:0]));
 endmodule
 
-module DCM(input xtal, output clk, output dcm_rst);
+module DCM(input xtal, output clk, input rst_in, output rst_out);
 	wire locked, fb, clkdv_buf;
 	wire GND_BIT = 0;
 	assign dcm_rst = !locked;
@@ -319,7 +328,7 @@ module DCM(input xtal, output clk, output dcm_rst);
 	DCM_BASE DCM_SP_INST (.CLKIN(xtal), 
 	                      .CLKFB(fb),
 	                      .CLK0(fb),
-	                      .RST(GND_BIT), 
+	                      .RST(rst_in), 
 	                      .CLKDV(clkdv_buf),
 	                      .LOCKED(locked));
 	defparam DCM_SP_INST.CLK_FEEDBACK = "1X";

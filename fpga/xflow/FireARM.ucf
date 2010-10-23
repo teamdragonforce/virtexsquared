@@ -1,7 +1,15 @@
-NET "sys_clk_ibufg_div" LOC="L18" | IOSTANDARD=LVCMOS18;
-NET "clk0_bufg_div" LOC="G15" | IOSTANDARD=LVCMOS18;
-NET "clk0_tb_div" LOC="AD26" | IOSTANDARD=LVCMOS18;
-NET "clk200_ibufg_div" LOC="G16" | IOSTANDARD=LVCMOS18;
+NET "leds<0>" LOC="H18" | IOSTANDARD=LVCMOS18;
+NET "leds<1>" LOC="L18" | IOSTANDARD=LVCMOS18;
+NET "leds<2>" LOC="G15" | IOSTANDARD=LVCMOS18;
+NET "leds<3>" LOC="AD26" | IOSTANDARD=LVCMOS18;
+NET "leds<4>" LOC="G16" | IOSTANDARD=LVCMOS18;
+NET "leds<5>" LOC="AD25" | IOSTANDARD=LVCMOS18;
+NET "leds<6>" LOC="AD24" | IOSTANDARD=LVCMOS18;
+NET "leds<7>" LOC="AE24" | IOSTANDARD=LVCMOS18;
+
+# FPGA south
+NET "corerst_btn" LOC="V8";
+
 
 ###
 ### Begin import from MIG generated ucf
@@ -74,7 +82,6 @@ NET  "sys_clk_n"                                IOSTANDARD = LVPECL_25;
 NET  "clk200_p"                                 IOSTANDARD = LVPECL_25;
 NET  "clk200_n"                                 IOSTANDARD = LVPECL_25;
 NET  "sys_rst_n"                                IOSTANDARD = LVCMOS18;
-NET  "phy_init_done"                            IOSTANDARD = LVCMOS18;
 NET  "ddr2_dqs[*]"                              IOSTANDARD = DIFF_SSTL18_II_DCI;
 NET  "ddr2_dqs_n[*]"                            IOSTANDARD = DIFF_SSTL18_II_DCI;
 NET  "ddr2_ck[*]"                               IOSTANDARD = DIFF_SSTL18_II;
@@ -183,7 +190,6 @@ NET  "sys_clk_n"                                 LOC = "J19" ;          #Bank 3
 NET  "clk200_p"                                  LOC = "L19" ;          #Bank 3
 NET  "clk200_n"                                  LOC = "K19" ;          #Bank 3
 NET  "sys_rst_n"                                 LOC = "E9" ;          #Bank 20
-NET  "phy_init_done"                             LOC = "H18" ;          #Bank 3
 NET  "ddr2_dqs[0]"                               LOC = "AA29" ;          #Bank 17
 NET  "ddr2_dqs_n[0]"                             LOC = "AA30" ;          #Bank 17
 NET  "ddr2_dqs[1]"                               LOC = "AK28" ;          #Bank 21

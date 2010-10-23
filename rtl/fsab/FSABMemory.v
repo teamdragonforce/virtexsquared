@@ -544,28 +544,26 @@ module FSABMemory(/*AUTOARG*/
 	chipscope_ila ila0 (
 		.CONTROL(control0), // INOUT BUS [35:0]
 		.CLK(clk0_tb), // IN
-		.TRIG0({0, fsabo_valid, fsabo_mode, fsabo_did, fsabo_subdid, fsabo_addr, fsabo_len, fsabo_data, fsabo_mask}) // IN BUS [255:0]
+		.TRIG0({0, rst0_tb, fsabo_mode, fsabo_did, fsabo_subdid, fsabo_addr, fsabo_len, fsabo_data, fsabo_mask, fsabo_credit, fsabo_valid}) // IN BUS [255:0]
 	);
 
 	chipscope_ila ila1 (
 		.CONTROL(control1), // INOUT BUS [35:0]
 		.CLK(clk0_tb), // IN
-		.TRIG0({0, fsabi_valid, fsabi_did, fsabi_subdid, fsabi_data}) // IN BUS [255:0]
+		.TRIG0({0, rst0_tb,  fsabi_did, fsabi_subdid, fsabi_data, fsabi_valid}) // IN BUS [255:0]
 	);
 
 	chipscope_ila ila2 (
 		.CONTROL(control2), // INOUT BUS [35:0]
 		.CLK(clk0_tb), // IN
-		.TRIG0({0, phy_init_done, app_af_wren, app_af_cmd, app_af_addr, app_af_afull, app_wdf_wren, app_wdf_data, app_wdf_mask_data, app_wdf_afull}) // IN BUS [255:0]
+		.TRIG0({0, rst0_tb, phy_init_done, app_af_wren, app_af_cmd, app_af_addr, app_af_afull, app_wdf_wren, app_wdf_data, app_wdf_mask_data, app_wdf_afull}) // IN BUS [255:0]
 	);
 
 	chipscope_ila ila3 (
 		.CONTROL(control3), // INOUT BUS [35:0]
 		.CLK(clk0_tb), // IN
-		.TRIG0({0, rd_data_valid, rd_data_fifo_out}) // IN BUS [255:0]
+		.TRIG0({0, rst0_tb, rd_data_valid, rd_data_fifo_out}) // IN BUS [255:0]
 	);
-
-
 
 endmodule
 
