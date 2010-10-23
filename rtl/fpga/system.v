@@ -288,7 +288,7 @@ module System(/*AUTOARG*/
 			if (fsabo_valid) begin
 				fsabo_recent <= 1;
 				fsabo_triggered <= 1;
-			end else if (fsabo_recent == 22'd5000000)
+			end else if (fsabo_recent == 22'd5000000)	/* 100msec -- a nice flash on the LED */
 				fsabo_recent <= 0;
 			else if (fsabo_recent != 22'd0)
 				fsabo_recent <= fsabo_recent + 1;
