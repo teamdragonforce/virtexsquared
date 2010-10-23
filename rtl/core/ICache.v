@@ -88,16 +88,30 @@ module ICache(/*AUTOARG*/
 	
 	wire cache_hit_0a = cache_valid[rd_idx_0a] && (cache_tags[rd_idx_0a] == rd_tag_0a);
 	
-	wire [31:0] curdata_hi_0a = cache_data_hi[{rd_idx_0a,rd_didx_word_0a}];
-	wire [31:0] curdata_lo_0a = cache_data_lo[{rd_idx_0a,rd_didx_word_0a}];
 
 	/*** Processor control bus logic ***/
+	reg [31:0] ic__rd_addr_1a = 0;
+	reg [31:0] curdata_hi_1a = 0;
+	reg [31:0] curdata_lo_1a = 0;
+	
+	wire [31:0] curdata_hi_0a = cache_data_hi[{rd_idx_0a,rd_didx_word_0a}];
+	wire [31:0] curdata_lo_0a = cache_data_lo[{rd_idx_0a,rd_didx_word_0a}];
+	
 	always @(*) begin
 		ic__rd_wait_0a = ic__rd_req_0a && !cache_hit_0a;
+		ic__rd_data_1a = ic__rd_addr_1a[2] ? curdata_hi_1a : curdata_lo_1a;
 	end
-	always @(posedge clk) begin
-		// Do the actual read.
-		ic__rd_data_1a <= ic__rd_addr_0a[2] ? curdata_hi_0a : curdata_lo_0a;
+	always @(posedge clk or negedge rst_b) begin
+		if (!rst_b) begin
+			curdata_hi_1a <= 0;
+			curdata_lo_1a <= 0;
+			ic__rd_addr_1a <= 0;
+		end else begin
+			// Do the actual read.
+			curdata_hi_1a <= cache_data_hi[{rd_idx_0a,rd_didx_word_0a}];
+			curdata_lo_1a <= cache_data_lo[{rd_idx_0a,rd_didx_word_0a}];
+			ic__rd_addr_1a <= ic__rd_addr_0a;
+		end
 	end
 	
 	reg read_pending = 0;
