@@ -301,7 +301,7 @@ module FSABMemory(/*AUTOARG*/
 
 	assign app_wdf_wren = irfif_mode_1a == FSAB_WRITE && idfif_rd_1a && !mem_stall_0a;
 	assign app_wdf_data = {idfif_data2_1a, idfif_data_1a};
-	assign app_wdf_mask_data = {idfif_mask2_1a, idfif_mask_1a};
+	assign app_wdf_mask_data = ~{idfif_mask2_1a, idfif_mask_1a};
 
 	assign ofif_debit = irfif_rd_1a && irfif_mode_1a == FSAB_READ;
 
