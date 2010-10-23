@@ -47,7 +47,9 @@ project = {
 	},
 	{ name = "mem/ila3",
 	  bus = {
-	  	{ name = "bullshit", bot=0, top=255 },
+	        { name = "data", bot=0, top=7 },
+	        "drdy",
+	  	{ name = "bullshit", bot=9, top=255 },
 	  	}
 	}
 }

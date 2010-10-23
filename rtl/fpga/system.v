@@ -214,7 +214,11 @@ module System(/*AUTOARG*/
 			     .sys_idata		(sys_idata[8:0]));
 	
 	wire [35:0] control_vio;
-	chipscope_vio vio(.CONTROL(control_vio), .CLK(cclk), .SYNC_IN({sys_odata[8], sys_odata[7:0] & {8{sys_odata[7:0]}}}));
+	chipscope_ila vio (
+		.CONTROL(control_vio), // INOUT BUS [35:0]
+		.CLK(cclk0), // IN
+		.TRIG0({0, sys_odata[8:0]}) // IN BUS [255:0]
+	);
 
 	/* FSABArbiter AUTO_TEMPLATE (
 		.clk(fclk),
