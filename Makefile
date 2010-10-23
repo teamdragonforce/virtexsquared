@@ -101,11 +101,25 @@ $(RUNDIR)/stamps/fpga-xflow: $(RUNDIR)/stamps/fpga-xflow-prep
 	cd $(RUNDIR)/fpga/xflow; xflow -p $(PART) -implement balanced.opt -config bitgen.opt $(FPGA_TARGET).ngc
 	@touch $(RUNDIR)/stamps/fpga-xflow
 	@ln -s xflow/$(FPGA_TARGET).bit $(RUNDIR)/fpga/
+	@echo "Bit file generated in $(RUNDIR)/fpga/xflow."
+	@echo -e "\n\n\n"
+	@figlet "Bit file generated! Go program the FPGA now."
+	@echo -e "\n\n\n"
+
+fpga-cdc: .DUMMY $(RUNDIR)/stamps/fpga-cdc
+
+$(RUNDIR)/stamps/fpga-cdc: $(RUNDIR)/stamps/fpga-xflow
+	@echo "Generating CDC file..."
+	@touch $(RUNDIR)/stamps/fpga-cdc-start
+	rm $(RUNDIR)/fpga/xflow/$(FPGA_TARGET)_fpga_edline.*
+	cd $(RUNDIR)/fpga/xflow; echo "Y" | fpga_edline -p cdc_script.scr $(FPGA_TARGET).ncd $(FPGA_TARGET).pcf
+	@echo "CDC file generated in $(RUNDIR)/fpga/xflow."
+	@touch $(RUNDIR)/stamps/fpga-cdc
 
 fpga: .DUMMY $(RUNDIR)/stamps/fpga
 
-$(RUNDIR)/stamps/fpga: $(RUNDIR)/stamps/fpga-xflow
-	@echo "Bit file generated in $(RUNDIR)/fpga/xflow."
+$(RUNDIR)/stamps/fpga: $(RUNDIR)/stamps/fpga-cdc
+	@echo "Done!!!"
 	@touch $(RUNDIR)/stamps/fpga
 
 ###############################################################################
