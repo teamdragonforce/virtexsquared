@@ -17,14 +17,20 @@ default:
 
 ###############################################################################
 
-symlinks: .DUMMY
+symlinks: .DUMMY $(RUNDIR)/stamps/symlinks
+
+$(RUNDIR)/stamps/symlinks:
 	@echo "Creating run symlinks"
 	if [ -h runs/run_0a ] ; then mv runs/run_0a runs/run_1a ; fi
 	ln -s $(RUN) runs/run_0a
+	@touch $(RUNDIR)/stamps/symlinks
 
-sim-symlinks: .DUMMY symlinks
+sim-symlinks: .DUMMY $(RUNDIR)/stamps/sim-symlinks
+
+$(RUNDIR)/stamps/sim-symlinks:  $(RUNDIR)/stamps/symlinks
 	if [ -h runs/sim_0a ] ; then mv runs/sim_0a runs/sim_1a ; fi
 	ln -s $(RUN) runs/sim_0a
+	@touch $(RUNDIR)/stamps/sim-symlinks
 
 sim-genrtl: .DUMMY $(RUNDIR)/stamps/sim-genrtl
 
@@ -67,14 +73,17 @@ FPGA_TARGET = FireARM
 # not actually used? also needs to be changed in fgpa/xst/FireARM.xst
 PART = xc5vlx110t-ff1136-2
 
-fpga-symlinks: .DUMMY symlinks
+fpga-symlinks: $(RUNDIR)/stamps/fpga-symlinks
+
+$(RUNDIR)/stamps/fpga-symlinks:  $(RUNDIR)/stamps/symlinks
 	if [ -h runs/fpga_0a ] ; then mv runs/fpga_0a runs/fpga_1a ; fi
 	ln -s $(RUN) runs/fpga_0a
+	@touch $(RUNDIR)/stamps/fpga-symlinks
 
 # XXX: should we generate the .xst file?
 fpga-genrtl: .DUMMY $(RUNDIR)/stamps/fpga-genrtl
 
-$(RUNDIR)/stamps/fpga-genrtl: fpga-symlinks
+$(RUNDIR)/stamps/fpga-genrtl: $(RUNDIR)/stamps/fpga-symlinks
 	@echo "FPGA RTL is currently UNSYNTHESIZABLE...?"
 	@echo "Copying RTL for synthesis to $(RUNDIR)/fpga/xst..."
 	@mkdir -p $(RUNDIR)/stamps
