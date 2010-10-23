@@ -85,7 +85,7 @@ module FSABMemory(/*AUTOARG*/
 	wire [`ORFIF_WIDTH-1:0] orfif_wdat_0a;
 	wire [`ORFIF_WIDTH-1:0] orfif_rdat_1a;
 
-`define ODFIF_WIDTH (2*FSAB_DATA_HI+1)
+`define ODFIF_WIDTH (2*(FSAB_DATA_HI+1))
 `define ODFIF_DEPTH (OFIF_DEPTH * FSAB_LEN_MAX / 2)
 	wire odfif_wr_0a;
 	wire odfif_rd_0a;
@@ -168,6 +168,7 @@ module FSABMemory(/*AUTOARG*/
 	reg orfif_rd_1a = 0;
 	reg odfif_rd_1a = 0;
 	wire orfif_empty_0a;
+	wire odfif_empty_0a;
 
 	wire [FSAB_DATA_HI:0] odfif_data_1a, odfif_data2_1a;
 
@@ -339,17 +340,7 @@ module FSABMemory(/*AUTOARG*/
 	assign {orfif_did_1a, orfif_subdid_1a, orfif_len_1a} = orfif_rdat_1a;
 	assign {odfif_data2_1a, odfif_data_1a} = odfif_rdat_1a;
 
-	always @(posedge clk0_tb or posedge rst0_tb)
-		if (rst0_tb) begin
-			ofif_resp_len_rem_0a <= 0;
-		end else begin
-			if (orfif_rd_1a)
-				ofif_resp_len_rem_0a <= orfif_len_1a - 1;
-			else if (ofif_resp_len_rem_0a != 0)
-				ofif_resp_len_rem_0a <= ofif_resp_len_rem_0a - 1;
-		end
-
-	assign orfif_rd_0a = !orfif_empty_0a && !ofif_resp_active_0a;
+	assign orfif_rd_0a = !orfif_empty_0a && !odfif_empty_0a && !ofif_resp_active_0a;
 	assign odfif_rd_0a = orfif_rd_0a || (ofif_resp_active_0a && !odfif_rd_1a);
 
 	assign ofif_resp_active_0a = (orfif_rd_1a && orfif_len_1a != 1) ||
@@ -361,6 +352,16 @@ module FSABMemory(/*AUTOARG*/
 	assign fsabi_valid = orfif_rd_1a || ofif_resp_len_rem_0a != 0;
 	assign fsabi_did = orfif_did_1a;
 	assign fsabi_subdid = orfif_subdid_1a;
+
+	always @(posedge clk0_tb or posedge rst0_tb)
+		if (rst0_tb) begin
+			ofif_resp_len_rem_0a <= 0;
+		end else begin
+			if (orfif_rd_1a)
+				ofif_resp_len_rem_0a <= orfif_len_1a - 1;
+			else if (ofif_resp_len_rem_0a != 0)
+				ofif_resp_len_rem_0a <= ofif_resp_len_rem_0a - 1;
+		end
 
 	/*********************/
 	/*** Pipe-throughs ***/
@@ -389,7 +390,7 @@ module FSABMemory(/*AUTOARG*/
 	Fifo #(.DEPTH   (`IRFIF_DEPTH),
 	       .WIDTH   (`IRFIF_WIDTH))
 	irfif 
-	      (.clk     (clk),
+	      (.clk     (clk0_tb),
 	       .rst_b   (~rst0_tb),
 	       .wr_en   (irfif_wr_0a),
 	       .rd_en   (irfif_rd_0a),
@@ -399,7 +400,7 @@ module FSABMemory(/*AUTOARG*/
 	Fifo  #(.DEPTH   (FSAB_INITIAL_CREDITS * FSAB_LEN_MAX / 2),
 	        .WIDTH   (`IDFIF_WIDTH))
 	idfif
-	       (.clk     (clk),
+	       (.clk     (clk0_tb),
 	        .rst_b   (~rst0_tb),
 	        .wr_en   (idfif_wr_0a),
 	        .rd_en   (idfif_rd_0a),
@@ -409,7 +410,7 @@ module FSABMemory(/*AUTOARG*/
 	Fifo  #(.DEPTH   (FSAB_INITIAL_CREDITS),
 	        .WIDTH   (`ORFIF_WIDTH))
 	orfif
-	       (.clk     (clk),
+	       (.clk     (clk0_tb),
 	        .rst_b   (~rst0_tb),
 	        .wr_en   (orfif_wr_0a),
 	        .rd_en   (orfif_rd_0a),
@@ -420,12 +421,13 @@ module FSABMemory(/*AUTOARG*/
 	Fifo  #(.DEPTH   (FSAB_INITIAL_CREDITS * FSAB_LEN_MAX / 2),
 	        .WIDTH   (`ODFIF_WIDTH))
 	odfif
-	       (.clk     (clk),
+	       (.clk     (clk0_tb),
 	        .rst_b   (~rst0_tb),
 	        .wr_en   (odfif_wr_0a),
 	        .rd_en   (odfif_rd_0a),
 	        .wr_dat  (odfif_wdat_0a),
-	        .rd_dat  (odfif_rdat_1a));
+	        .rd_dat  (odfif_rdat_1a),
+	        .empty   (odfif_empty_0a));
 
 	mig #(/*AUTOINSTPARAM*/
 	      // Parameters
@@ -532,13 +534,22 @@ module FSABMemory(/*AUTOARG*/
 	chipscope_ila ila1 (
 		.CONTROL(control1), // INOUT BUS [35:0]
 		.CLK(clk0_tb), // IN
-		.TRIG0({0, rst0_tb, fsabi_did[3:0], fsabi_subdid[3:0], fsabi_data[63:0], fsabi_valid}) // IN BUS [255:0]
+		.TRIG0({app_af_wren, app_wdf_wren, app_af_cmd[2:0],
+		        orfif_wr_0a, irfif_did_1a[3:0], irfif_subdid_1a[3:0], ofif_debit,
+		        rd_data_valid, odfif_wr_0a,
+		        orfif_rd_0a, odfif_rd_0a, orfif_rd_1a, odfif_rd_1a, orfif_empty_0a,
+		        orfif_did_1a[3:0], orfif_subdid_1a[3:0], orfif_len_1a[3:0],
+		        ofif_resp_len_rem_0a[3:0], ofif_resp_active_0a, ofif_credit,
+		        fsabi_valid, fsabi_did[3:0], fsabi_subdid[3:0], fsabi_data[63:0]})
 	);
 
 	chipscope_ila ila2 (
 		.CONTROL(control2), // INOUT BUS [35:0]
 		.CLK(clk0_tb), // IN
-		.TRIG0({0, rst0_tb, phy_init_done, app_af_wren, app_af_cmd, app_af_addr, app_af_afull, app_wdf_wren, app_wdf_data, app_wdf_mask_data, app_wdf_afull}) // IN BUS [255:0]
+		.TRIG0({0, rst0_tb, phy_init_done,
+		        app_af_wren, app_af_cmd[2:0], app_af_addr[30:0], app_af_afull,
+		        app_wdf_wren, app_wdf_data[31:0], app_wdf_mask_data[15:0], app_wdf_afull,
+		        rd_data_valid, rd_data_fifo_out[31:0]}) // IN BUS [255:0]
 	);
 
 endmodule
