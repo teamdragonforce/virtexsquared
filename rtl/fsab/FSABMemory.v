@@ -54,119 +54,65 @@ module FSABMemory(/*AUTOARG*/
 	output wire [FSAB_DID_HI:0]  fsabi_subdid;
 	output wire [FSAB_DATA_HI:0] fsabi_data;
 
+	/***********************************/
+	/*** Fifo interface declarations ***/
+	/***********************************/
+
+`define IRFIF_DEPTH (FSAB_INITIAL_CREDITS)
+`define IRFIF_WIDTH (FSAB_REQ_HI+1 + FSAB_DID_HI+1 + FSAB_DID_HI+1 + FSAB_ADDR_HI+1 + FSAB_LEN_HI+1)
+	wire irfif_wr_0a;
+	wire irfif_rd_0a;
+	wire [`IRFIF_WIDTH-1:0] irfif_wdat_0a;
+	wire [`IRFIF_WIDTH-1:0] irfif_rdat_1a;
+
+	/* DDR: double wide, half as deep */
+`define IDFIF_DEPTH (FSAB_INITIAL_CREDITS * FSAB_LEN_MAX / 2)
+`define IDFIF_WIDTH (2*(FSAB_DATA_HI+1 + FSAB_MASK_HI+1))
+	wire idfif_wr_0a;
+	wire idfif_rd_0a;
+	wire [`IDFIF_WIDTH-1:0] idfif_wdat_0a;
+	wire [`IDFIF_WIDTH-1:0] idfif_rdat_1a;
+
+	/* XXX TODO: Is this what we want? */
+`define OFIF_DEPTH (FSAB_INITIAL_CREDITS)
+
+`define ORFIF_DEPTH (OFIF_DEPTH)
+`define ORFIF_WIDTH (FSAB_DID_HI+1 + FSAB_DID_HI+1 + FSAB_LEN_HI+1)
+	wire orfif_wr_0a;
+	wire orfif_rd_0a;
+	wire [`ORFIF_WIDTH-1:0] orfif_wdat_0a;
+	wire [`ORFIF_WIDTH-1:0] orfif_rdat_1a;
+
+`define ODFIF_WIDTH (2*FSAB_DATA_HI+1)
+`define ODFIF_DEPTH (OFIF_DEPTH * FSAB_LEN_MAX / 2)
+	wire odfif_wr_0a;
+	wire odfif_rd_0a;
+	wire [`ODFIF_WIDTH-1:0] odfif_wdat_0a;
+	wire [`ODFIF_WIDTH-1:0] odfif_rdat_1a;
+
+	/************************************/
+	/*** Demux & control declarations ***/
+	/************************************/
+
+	/* OxFIF credits */
 `define OFIF_INITIAL_CREDITS FSAB_INITIAL_CREDITS
 `define OFIF_CREDIT_WIDTH (clog2(`OFIF_INITIAL_CREDITS))
 	reg [`OFIF_CREDIT_WIDTH-1:0] ofif_credits = `OFIF_INITIAL_CREDITS;
 	wire ofif_credit;
 	wire ofif_debit;
-	always @(posedge clk0_tb or posedge rst0_tb)
-		if (rst0_tb) begin
-			ofif_credits <= `OFIF_INITIAL_CREDITS;
-		end else begin
-			ofif_credits <= ofif_credits
-			                + (ofif_debit ? -1 : 0)
-			                + (ofif_credit ? 1 : 0);
-		end
 
-	/*** INBOUND ***/
+	/* FSAB -> IFIF */
 	reg [FSAB_LEN_HI:0] fsabo_cur_req_len_rem_0a = 0;
 	wire fsabo_cur_req_done_0a;
 	wire fsabo_new_req_0a;
 
-	/*** Inbound request FIFO (IRFIF) ***/
-`define SIMMEM_IRFIF_HI (FSAB_REQ_HI+1 + FSAB_DID_HI+1 + FSAB_DID_HI+1 + FSAB_ADDR_HI+1 + FSAB_LEN_HI)
-	reg [FSAB_CREDITS_HI:0] irfif_wpos_0a = 'h0;
-	reg [FSAB_CREDITS_HI:0] irfif_rpos_0a = 'h0;
-	reg [`SIMMEM_IRFIF_HI:0] irfif_fifo [(FSAB_INITIAL_CREDITS-1):0];
-	wire irfif_wr_0a;
-	wire irfif_rd_0a;
-	wire [`SIMMEM_IRFIF_HI:0] irfif_wdat_0a;
-	reg [`SIMMEM_IRFIF_HI:0] irfif_rdat_1a;
-	wire irfif_empty_0a = (irfif_rpos_0a == irfif_wpos_0a);
-	wire irfif_full_0a = (irfif_wpos_0a == (irfif_rpos_0a + FSAB_INITIAL_CREDITS));
-	
-	always @(posedge clk0_tb or posedge rst0_tb)
-		if (rst0_tb) begin
-			irfif_wpos_0a <= 'h0;
-			irfif_rpos_0a <= 'h0;
-		end else begin
-			if (irfif_rd_0a) begin
-				/* NOTE: this FIFO style will NOT port to Xilinx! */
-				/* TODO: ^ */
-				irfif_rdat_1a <= irfif_fifo[irfif_rpos_0a[1:0]];
-				irfif_rpos_0a <= irfif_rpos_0a + 'h1;
-			end
-			
-			if (irfif_wr_0a) begin
-				irfif_fifo[irfif_wpos_0a[1:0]] <= irfif_wdat_0a;
-				irfif_wpos_0a <= irfif_wpos_0a + 'h1;
-			end
-		end
-	
-	/*** IRFIF demux & control ***/
 	wire [FSAB_REQ_HI:0]  irfif_mode_1a;
 	wire [FSAB_DID_HI:0]  irfif_did_1a;
 	wire [FSAB_DID_HI:0]  irfif_subdid_1a;
 	wire [FSAB_ADDR_HI:0] irfif_addr_1a;
 	wire [FSAB_LEN_HI:0]  irfif_len_1a;
 	wire [FSAB_LEN_HI:0]  irfif_ddr_len_1a;
-	
-	/* irfif_rd is assigned later */
-	
-	assign {irfif_mode_1a, irfif_did_1a, irfif_subdid_1a, irfif_addr_1a,
-	        irfif_len_1a} = irfif_rdat_1a;
-	assign irfif_ddr_len_1a = (irfif_len_1a + 1) / 2;
-	assign irfif_wdat_0a = {fsabo_mode, fsabo_did, fsabo_subdid,
-	                       fsabo_addr, fsabo_len};
-	assign fsabo_cur_req_done_0a = (fsabo_cur_req_len_rem_0a==0);
-	assign fsabo_new_req_0a = fsabo_valid && fsabo_cur_req_done_0a;
-	assign irfif_wr_0a = fsabo_new_req_0a;
-	
-	always @(posedge clk0_tb or posedge rst0_tb)
-		if (rst0_tb) begin
-			fsabo_cur_req_len_rem_0a <= 0;
-		end else begin
-			if (fsabo_valid && fsabo_cur_req_done_0a && (fsabo_mode == FSAB_WRITE))
-				fsabo_cur_req_len_rem_0a <= fsabo_len - 1;
-			else if (fsabo_valid && fsabo_cur_req_len_rem_0a != 0)
-				fsabo_cur_req_len_rem_0a <= fsabo_cur_req_len_rem_0a - 1;
-		end
-	
-	/*** Inbound data FIFO (IDFIF) ***/
-`define MEM_IDFIF_MAX ((FSAB_INITIAL_CREDITS * FSAB_LEN_MAX / 2) - 1)
-`define MEM_IDFIF_WIDTH (2*(FSAB_DATA_HI+1 + FSAB_MASK_HI+1))
-`define MEM_IDFIF_HI (2*(clog2(`MEM_IDFIF_MAX) - 1)+1)
-	reg [`MEM_IDFIF_HI:0] idfif_wpos_0a = 'h0;
-	reg [`MEM_IDFIF_HI:0] idfif_rpos_0a = 'h0;
-	reg [`MEM_IDFIF_WIDTH-1:0] idfif_fifo [`MEM_IDFIF_MAX:0];
-	wire idfif_wr_0a;
-	wire idfif_rd_0a;
-	wire [`MEM_IDFIF_WIDTH-1:0] idfif_wdat_0a;
-	reg [`MEM_IDFIF_WIDTH-1:0] idfif_rdat_1a;
-	wire idfif_empty_0a = (idfif_rpos_0a == idfif_wpos_0a);
-	wire idfif_full_0a = (idfif_wpos_0a == (idfif_rpos_0a + `MEM_IDFIF_MAX));
-	wire [`MEM_IDFIF_HI:0] idfif_avail_0a = idfif_wpos_0a - idfif_rpos_0a;
-	
-	always @(posedge clk0_tb or posedge rst0_tb)
-		if (rst0_tb) begin
-			idfif_wpos_0a <= 'h0;
-			idfif_rpos_0a <= 'h0;
-		end else begin
-			if (idfif_rd_0a) begin
-				/* NOTE: this FIFO style will NOT port to Xilinx! */
-				idfif_rdat_1a <= idfif_fifo[idfif_rpos_0a];
-				idfif_rpos_0a <= idfif_rpos_0a + 'h1;
-			end else begin
-				idfif_rdat_1a <= {(FSAB_DATA_HI+1 + FSAB_MASK_HI+1){1'hx}};
-			end
-			
-			if (idfif_wr_0a) begin
-				idfif_fifo[idfif_wpos_0a] <= idfif_wdat_0a;
-				idfif_wpos_0a <= idfif_wpos_0a + 'h1;
-			end
-		end
-	
-	/*** IDFIF demux & control */
+
 	wire [FSAB_DATA_HI:0] idfif_data_1a;
 	wire [FSAB_MASK_HI:0] idfif_mask_1a;
 	wire [FSAB_DATA_HI:0] idfif_data2_1a;
@@ -174,68 +120,13 @@ module FSABMemory(/*AUTOARG*/
 
 	reg [FSAB_DATA_HI:0] fsabo_prev_data;
 	reg [FSAB_MASK_HI:0] fsabo_prev_mask;
-
-	always @(posedge clk0_tb or posedge rst0_tb)
-		if (rst0_tb) begin
-			fsabo_prev_data <= 0;
-			fsabo_prev_mask <= {(FSAB_MASK_HI+1){1'h1}};
-		end else if (fsabo_valid) begin
-			fsabo_prev_data <= fsabo_data;
-			fsabo_prev_mask <= fsabo_mask;
-		end
-
-	reg fsabo_want_prev = 0;
-	always @(posedge clk0_tb or posedge rst0_tb)
-		if (rst0_tb) begin
-			fsabo_want_prev <= 0;
-		end else if (fsabo_valid && !fsabo_want_prev || fsabo_new_req_0a) begin
-			fsabo_want_prev <= 1;
-		end else if (idfif_wr_0a) begin
-			fsabo_want_prev <= 0;
-		end
 	
-	/* idfif_rd is assigned later */
-	assign {idfif_data2_1a,idfif_mask2_1a,idfif_data_1a,idfif_mask_1a} = idfif_rdat_1a;
-	assign idfif_wdat_0a = {fsabo_data, (fsabo_cur_req_done_0a ? {(FSAB_MASK_HI+1){1'h1}} : fsabo_mask),fsabo_prev_data,fsabo_prev_mask};
-	assign idfif_wr_0a = fsabo_want_prev && (fsabo_valid || fsabo_cur_req_done_0a);
-	wire idfif_req_queued_0a = idfif_wr_0a && (fsabo_cur_req_done_0a || fsabo_cur_req_len_rem_0a == 1);
-	/* NOTE: this means that idfif_rd must ALWAYS be asserted along with
-	 * irfif_rd...  even if len is 0, or even if the request was a read!
-	 */
-
-`define MEM_ICNT_WIDTH (clog2(FSAB_INITIAL_CREDITS)-1)
-	reg [`MEM_ICNT_WIDTH:0] ifif_reqs_queued_0a = 0;
-	wire ifif_have_req = ifif_reqs_queued_0a != 0;
-
-	always @(posedge clk0_tb or posedge rst0_tb)
-		if (rst0_tb) begin
-			ifif_reqs_queued_0a <= 0;
-		end else begin
-			ifif_reqs_queued_0a <= ifif_reqs_queued_0a + (idfif_req_queued_0a ? 1 : 0)
-			                                           + (irfif_rd_0a ? -1 : 0);
-		end
-	
-	/*** Pipe-throughs ***/
+	/* IFIF -> MIG */
 	wire mem_stall_0a;
 	reg irfif_rd_1a = 0;
 	reg idfif_rd_1a = 0;
-	always @(posedge clk0_tb or posedge rst0_tb)
-		if (rst0_tb) begin
-			irfif_rd_1a <= 0;
-			idfif_rd_1a <= 0;
-		end else begin
-			if (! mem_stall_0a) begin
-				irfif_rd_1a <= irfif_rd_0a;
-				idfif_rd_1a <= idfif_rd_0a;
-			end
-		end
-	
-	/*** Memory control logic ***/
-	/* Active determines whether we have a request waiting (i.e., we did
-	 * an IRFIF read).  It is high as long as we are serving it (which
-	 * is exactly the number of cycles in 'len', since the MIG requires
-	 * the data in a burst).
-	 */
+
+	reg fsabo_want_prev = 0;
 
 	reg  [FSAB_LEN_HI:0]  mem_cur_req_ddr_len_rem_0a = 'h0;
 	wire                  mem_cur_req_active_0a;
@@ -253,6 +144,115 @@ module FSABMemory(/*AUTOARG*/
 	wire                     app_wdf_afull;
 	wire [2*DQ_WIDTH-1:0]    app_wdf_data;
 	wire [2*DM_WIDTH-1:0]    app_wdf_mask_data;
+
+	/* XXX TODO: GTFO */
+`define ICNT_WIDTH (clog2(FSAB_INITIAL_CREDITS)-1)
+	reg [`ICNT_WIDTH:0] ifif_reqs_queued_0a = 0;
+	wire ifif_have_req = ifif_reqs_queued_0a != 0;
+
+	wire idfif_req_queued_0a;
+
+	/* MIG -> OFIF */
+
+	/* OFIF -> FSAB */
+	wire [2*DQ_WIDTH-1:0]    rd_data_fifo_out; 
+	wire                     rd_data_valid;
+	reg [FSAB_LEN_HI:0]      ofif_resp_len_rem_0a = 0;
+	wire                     ofif_resp_active_0a;
+
+	wire [FSAB_DID_HI:0]  orfif_did_1a;
+	wire [FSAB_DID_HI:0]  orfif_subdid_1a;
+	wire [FSAB_LEN_HI:0]  orfif_len_1a;
+	reg orfif_rd_1a = 0;
+	reg odfif_rd_1a = 0;
+	wire orfif_empty_0a;
+
+	wire [FSAB_DATA_HI:0] odfif_data_1a, odfif_data2_1a;
+
+	/*****************************/
+	/*** Demux & control logic ***/
+	/*****************************/
+
+	/*** OFIF credits ***/
+
+	always @(posedge clk0_tb or posedge rst0_tb)
+		if (rst0_tb) begin
+			ofif_credits <= `OFIF_INITIAL_CREDITS;
+		end else begin
+			ofif_credits <= ofif_credits
+			                + (ofif_debit ? -1 : 0)
+			                + (ofif_credit ? 1 : 0);
+		end
+
+	/*** FSAB -> IFIF ***/
+
+	assign irfif_wdat_0a = {fsabo_mode, fsabo_did, fsabo_subdid,
+	                       fsabo_addr, fsabo_len};
+	assign irfif_wr_0a = fsabo_new_req_0a;
+	assign fsabo_cur_req_done_0a = (fsabo_cur_req_len_rem_0a==0);
+	assign fsabo_new_req_0a = fsabo_valid && fsabo_cur_req_done_0a;
+	assign idfif_wdat_0a = {fsabo_data, (fsabo_cur_req_done_0a ? {(FSAB_MASK_HI+1){1'h1}} : fsabo_mask),fsabo_prev_data,fsabo_prev_mask};
+	assign idfif_wr_0a = fsabo_want_prev && (fsabo_valid || fsabo_cur_req_done_0a);
+	
+	always @(posedge clk0_tb or posedge rst0_tb)
+		if (rst0_tb) begin
+			fsabo_cur_req_len_rem_0a <= 0;
+		end else begin
+			if (fsabo_valid && fsabo_cur_req_done_0a && (fsabo_mode == FSAB_WRITE))
+				fsabo_cur_req_len_rem_0a <= fsabo_len - 1;
+			else if (fsabo_valid && fsabo_cur_req_len_rem_0a != 0)
+				fsabo_cur_req_len_rem_0a <= fsabo_cur_req_len_rem_0a - 1;
+		end
+
+	always @(posedge clk0_tb or posedge rst0_tb)
+		if (rst0_tb) begin
+			fsabo_prev_data <= 0;
+			fsabo_prev_mask <= {(FSAB_MASK_HI+1){1'h1}};
+		end else if (fsabo_valid) begin
+			fsabo_prev_data <= fsabo_data;
+			fsabo_prev_mask <= fsabo_mask;
+		end
+
+	always @(posedge clk0_tb or posedge rst0_tb)
+		if (rst0_tb) begin
+			fsabo_want_prev <= 0;
+		end else if (fsabo_valid && !fsabo_want_prev || fsabo_new_req_0a) begin
+			fsabo_want_prev <= 1;
+		end else if (idfif_wr_0a) begin
+			fsabo_want_prev <= 0;
+		end
+
+	/* XXX TODO: GTFO */
+	always @(posedge clk0_tb or posedge rst0_tb)
+		if (rst0_tb) begin
+			ifif_reqs_queued_0a <= 0;
+		end else begin
+			ifif_reqs_queued_0a <= ifif_reqs_queued_0a + (idfif_req_queued_0a ? 1 : 0)
+			                                           + (irfif_rd_0a ? -1 : 0);
+		end
+
+	/*** IFIF -> MIG ***/
+
+	/* irfif_rd is assigned later */
+	
+	assign {irfif_mode_1a, irfif_did_1a, irfif_subdid_1a, irfif_addr_1a,
+	        irfif_len_1a} = irfif_rdat_1a;
+	assign irfif_ddr_len_1a = (irfif_len_1a + 1) / 2;
+	assign {idfif_data2_1a,idfif_mask2_1a,idfif_data_1a,idfif_mask_1a} = idfif_rdat_1a;
+	assign idfif_req_queued_0a = idfif_wr_0a && (fsabo_cur_req_done_0a || fsabo_cur_req_len_rem_0a == 1);
+
+	
+	/* idfif_rd is assigned later */
+	/* NOTE: this means that idfif_rd must ALWAYS be asserted along with
+	 * irfif_rd...  even if len is 0, or even if the request was a read!
+	 */
+	
+	/*** Memory control logic ***/
+	/* Active determines whether we have a request waiting (i.e., we did
+	 * an IRFIF read).  It is high as long as we are serving it (which
+	 * is exactly the number of cycles in 'len', since the MIG requires
+	 * the data in a burst).
+	 */
 
 	/* If we just finished reading from the idfif for the last time
 	 * (i.e., we just went inactive), then we can release a credit. 
@@ -325,107 +325,17 @@ module FSABMemory(/*AUTOARG*/
 				mem_cur_req_addr_1a_r <= mem_cur_req_addr_1a + (FSAB_DATA_HI + 1) / 8;
 		end
 
-	/*** OUTBOUND ***/
+	/*** MIG -> OFIF ***/
 
-	wire [2*DQ_WIDTH-1:0]    rd_data_fifo_out; 
-	wire                     rd_data_valid;
-	reg [FSAB_LEN_HI:0]      ofif_resp_len_rem_0a = 0;
-	wire                     ofif_resp_active_0a;
-
-	/*** Outbound request FIFO (ORFIF) ***/
-`define MEM_ORFIF_MAX ((FSAB_LEN_MAX)-1)
-`define MEM_ORFIF_WIDTH (FSAB_DID_HI+1 + FSAB_DID_HI+1 + FSAB_LEN_HI+1)
-`define MEM_ORFIF_IND_WIDTH (clog2(`MEM_ORFIF_MAX))
-	reg [`MEM_ORFIF_IND_WIDTH-1:0] orfif_wpos_0a = 'h0;
-	reg [`MEM_ORFIF_IND_WIDTH-1:0] orfif_rpos_0a = 'h0;
-	reg [`MEM_ORFIF_WIDTH-1:0] orfif_fifo [`MEM_ORFIF_MAX:0];
-	wire orfif_wr_0a;
-	wire orfif_rd_0a;
-	wire [`MEM_ORFIF_WIDTH-1:0] orfif_wdat_0a;
-	reg [`MEM_ORFIF_WIDTH-1:0] orfif_rdat_1a;
-	wire orfif_empty_0a = (orfif_rpos_0a == orfif_wpos_0a);
-	wire orfif_full_0a = (orfif_wpos_0a == (orfif_rpos_0a + `MEM_ORFIF_MAX));
-	wire [`MEM_ORFIF_IND_WIDTH-1:0] orfif_avail_0a = orfif_wpos_0a - orfif_rpos_0a;
-
-	always @(posedge clk0_tb or posedge rst0_tb)
-		if (rst0_tb) begin
-			orfif_wpos_0a <= 'h0;
-			orfif_rpos_0a <= 'h0;
-		end else begin
-			if (orfif_rd_0a) begin
-				/* NOTE: this FIFO style will NOT port to Xilinx! */
-				orfif_rdat_1a <= orfif_fifo[orfif_rpos_0a];
-				orfif_rpos_0a <= orfif_rpos_0a + 'h1;
-			end else begin
-				orfif_rdat_1a <= {(FSAB_DATA_HI+1 + FSAB_MASK_HI+1){1'hx}};
-			end
-			
-			if (orfif_wr_0a) begin
-				orfif_fifo[orfif_wpos_0a] <= orfif_wdat_0a;
-				orfif_wpos_0a <= orfif_wpos_0a + 'h1;
-			end
-		end
-
-	/*** ORFIF demux & control ***/
-	wire [FSAB_DID_HI:0]  orfif_did_1a;
-	wire [FSAB_DID_HI:0]  orfif_subdid_1a;
-	wire [FSAB_LEN_HI:0]  orfif_len_1a;
-
-	assign orfif_wr_0a = irfif_rd_1a && irfif_mode_1a == FSAB_READ;
 	assign orfif_wdat_0a = {irfif_did_1a, irfif_subdid_1a, irfif_len_1a};
-	assign {orfif_did_1a, orfif_subdid_1a, orfif_len_1a} = orfif_rdat_1a;
-
-	/*** Outbound data FIFO (ODFIF) ***/
-`define MEM_ODFIF_MAX ((FSAB_LEN_MAX)-1)
-`define MEM_ODFIF_WIDTH (2*FSAB_DATA_HI+1)
-`define MEM_ODFIF_HI (2*(clog2(`MEM_ODFIF_MAX)-1)+1)
-	reg [`MEM_ODFIF_HI:0] odfif_wpos_0a = 'h0;
-	reg [`MEM_ODFIF_HI:0] odfif_rpos_0a = 'h0;
-	reg [`MEM_ODFIF_WIDTH:0] odfif_fifo [`MEM_ODFIF_MAX:0];
-	wire odfif_wr_0a;
-	wire odfif_rd_0a;
-	wire [`MEM_ODFIF_WIDTH:0] odfif_wdat_0a;
-	reg [`MEM_ODFIF_WIDTH:0] odfif_rdat_1a;
-	wire odfif_empty_0a = (odfif_rpos_0a == odfif_wpos_0a);
-	wire odfif_full_0a = (odfif_wpos_0a == (odfif_rpos_0a + `MEM_ODFIF_MAX));
-	wire [`MEM_ODFIF_HI:0] odfif_avail_0a = odfif_wpos_0a - odfif_rpos_0a;
-
-	always @(posedge clk0_tb or posedge rst0_tb)
-		if (rst0_tb) begin
-			odfif_wpos_0a <= 'h0;
-			odfif_rpos_0a <= 'h0;
-		end else begin
-			if (odfif_rd_0a) begin
-				/* NOTE: this FIFO style will NOT port to Xilinx! */
-				odfif_rdat_1a <= odfif_fifo[odfif_rpos_0a];
-				odfif_rpos_0a <= odfif_rpos_0a + 'h1;
-			end else begin
-				odfif_rdat_1a <= {(2*FSAB_DATA_HI-1){1'hx}};
-			end
-			
-			if (odfif_wr_0a) begin
-				odfif_fifo[odfif_wpos_0a] <= odfif_wdat_0a;
-				odfif_wpos_0a <= odfif_wpos_0a + 'h1;
-			end
-		end
-
-	/*** ORFIF demux & control ***/
+	assign orfif_wr_0a = irfif_rd_1a && irfif_mode_1a == FSAB_READ;
 	assign odfif_wdat_0a = rd_data_fifo_out;
 	assign odfif_wr_0a = rd_data_valid;
-	wire [FSAB_DATA_HI:0] odfif_data_1a, odfif_data2_1a;
+
+	/*** OFIF -> FSAB ***/
+
+	assign {orfif_did_1a, orfif_subdid_1a, orfif_len_1a} = orfif_rdat_1a;
 	assign {odfif_data2_1a, odfif_data_1a} = odfif_rdat_1a;
-	
-	/*** Pipe-throughs ***/
-	reg orfif_rd_1a = 0;
-	reg odfif_rd_1a = 0;
-	always @(posedge clk0_tb or posedge rst0_tb)
-		if (rst0_tb) begin
-			orfif_rd_1a <= 0;
-			odfif_rd_1a <= 0;
-		end else begin
-			orfif_rd_1a <= orfif_rd_0a;
-			odfif_rd_1a <= odfif_rd_0a;
-		end
 
 	always @(posedge clk0_tb or posedge rst0_tb)
 		if (rst0_tb) begin
@@ -449,6 +359,71 @@ module FSABMemory(/*AUTOARG*/
 	assign fsabi_valid = orfif_rd_1a || ofif_resp_len_rem_0a != 0;
 	assign fsabi_did = orfif_did_1a;
 	assign fsabi_subdid = orfif_subdid_1a;
+
+	/*********************/
+	/*** Pipe-throughs ***/
+	/*********************/
+
+	always @(posedge clk0_tb or posedge rst0_tb) begin
+		if (rst0_tb) begin
+			irfif_rd_1a <= 0;
+			idfif_rd_1a <= 0;
+			orfif_rd_1a <= 0;
+			odfif_rd_1a <= 0;
+		end else begin
+			if (! mem_stall_0a) begin
+				irfif_rd_1a <= irfif_rd_0a;
+				idfif_rd_1a <= idfif_rd_0a;
+			end
+			orfif_rd_1a <= orfif_rd_0a;
+			odfif_rd_1a <= odfif_rd_0a;
+		end
+	end
+
+	/**************/
+	/*** Blocks ***/
+	/**************/
+
+	Fifo #(.DEPTH   (`IRFIF_DEPTH),
+	       .WIDTH   (`IRFIF_WIDTH))
+	irfif 
+	      (.clk     (clk),
+	       .rst_b   (~rst0_tb),
+	       .wr_en   (irfif_wr_0a),
+	       .rd_en   (irfif_rd_0a),
+	       .wr_dat  (irfif_wdat_0a),
+	       .rd_dat  (irfif_rdat_1a));
+
+	Fifo  #(.DEPTH   (FSAB_INITIAL_CREDITS * FSAB_LEN_MAX / 2),
+	        .WIDTH   (`IDFIF_WIDTH))
+	idfif
+	       (.clk     (clk),
+	        .rst_b   (~rst0_tb),
+	        .wr_en   (idfif_wr_0a),
+	        .rd_en   (idfif_rd_0a),
+	        .wr_dat  (idfif_wdat_0a),
+	        .rd_dat  (idfif_rdat_1a));
+
+	Fifo  #(.DEPTH   (FSAB_INITIAL_CREDITS),
+	        .WIDTH   (`ORFIF_WIDTH))
+	orfif
+	       (.clk     (clk),
+	        .rst_b   (~rst0_tb),
+	        .wr_en   (orfif_wr_0a),
+	        .rd_en   (orfif_rd_0a),
+	        .wr_dat  (orfif_wdat_0a),
+	        .rd_dat  (orfif_rdat_1a),
+	        .empty   (orfif_empty_0a));
+
+	Fifo  #(.DEPTH   (FSAB_INITIAL_CREDITS * FSAB_LEN_MAX / 2),
+	        .WIDTH   (`ODFIF_WIDTH))
+	odfif
+	       (.clk     (clk),
+	        .rst_b   (~rst0_tb),
+	        .wr_en   (odfif_wr_0a),
+	        .rd_en   (odfif_rd_0a),
+	        .wr_dat  (odfif_wdat_0a),
+	        .rd_dat  (odfif_rdat_1a));
 
 	mig #(/*AUTOINSTPARAM*/
 	      // Parameters
