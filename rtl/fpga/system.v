@@ -212,6 +212,10 @@ module System(/*AUTOARG*/
 			     .spamo_addr	(spamo_addr[SPAM_ADDR_HI:0]),
 			     .spamo_data	(spamo_data[SPAM_DATA_HI:0]),
 			     .sys_idata		(sys_idata[8:0]));
+	
+	wire [35:0] control_vio;
+	chipscope_icon_2 icon2 (.CONTROL0(control_vio));
+	chipscope_vio vio(.CONTROL(control_vio), .CLK(cclk), .SYNC_IN({sys_odata[8], sys_odata[7:0] & {8{sys_odata[7:0]}}}));
 
 	/* FSABArbiter AUTO_TEMPLATE (
 		.clk(fclk),
