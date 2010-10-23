@@ -6,7 +6,7 @@ project = {
 	  	{ name = "fsabo_credit", bot=0, top=0 },
 	  	{ name = "fsabo_mask", bot=0, top=7 },
 	  	{ name = "fsabo_data", bot=0, top=63 },
-	  	{ name = "fsabo_len", bot=0, top=2 },
+	  	{ name = "fsabo_len", bot=0, top=3 },
 	  	{ name = "fsabo_addr", bot=0, top=30 },
 	  	{ name = "fsabo_subdid", bot=0, top=3 },
 	  	{ name = "fsabo_did", bot=0, top=3 },
