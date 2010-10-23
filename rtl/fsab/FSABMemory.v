@@ -307,7 +307,7 @@ module FSABMemory(/*AUTOARG*/
 			mem_cur_req_ddr_len_rem_0a <= 'h0;
 			mem_cur_req_active_1a <= 0;
 			mem_cur_req_addr_1a_r <= 0;
-			reading_req_0a <= 0;
+			reading_req_1a <= 0;
 		end else begin
 			mem_cur_req_active_1a <= mem_cur_req_active_0a;
 			reading_req_1a <= reading_req_0a;
@@ -543,7 +543,13 @@ module FSABMemory(/*AUTOARG*/
 	chipscope_ila ila0 (
 		.CONTROL(control0), // INOUT BUS [35:0]
 		.CLK(clk0_tb), // IN
-		.TRIG0({0, rst0_tb, fsabo_mode[0], fsabo_did[3:0], fsabo_subdid[3:0], fsabo_addr[30:0], fsabo_len[3:0], fsabo_data[63:0], fsabo_mask[7:0], fsabo_credit, fsabo_valid}) // IN BUS [255:0]
+		.TRIG0({app_af_wren, app_wdf_wren,
+		        app_af_afull, app_wdf_afull, mem_cur_req_active_0a, ifif_reqs_queued_0a[2:0],
+		        mem_cur_req_ddr_len_rem_0a[3:0], irfif_ddr_len_1a[3:0], ifif_have_req, reading_req_0a,
+		        reading_req_1a, irfif_wr_0a, irfif_rd_0a, idfif_wr_0a,
+		        idfif_rd_0a, rst0_tb, fsabo_mode[0], fsabo_did[3:0],
+		        fsabo_subdid[3:0], fsabo_addr[30:0], fsabo_len[3:0], fsabo_data[63:0],
+		        fsabo_mask[7:0], fsabo_credit, fsabo_valid}) // IN BUS [255:0]
 	);
 
 	chipscope_ila ila1 (
