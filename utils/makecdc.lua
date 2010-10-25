@@ -27,7 +27,10 @@ project = {
 	  	"app_af_afull",
 	  	"app_wdf_wren",
 	  	"app_af_wren",
-	  	{ name = "bullshit", bot=142, top=255 },
+	  	"fsabo_cur_req_done_0a",
+	  	"idfif_align_mess_0a",
+	  	"fsabo_want_prev",
+	  	{ name = "bullshit", bot=145, top=255 },
 	  	}
 	},
 	{ name = "mem/ila1",

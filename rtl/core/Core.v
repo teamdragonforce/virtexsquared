@@ -74,6 +74,7 @@ module Core(/*AUTOARG*/
 	wire		cpsrup_3a;		// From execute of Execute.v
 	wire		cpsrup_4a;		// From memory of Memory.v
 	wire [31:0]	dc__addr_3a;		// From memory of Memory.v
+	wire [35:0]	dc__control1;		// To/From dcache of DCache.v
 	wire [2:0]	dc__data_size_3a;	// From memory of Memory.v
 	wire [31:0]	dc__rd_data_4a;		// From dcache of DCache.v
 	wire		dc__rd_req_3a;		// From memory of Memory.v
@@ -192,6 +193,8 @@ module Core(/*AUTOARG*/
 		      .spamo_did	(spamo_did[SPAM_DID_HI:0]),
 		      .spamo_addr	(spamo_addr[SPAM_ADDR_HI:0]),
 		      .spamo_data	(spamo_data[SPAM_DATA_HI:0]),
+		      // Inouts
+		      .dc__control1	(dc__control1[35:0]),
 		      // Inputs
 		      .clk		(clk),
 		      .rst_b		(rst_b),
@@ -437,13 +440,15 @@ module Core(/*AUTOARG*/
 			    .cpsrup		(cpsrup_4a));	 // Templated
 
 	defparam icache.DEBUG = DEBUG;
+	defparam dcache.DEBUG = DEBUG;
+
 	generate
 	if (DEBUG == "TRUE") begin: debug
 		wire [35:0] control0, control1, control2;
 		
 		chipscope_icon icon (
 			.CONTROL0(control0), // INOUT BUS [35:0]
-			.CONTROL1(control1), // INOUT BUS [35:0]
+			.CONTROL1(dc__control1), // INOUT BUS [35:0]
 			.CONTROL2(ic__control2), // INOUT BUS [35:0]
 			.CONTROL3(control_vio)  // INOUT BUS [35:0]
 		);
@@ -457,12 +462,6 @@ module Core(/*AUTOARG*/
 			        dc__addr_3a, dc__rd_data_4a, dc__rd_req_3a, dc__rw_wait_3a, dc__wr_req_3a})
 		);
 		
-		chipscope_ila ila1 (
-			.CONTROL(control1), // INOUT BUS [35:0]
-			.CLK(fsabi_clk), // IN
-			.TRIG0({fsabi_rst_b})
-			);
-	
 	end else begin: debug_tieoff
 	
 		assign control_vio = {36{1'bz}};

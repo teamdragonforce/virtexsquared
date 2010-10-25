@@ -196,8 +196,11 @@ module FSABMemory(/*AUTOARG*/
 	assign irfif_wr_0a = fsabo_new_req_0a;
 	assign fsabo_cur_req_done_0a = (fsabo_cur_req_len_rem_0a==0);
 	assign fsabo_new_req_0a = fsabo_valid && fsabo_cur_req_done_0a;
-	assign idfif_wdat_0a = {fsabo_data, (fsabo_cur_req_done_0a ? {(FSAB_MASK_HI+1){1'h1}} : fsabo_mask),fsabo_prev_data,fsabo_prev_mask};
-	assign idfif_wr_0a = fsabo_want_prev && (fsabo_valid || fsabo_cur_req_done_0a);
+	wire   idfif_align_mess_0a = (fsabo_new_req_0a && fsabo_addr[3]);
+	assign idfif_wdat_0a = idfif_align_mess_0a ? { fsabo_data, fsabo_mask, {(FSAB_DATA_HI+1){1'h0}},  {(FSAB_MASK_HI+1){1'h0}} }
+	                                           : { fsabo_data, (fsabo_cur_req_done_0a ? {(FSAB_MASK_HI+1){1'h0}} : fsabo_mask), fsabo_prev_data, fsabo_prev_mask};
+	assign idfif_wr_0a = (fsabo_valid && idfif_align_mess_0a) ||
+		             (fsabo_want_prev && (fsabo_valid || fsabo_cur_req_done_0a));
 	
 	always @(posedge clk0_tb or posedge rst0_tb)
 		if (rst0_tb) begin
@@ -212,7 +215,7 @@ module FSABMemory(/*AUTOARG*/
 	always @(posedge clk0_tb or posedge rst0_tb)
 		if (rst0_tb) begin
 			fsabo_prev_data <= 0;
-			fsabo_prev_mask <= {(FSAB_MASK_HI+1){1'h1}};
+			fsabo_prev_mask <= {(FSAB_MASK_HI+1){1'h0}};
 		end else if (fsabo_valid) begin
 			fsabo_prev_data <= fsabo_data;
 			fsabo_prev_mask <= fsabo_mask;
@@ -221,7 +224,7 @@ module FSABMemory(/*AUTOARG*/
 	always @(posedge clk0_tb or posedge rst0_tb)
 		if (rst0_tb) begin
 			fsabo_want_prev <= 0;
-		end else if (fsabo_valid && !fsabo_want_prev || fsabo_new_req_0a) begin
+		end else if (fsabo_valid && !fsabo_want_prev || (fsabo_new_req_0a && !idfif_align_mess_0a)) begin
 			fsabo_want_prev <= 1;
 		end else if (idfif_wr_0a) begin
 			fsabo_want_prev <= 0;
@@ -291,7 +294,7 @@ module FSABMemory(/*AUTOARG*/
 	assign reading_req_0a = idfif_rd_0a || mem_stall_0a;
 	assign mem_cur_req_active_0a = irfif_mode_1a == FSAB_WRITE &&
 	                               ((irfif_rd_1a && irfif_ddr_len_1a != 1) ||
-	                                (mem_cur_req_ddr_len_rem_0a != 1 && mem_cur_req_ddr_len_rem_0a != 0));
+	                                (!irfif_rd_1a && mem_cur_req_ddr_len_rem_0a != 1 && mem_cur_req_ddr_len_rem_0a != 0));
 	
 	assign mem_cur_req_addr_1a = irfif_rd_1a ?
 	                                 irfif_addr_1a :
@@ -317,9 +320,9 @@ module FSABMemory(/*AUTOARG*/
 			mem_cur_req_active_1a <= mem_cur_req_active_0a;
 			reading_req_1a <= reading_req_0a;
 		
-			if (irfif_rd_1a && ! mem_stall_0a) begin
+			if (irfif_rd_1a && !mem_stall_0a && (irfif_mode_1a == FSAB_WRITE)) begin
 				mem_cur_req_ddr_len_rem_0a <= irfif_ddr_len_1a - 1;
-			end else if (irfif_rd_1a && mem_stall_0a) begin
+			end else if (irfif_rd_1a && mem_stall_0a && (irfif_mode_1a == FSAB_WRITE)) begin
 				mem_cur_req_ddr_len_rem_0a <= irfif_ddr_len_1a;
 			end else if (app_wdf_wren)
 				mem_cur_req_ddr_len_rem_0a <= mem_cur_req_ddr_len_rem_0a - 1;
@@ -528,7 +531,7 @@ module FSABMemory(/*AUTOARG*/
 	chipscope_ila ila0 (
 		.CONTROL(control0), // INOUT BUS [35:0]
 		.CLK(clk0_tb), // IN
-		.TRIG0({app_af_wren, app_wdf_wren,
+		.TRIG0({fsabo_want_prev, idfif_align_mess_0a, fsabo_cur_req_done_0a, app_af_wren, app_wdf_wren,
 		        app_af_afull, app_wdf_afull, mem_cur_req_active_0a, ifif_reqs_queued_0a[2:0],
 		        mem_cur_req_ddr_len_rem_0a[3:0], irfif_ddr_len_1a[3:0], ifif_have_req, reading_req_0a,
 		        reading_req_1a, irfif_wr_0a, irfif_rd_0a, idfif_wr_0a,

@@ -128,7 +128,7 @@ module System(/*AUTOARG*/
 	assign fclk_rst_b = (~fclk_mem_rst) & (phy_init_done);
 	wire cclk_rst_cause_b = (cclk_ready) & cclk_rstbtn_b & fclk_rst_b;
 	reg [15:0] cclk_rst_b_seq = 16'h0000;
-	wire cclk_rst_b = cclk_rst_cause_b;
+	wire cclk_rst_b = cclk_rst_b_seq[15];
 	
 	always @(posedge cclk or negedge cclk_rst_cause_b)
 		if (!cclk_rst_cause_b)
@@ -192,7 +192,7 @@ module System(/*AUTOARG*/
 		  .fsabi_rst_b		(fclk_rst_b),		 // Templated
 		  .spami_busy_b		(spami_busy_b),
 		  .spami_data		(spami_data[SPAM_DATA_HI:0]));
-	defparam core.DEBUG = "TRUE";
+	defparam core.DEBUG = "FALSE";
 	
 	wire [8:0] sys_odata;
 	wire sys_tookdata;
@@ -220,7 +220,7 @@ module System(/*AUTOARG*/
 	
 	chipscope_ila vio (
 		.CONTROL(control_vio), // INOUT BUS [35:0]
-		.CLK(cclk0), // IN
+		.CLK(cclk), // IN
 		.TRIG0({0, sys_odata[8:0]}) // IN BUS [255:0]
 	);
 
@@ -310,7 +310,7 @@ module System(/*AUTOARG*/
 		       .fsabo_len	(fsabo_len[FSAB_LEN_HI:0]),
 		       .fsabo_data	(fsabo_data[FSAB_DATA_HI:0]),
 		       .fsabo_mask	(fsabo_mask[FSAB_MASK_HI:0]));
-	defparam mem.DEBUG = "FALSE";
+	defparam mem.DEBUG = "TRUE";
 	
 	reg fsabo_triggered = 0;
 	reg [21:0] fsabo_recent = 0;
