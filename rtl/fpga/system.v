@@ -96,6 +96,8 @@ module System(/*AUTOARG*/
 	wire		spamo_r_nw;		// From core of Core.v
 	wire		spamo_valid;		// From core of Core.v
 	// End of automatics
+
+	wire [35:0] control_vio;
 	
 	/*** Clock and reset synchronization ***/
 	
@@ -175,6 +177,8 @@ module System(/*AUTOARG*/
 		  .spamo_did		(spamo_did[SPAM_DID_HI:0]),
 		  .spamo_addr		(spamo_addr[SPAM_ADDR_HI:0]),
 		  .spamo_data		(spamo_data[SPAM_DATA_HI:0]),
+		  // Inouts
+		  .control_vio		(control_vio[35:0]),
 		  // Inputs
 		  .clk			(cclk),			 // Templated
 		  .rst_b		(cclk_rst_b & cclk_preload_ready_b), // Templated
@@ -188,6 +192,7 @@ module System(/*AUTOARG*/
 		  .fsabi_rst_b		(fclk_rst_b),		 // Templated
 		  .spami_busy_b		(spami_busy_b),
 		  .spami_data		(spami_data[SPAM_DATA_HI:0]));
+	defparam core.DEBUG = "TRUE";
 	
 	wire [8:0] sys_odata;
 	wire sys_tookdata;
@@ -213,7 +218,6 @@ module System(/*AUTOARG*/
 			     .spamo_data	(spamo_data[SPAM_DATA_HI:0]),
 			     .sys_idata		(sys_idata[8:0]));
 	
-	wire [35:0] control_vio;
 	chipscope_ila vio (
 		.CONTROL(control_vio), // INOUT BUS [35:0]
 		.CLK(cclk0), // IN
@@ -306,7 +310,7 @@ module System(/*AUTOARG*/
 		       .fsabo_len	(fsabo_len[FSAB_LEN_HI:0]),
 		       .fsabo_data	(fsabo_data[FSAB_DATA_HI:0]),
 		       .fsabo_mask	(fsabo_mask[FSAB_MASK_HI:0]));
-
+	defparam mem.DEBUG = "FALSE";
 	
 	reg fsabo_triggered = 0;
 	reg [21:0] fsabo_recent = 0;

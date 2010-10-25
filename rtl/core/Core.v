@@ -5,6 +5,8 @@ module Core(/*AUTOARG*/
    dc__fsabo_valid, dc__fsabo_mode, dc__fsabo_did, dc__fsabo_subdid,
    dc__fsabo_addr, dc__fsabo_len, dc__fsabo_data, dc__fsabo_mask,
    spamo_valid, spamo_r_nw, spamo_did, spamo_addr, spamo_data,
+   // Inouts
+   control_vio,
    // Inputs
    clk, rst_b, ic__fsabo_credit, dc__fsabo_credit, fsabi_valid,
    fsabi_did, fsabi_subdid, fsabi_data, fsabi_clk, fsabi_rst_b,
@@ -51,6 +53,10 @@ module Core(/*AUTOARG*/
 	
 	input                        spami_busy_b;
 	input [SPAM_DATA_HI:0]       spami_data;
+	
+	inout [35:0] control_vio;
+	
+	parameter DEBUG = "TRUE";
 
 	/*AUTOWIRE*/
 	// Beginning of automatic wires (for undeclared instantiated-module outputs)
@@ -74,6 +80,7 @@ module Core(/*AUTOARG*/
 	wire		dc__rw_wait_3a;		// From dcache of DCache.v
 	wire [31:0]	dc__wr_data_3a;		// From memory of Memory.v
 	wire		dc__wr_req_3a;		// From memory of Memory.v
+	wire [35:0]	ic__control2;		// To/From icache of ICache.v
 	wire [31:0]	ic__rd_addr_0a;		// From fetch of Fetch.v
 	wire [31:0]	ic__rd_data_1a;		// From icache of ICache.v
 	wire		ic__rd_req_0a;		// From fetch of Fetch.v
@@ -153,6 +160,8 @@ module Core(/*AUTOARG*/
 		      .ic__fsabo_len	(ic__fsabo_len[FSAB_LEN_HI:0]),
 		      .ic__fsabo_data	(ic__fsabo_data[FSAB_DATA_HI:0]),
 		      .ic__fsabo_mask	(ic__fsabo_mask[FSAB_MASK_HI:0]),
+		      // Inouts
+		      .ic__control2	(ic__control2[35:0]),
 		      // Inputs
 		      .clk		(clk),
 		      .rst_b		(rst_b),
@@ -426,6 +435,40 @@ module Core(/*AUTOARG*/
 			    .cpsr		(cpsr_4a[31:0]), // Templated
 			    .spsr		(spsr_4a[31:0]), // Templated
 			    .cpsrup		(cpsrup_4a));	 // Templated
+
+	defparam icache.DEBUG = DEBUG;
+	generate
+	if (DEBUG == "TRUE") begin: debug
+		wire [35:0] control0, control1, control2;
+		
+		chipscope_icon icon (
+			.CONTROL0(control0), // INOUT BUS [35:0]
+			.CONTROL1(control1), // INOUT BUS [35:0]
+			.CONTROL2(ic__control2), // INOUT BUS [35:0]
+			.CONTROL3(control_vio)  // INOUT BUS [35:0]
+		);
+		
+		chipscope_ila ila0 (
+			.CONTROL(control0), // INOUT BUS [35:0]
+			.CLK(clk), // IN
+			.TRIG0({rst_b, bubble_1a, bubble_2a, bubble_3a, bubble_4a,
+			        stall_0a, stall_cause_execute, stall_cause_memory,
+			        ic__rd_addr_0a, ic__rd_data_1a, ic__rd_req_0a, ic__rd_wait_0a,
+			        dc__addr_3a, dc__rd_data_4a, dc__rd_req_3a, dc__rw_wait_3a, dc__wr_req_3a})
+		);
+		
+		chipscope_ila ila1 (
+			.CONTROL(control1), // INOUT BUS [35:0]
+			.CLK(fsabi_clk), // IN
+			.TRIG0({fsabi_rst_b})
+			);
+	
+	end else begin: debug_tieoff
+	
+		assign control_vio = {36{1'bz}};
+		
+	end
+	endgenerate
 
 `ifdef verilator
 	reg [31:0] clockno = 0;

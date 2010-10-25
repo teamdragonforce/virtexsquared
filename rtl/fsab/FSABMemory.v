@@ -55,6 +55,8 @@ module FSABMemory(/*AUTOARG*/
 	output wire [FSAB_DID_HI:0]  fsabi_did;
 	output wire [FSAB_DID_HI:0]  fsabi_subdid;
 	output wire [FSAB_DATA_HI:0] fsabi_data;
+	
+	parameter DEBUG = "FALSE";
 
 	/***********************************/
 	/*** Fifo interface declarations ***/
@@ -510,6 +512,10 @@ module FSABMemory(/*AUTOARG*/
 		 .app_wdf_data		(app_wdf_data[(APPDATA_WIDTH)-1:0]),
 		 .app_wdf_mask_data	(app_wdf_mask_data[(APPDATA_WIDTH/8)-1:0]));
 
+	generate
+	
+	if (DEBUG == "TRUE") begin: debug
+
 	wire [35:0] control0, control1, control2;
 
 	chipscope_icon icon (
@@ -551,6 +557,13 @@ module FSABMemory(/*AUTOARG*/
 		        app_wdf_wren, app_wdf_data[31:0], app_wdf_mask_data[15:0], app_wdf_afull,
 		        rd_data_valid, rd_data_fifo_out[31:0]}) // IN BUS [255:0]
 	);
+	
+	end else begin: debug_tieoff
+	
+	assign control_vio = {36{1'bz}};
+	
+	end
+	endgenerate
 
 endmodule
 
