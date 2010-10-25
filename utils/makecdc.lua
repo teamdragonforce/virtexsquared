@@ -30,6 +30,8 @@ project = {
 	  	"fsabo_cur_req_done_0a",
 	  	"idfif_align_mess_0a",
 	  	"fsabo_want_prev",
+	  	{ name = "mem_writes_left_0a", bot=0, top=2 },
+	  	"mem_cur_burst_active_0a",
 	  	{ name = "bullshit", bot=145, top=255 },
 	  	}
 	},
