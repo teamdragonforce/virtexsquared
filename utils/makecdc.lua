@@ -59,7 +59,7 @@ project = {
 	  	{ name = "app_af_cmd", bot=0, top=2 },
 	  	"app_wdf_wren",
 	  	"app_af_wren",
-	  	{ name = "bullshit", bot=49, top=255 },
+	  	{ name = "bullshit", bot=113, top=255 },
 	  	}
 	},
 	{ name = "mem/ila2",
@@ -68,7 +68,7 @@ project = {
 	  	"rd_data_valid",
 	  	"app_wdf_afull",
 	  	{ name = "app_wdf_mask_data", bot=0, top=15 },
-	  	{ name = "app_wdf_data", bot=0, top=31 },
+	  	{ name = "app_wdf_data", bot=0, top=127 },
 	  	"app_wdf_wren",
 	  	"app_af_afull",
 	  	{ name = "app_af_addr", bot=0, top=30 },
@@ -76,7 +76,7 @@ project = {
 	  	"app_af_wren",
 	  	"phy_init_done",
 	  	"rst0_tb",
-	  	{ name = "bullshit", bot=121, top=255 },
+	  	{ name = "bullshit", bot=217, top=255 },
 	  	}
 	},
 	{ name = "mem/ila3",

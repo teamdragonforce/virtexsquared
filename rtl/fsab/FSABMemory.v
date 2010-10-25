@@ -224,7 +224,7 @@ module FSABMemory(/*AUTOARG*/
 	always @(posedge clk0_tb or posedge rst0_tb)
 		if (rst0_tb) begin
 			fsabo_want_prev <= 0;
-		end else if (fsabo_valid && !fsabo_want_prev || (fsabo_new_req_0a && !idfif_align_mess_0a)) begin
+		end else if (fsabo_valid && !idfif_align_mess_0a && (!fsabo_want_prev || fsabo_new_req_0a)) begin
 			fsabo_want_prev <= 1;
 		end else if (idfif_wr_0a) begin
 			fsabo_want_prev <= 0;
@@ -557,7 +557,7 @@ module FSABMemory(/*AUTOARG*/
 		.CLK(clk0_tb), // IN
 		.TRIG0({0, rst0_tb, phy_init_done,
 		        app_af_wren, app_af_cmd[2:0], app_af_addr[30:0], app_af_afull,
-		        app_wdf_wren, app_wdf_data[31:0], app_wdf_mask_data[15:0], app_wdf_afull,
+		        app_wdf_wren, app_wdf_data[127:0], app_wdf_mask_data[15:0], app_wdf_afull,
 		        rd_data_valid, rd_data_fifo_out[31:0]}) // IN BUS [255:0]
 	);
 	
