@@ -21,6 +21,7 @@ symlinks: .DUMMY $(RUNDIR)/stamps/symlinks
 
 $(RUNDIR)/stamps/symlinks:
 	@echo "Creating run symlinks"
+	@mkdir -p runs
 	if [ -h runs/run_0a ] ; then rm runs/run_1a; mv runs/run_0a runs/run_1a ; fi
 	ln -s $(RUN) runs/run_0a
 	@mkdir -p $(RUNDIR)/stamps
