@@ -333,9 +333,10 @@ module FSABMemory(/*AUTOARG*/
 				mem_cur_req_ddr_len_rem_0a <= irfif_ddr_len_1a - 1;
 			end else if (irfif_rd_1a && mem_stall_0a && (irfif_mode_1a == FSAB_WRITE)) begin
 				mem_cur_req_ddr_len_rem_0a <= irfif_ddr_len_1a;
-			end else if (app_wdf_wren)
+			end else if (app_wdf_wren) begin
 				mem_cur_req_ddr_len_rem_0a <= mem_cur_req_ddr_len_rem_0a - 1;
 				mem_writes_left_0a <= mem_writes_left_0a - 1;
+			end
 			
 			if (irfif_rd_1a)
 				mem_cur_req_addr_1a_r <= irfif_addr_1a;
