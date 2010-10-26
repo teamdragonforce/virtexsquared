@@ -294,6 +294,8 @@ module FSABMemory(/*AUTOARG*/
 	                       (app_wdf_afull && irfif_mode_1a == FSAB_WRITE) ||
 	                       app_af_afull);
 
+	wire write_not_stall;
+	assign write_not_stall = irfif_rd_1a && !mem_stall_0a && (irfif_mode_1a == FSAB_WRITE);
 
 	assign reading_req_0a = idfif_rd_0a || mem_stall_0a;
 	/* ???? */
@@ -301,7 +303,7 @@ module FSABMemory(/*AUTOARG*/
 	                               ((irfif_rd_1a && irfif_ddr_len_1a != 1) ||
 	                                (!irfif_rd_1a && mem_cur_req_ddr_len_rem_0a != 1 && mem_cur_req_ddr_len_rem_0a != 0));
 	assign mem_cur_burst_active_0a = (irfif_mode_1a == FSAB_WRITE) &&
-	                                 (mem_writes_left_0a != 0 && mem_writes_left_0a != 1);
+	                                 ((mem_writes_left_0a != 0 && mem_writes_left_0a != 1) || write_not_stall);
 	
 	assign mem_cur_req_addr_1a = irfif_rd_1a ?
 	                                 irfif_addr_1a :
@@ -316,6 +318,7 @@ module FSABMemory(/*AUTOARG*/
 	assign app_wdf_mask_data = (mem_cur_req_ddr_len_rem_0a != 0) ? ~{idfif_mask2_1a, idfif_mask_1a} : {'hffffffff, 'hffffffff};
 
 	assign ofif_debit = irfif_rd_1a && irfif_mode_1a == FSAB_READ;
+
 
 	always @(posedge clk0_tb or posedge rst0_tb)
 		if (rst0_tb) begin
