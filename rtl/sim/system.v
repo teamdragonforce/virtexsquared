@@ -11,6 +11,7 @@ module System(
 	// Beginning of automatic wires (for undeclared instantiated-module outputs)
 	wire		cio__spami_busy_b;	// From conio of SPAM_ConsoleIO.v
 	wire [SPAM_DATA_HI:0] cio__spami_data;	// From conio of SPAM_ConsoleIO.v
+	wire [35:0]	control_vio;		// To/From core of Core.v
 	wire [FSAB_ADDR_HI:0] dc__fsabo_addr;	// From core of Core.v
 	wire		dc__fsabo_credit;	// From fsabarbiter of FSABArbiter.v
 	wire [FSAB_DATA_HI:0] dc__fsabo_data;	// From core of Core.v
@@ -99,6 +100,8 @@ module System(
 		  .spamo_did		(spamo_did[SPAM_DID_HI:0]),
 		  .spamo_addr		(spamo_addr[SPAM_ADDR_HI:0]),
 		  .spamo_data		(spamo_data[SPAM_DATA_HI:0]),
+		  // Inouts
+		  .control_vio		(control_vio[35:0]),
 		  // Inputs
 		  .clk			(clk),
 		  .rst_b		(rst_core_b & rst_b),	 // Templated
