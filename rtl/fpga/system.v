@@ -194,6 +194,10 @@ module tb_state_machine(/*AUTOARG*/
 			wordsleft <= nextwordsleft;
 		end
 	
+	reg [3:0] cr_btn = 4'h0;
+	always @(posedge fclk)
+		cr_btn <= {cr_btn[2:0], corerst_btn};
+	
 	always @(*) begin
 		fsabo_valid = 0;
 		fsabo_mode = 'hx;
@@ -208,9 +212,9 @@ module tb_state_machine(/*AUTOARG*/
 		nextwordsleft = wordsleft;
 		case (state)
 		'd0: begin
-			if (corerst_btn) begin
+			nextwordsleft = 8;
+			if (cr_btn[3]) begin
 				nextstate = nextstate + 1;
-				nextwordsleft = 8;
 			end
 		end
 		'd1: begin	/* 8 word write to 0x0 */
