@@ -49,9 +49,6 @@ TIMESPEC "TS_SYS_CLK_200" = PERIOD "SYS_CLK_200" 5 ns HIGH 50 %;
 NET "fclk" TNM_NET = "FSABI_CLK";
 TIMESPEC "TS_FSABI_CLK" = PERIOD "FSABI_CLK" 8 ns HIGH 50 %;
 
-NET "cclk" TNM_NET = "MAIN_CLK";
-TIMESPEC "TS_MAIN_CLK" = PERIOD "MAIN_CLK" 16 ns HIGH 50 %;
-
 ############################################################################
 ########################################################################
 # Controller 0

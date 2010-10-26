@@ -45,226 +45,65 @@ module System(/*AUTOARG*/
 
 	/*AUTOWIRE*/
 	// Beginning of automatic wires (for undeclared instantiated-module outputs)
-	wire		cclk_preload_ready_b;	// From preload of FSABPreload.v
-	wire		cio__spami_busy_b;	// From conio of SPAM_ConsoleIO.v
-	wire [SPAM_DATA_HI:0] cio__spami_data;	// From conio of SPAM_ConsoleIO.v
-	wire [FSAB_ADDR_HI:0] dc__fsabo_addr;	// From core of Core.v
-	wire		dc__fsabo_credit;	// From fsabarbiter of FSABArbiter.v
-	wire [FSAB_DATA_HI:0] dc__fsabo_data;	// From core of Core.v
-	wire [FSAB_DID_HI:0] dc__fsabo_did;	// From core of Core.v
-	wire [FSAB_LEN_HI:0] dc__fsabo_len;	// From core of Core.v
-	wire [FSAB_MASK_HI:0] dc__fsabo_mask;	// From core of Core.v
-	wire [FSAB_REQ_HI:0] dc__fsabo_mode;	// From core of Core.v
-	wire [FSAB_DID_HI:0] dc__fsabo_subdid;	// From core of Core.v
-	wire		dc__fsabo_valid;	// From core of Core.v
 	wire		fclk_mem_rst;		// From mem of FSABMemory.v
 	wire [FSAB_DATA_HI:0] fsabi_data;	// From mem of FSABMemory.v
 	wire [FSAB_DID_HI:0] fsabi_did;		// From mem of FSABMemory.v
 	wire [FSAB_DID_HI:0] fsabi_subdid;	// From mem of FSABMemory.v
 	wire		fsabi_valid;		// From mem of FSABMemory.v
-	wire [FSAB_ADDR_HI:0] fsabo_addr;	// From fsabarbiter of FSABArbiter.v
+	wire [FSAB_ADDR_HI:0] fsabo_addr;	// From tb of tb_state_machine.v
 	wire		fsabo_credit;		// From mem of FSABMemory.v
-	wire [FSAB_DATA_HI:0] fsabo_data;	// From fsabarbiter of FSABArbiter.v
-	wire [FSAB_DID_HI:0] fsabo_did;		// From fsabarbiter of FSABArbiter.v
-	wire [FSAB_LEN_HI:0] fsabo_len;		// From fsabarbiter of FSABArbiter.v
-	wire [FSAB_MASK_HI:0] fsabo_mask;	// From fsabarbiter of FSABArbiter.v
-	wire [FSAB_REQ_HI:0] fsabo_mode;	// From fsabarbiter of FSABArbiter.v
-	wire [FSAB_DID_HI:0] fsabo_subdid;	// From fsabarbiter of FSABArbiter.v
-	wire		fsabo_valid;		// From fsabarbiter of FSABArbiter.v
-	wire [FSAB_ADDR_HI:0] ic__fsabo_addr;	// From core of Core.v
-	wire		ic__fsabo_credit;	// From fsabarbiter of FSABArbiter.v
-	wire [FSAB_DATA_HI:0] ic__fsabo_data;	// From core of Core.v
-	wire [FSAB_DID_HI:0] ic__fsabo_did;	// From core of Core.v
-	wire [FSAB_LEN_HI:0] ic__fsabo_len;	// From core of Core.v
-	wire [FSAB_MASK_HI:0] ic__fsabo_mask;	// From core of Core.v
-	wire [FSAB_REQ_HI:0] ic__fsabo_mode;	// From core of Core.v
-	wire [FSAB_DID_HI:0] ic__fsabo_subdid;	// From core of Core.v
-	wire		ic__fsabo_valid;	// From core of Core.v
+	wire [FSAB_DATA_HI:0] fsabo_data;	// From tb of tb_state_machine.v
+	wire [FSAB_DID_HI:0] fsabo_did;		// From tb of tb_state_machine.v
+	wire [FSAB_LEN_HI:0] fsabo_len;		// From tb of tb_state_machine.v
+	wire [FSAB_MASK_HI:0] fsabo_mask;	// From tb of tb_state_machine.v
+	wire [FSAB_REQ_HI:0] fsabo_mode;	// From tb of tb_state_machine.v
+	wire [FSAB_DID_HI:0] fsabo_subdid;	// From tb of tb_state_machine.v
+	wire		fsabo_valid;		// From tb of tb_state_machine.v
 	wire		phy_init_done;		// From mem of FSABMemory.v
-	wire [FSAB_ADDR_HI:0] pre__fsabo_addr;	// From preload of FSABPreload.v
-	wire		pre__fsabo_credit;	// From fsabarbiter of FSABArbiter.v
-	wire [FSAB_DATA_HI:0] pre__fsabo_data;	// From preload of FSABPreload.v
-	wire [FSAB_DID_HI:0] pre__fsabo_did;	// From preload of FSABPreload.v
-	wire [FSAB_LEN_HI:0] pre__fsabo_len;	// From preload of FSABPreload.v
-	wire [FSAB_MASK_HI:0] pre__fsabo_mask;	// From preload of FSABPreload.v
-	wire [FSAB_REQ_HI:0] pre__fsabo_mode;	// From preload of FSABPreload.v
-	wire [FSAB_DID_HI:0] pre__fsabo_subdid;	// From preload of FSABPreload.v
-	wire		pre__fsabo_valid;	// From preload of FSABPreload.v
-	wire [SPAM_ADDR_HI:0] spamo_addr;	// From core of Core.v
-	wire [SPAM_DATA_HI:0] spamo_data;	// From core of Core.v
-	wire [SPAM_DID_HI:0] spamo_did;		// From core of Core.v
-	wire		spamo_r_nw;		// From core of Core.v
-	wire		spamo_valid;		// From core of Core.v
+	wire		tb_done;		// From tb of tb_state_machine.v
 	// End of automatics
 
 	wire [35:0] control_vio;
 	
 	/*** Clock and reset synchronization ***/
 	
-	wire fclk, cclk;
+	wire fclk;
 	wire fclk_rst_b;
-	wire cclk_ready;
-	
-	DCM dcm(.fclk(fclk),
-	        .cclk(cclk),
-	        .rst(~fclk_rst_b),
-	        .ready(cclk_ready));
-	
+
 	reg [26:0] fclk_counter = 0;
 	wire fclk_div = fclk_counter[26];
 	always @(posedge fclk)
 		fclk_counter <= fclk_counter + 1;
 
-	reg [26:0] cclk_counter = 0;
-	wire cclk_div = cclk_counter[26];
-	always @(posedge cclk)
-		cclk_counter <= cclk_counter + 1;
-	
-	reg [2:0] corerstbtn_ext = 0;
-	always @(posedge cclk)
-		corerstbtn_ext <= {corerstbtn_ext[1:0], corerst_btn};
-	wire cclk_rstbtn_b = ~corerstbtn_ext[2];
-	
 	assign fclk_rst_b = (~fclk_mem_rst) & (phy_init_done);
-	wire cclk_rst_cause_b = (cclk_ready) & cclk_rstbtn_b & fclk_rst_b;
-	reg [15:0] cclk_rst_b_seq = 16'h0000;
-	wire cclk_rst_b = cclk_rst_b_seq[15];
-	
-	always @(posedge cclk or negedge cclk_rst_cause_b)
-		if (!cclk_rst_cause_b)
-			cclk_rst_b_seq <= 16'h0000;
-		else
-			cclk_rst_b_seq <= {cclk_rst_b_seq[14:0], 1'b1};
 	
 	/*** Rest of the system (c.c) ***/
-	
-	wire spami_busy_b = cio__spami_busy_b;
-	wire [SPAM_DATA_HI:0] spami_data = cio__spami_data[SPAM_DATA_HI:0];
-
-	parameter FSAB_DEVICES = 3;
-	wire [FSAB_DEVICES-1:0] fsabo_clks = {cclk, cclk, cclk};
-	wire [FSAB_DEVICES-1:0] fsabo_rst_bs = {cclk_rst_b, cclk_rst_b, cclk_rst_b};
-	
-
-	/* XXX: fsabi_rst_b synch? */
-	/* Core AUTO_TEMPLATE (
-		.rst_b(cclk_rst_b & cclk_preload_ready_b),
-		.fsabi_rst_b(fclk_rst_b),
-		.fsabi_clk(fclk),
-		.clk(cclk),
-		);
-	*/
-	Core core(/*AUTOINST*/
-		  // Outputs
-		  .ic__fsabo_valid	(ic__fsabo_valid),
-		  .ic__fsabo_mode	(ic__fsabo_mode[FSAB_REQ_HI:0]),
-		  .ic__fsabo_did	(ic__fsabo_did[FSAB_DID_HI:0]),
-		  .ic__fsabo_subdid	(ic__fsabo_subdid[FSAB_DID_HI:0]),
-		  .ic__fsabo_addr	(ic__fsabo_addr[FSAB_ADDR_HI:0]),
-		  .ic__fsabo_len	(ic__fsabo_len[FSAB_LEN_HI:0]),
-		  .ic__fsabo_data	(ic__fsabo_data[FSAB_DATA_HI:0]),
-		  .ic__fsabo_mask	(ic__fsabo_mask[FSAB_MASK_HI:0]),
-		  .dc__fsabo_valid	(dc__fsabo_valid),
-		  .dc__fsabo_mode	(dc__fsabo_mode[FSAB_REQ_HI:0]),
-		  .dc__fsabo_did	(dc__fsabo_did[FSAB_DID_HI:0]),
-		  .dc__fsabo_subdid	(dc__fsabo_subdid[FSAB_DID_HI:0]),
-		  .dc__fsabo_addr	(dc__fsabo_addr[FSAB_ADDR_HI:0]),
-		  .dc__fsabo_len	(dc__fsabo_len[FSAB_LEN_HI:0]),
-		  .dc__fsabo_data	(dc__fsabo_data[FSAB_DATA_HI:0]),
-		  .dc__fsabo_mask	(dc__fsabo_mask[FSAB_MASK_HI:0]),
-		  .spamo_valid		(spamo_valid),
-		  .spamo_r_nw		(spamo_r_nw),
-		  .spamo_did		(spamo_did[SPAM_DID_HI:0]),
-		  .spamo_addr		(spamo_addr[SPAM_ADDR_HI:0]),
-		  .spamo_data		(spamo_data[SPAM_DATA_HI:0]),
-		  // Inouts
-		  .control_vio		(control_vio[35:0]),
-		  // Inputs
-		  .clk			(cclk),			 // Templated
-		  .rst_b		(cclk_rst_b & cclk_preload_ready_b), // Templated
-		  .ic__fsabo_credit	(ic__fsabo_credit),
-		  .dc__fsabo_credit	(dc__fsabo_credit),
-		  .fsabi_valid		(fsabi_valid),
-		  .fsabi_did		(fsabi_did[FSAB_DID_HI:0]),
-		  .fsabi_subdid		(fsabi_subdid[FSAB_DID_HI:0]),
-		  .fsabi_data		(fsabi_data[FSAB_DATA_HI:0]),
-		  .fsabi_clk		(fclk),			 // Templated
-		  .fsabi_rst_b		(fclk_rst_b),		 // Templated
-		  .spami_busy_b		(spami_busy_b),
-		  .spami_data		(spami_data[SPAM_DATA_HI:0]));
-	defparam core.DEBUG = "FALSE";
-	
-	wire [8:0] sys_odata;
-	wire sys_tookdata;
-	wire [8:0] sys_idata = 0;
-
-	/* SPAM_ConsoleIO AUTO_TEMPLATE (
-		.clk(cclk),
-		);
-	*/
-	SPAM_ConsoleIO conio(
-		/*AUTOINST*/
-			     // Outputs
-			     .cio__spami_busy_b	(cio__spami_busy_b),
-			     .cio__spami_data	(cio__spami_data[SPAM_DATA_HI:0]),
-			     .sys_odata		(sys_odata[8:0]),
-			     .sys_tookdata	(sys_tookdata),
-			     // Inputs
-			     .clk		(cclk),		 // Templated
-			     .spamo_valid	(spamo_valid),
-			     .spamo_r_nw	(spamo_r_nw),
-			     .spamo_did		(spamo_did[SPAM_DID_HI:0]),
-			     .spamo_addr	(spamo_addr[SPAM_ADDR_HI:0]),
-			     .spamo_data	(spamo_data[SPAM_DATA_HI:0]),
-			     .sys_idata		(sys_idata[8:0]));
 	
 	chipscope_ila vio (
 		.CONTROL(control_vio), // INOUT BUS [35:0]
 		.CLK(cclk), // IN
-		.TRIG0({0, sys_odata[8:0]}) // IN BUS [255:0]
+		.TRIG0({0}) // IN BUS [255:0]
 	);
-
-	/* FSABArbiter AUTO_TEMPLATE (
-		.clk(fclk),
-		.rst_b(fclk_rst_b),
-		.fsabo_valids({pre__fsabo_valid,ic__fsabo_valid,dc__fsabo_valid}),
-		.fsabo_modes({pre__fsabo_mode[FSAB_REQ_HI:0],ic__fsabo_mode[FSAB_REQ_HI:0],dc__fsabo_mode[FSAB_REQ_HI:0]}),
-		.fsabo_dids({pre__fsabo_did[FSAB_DID_HI:0],ic__fsabo_did[FSAB_DID_HI:0],dc__fsabo_did[FSAB_DID_HI:0]}),
-		.fsabo_subdids({pre__fsabo_subdid[FSAB_DID_HI:0],ic__fsabo_subdid[FSAB_DID_HI:0],dc__fsabo_subdid[FSAB_DID_HI:0]}),
-		.fsabo_addrs({pre__fsabo_addr[FSAB_ADDR_HI:0],ic__fsabo_addr[FSAB_ADDR_HI:0],dc__fsabo_addr[FSAB_ADDR_HI:0]}),
-		.fsabo_lens({pre__fsabo_len[FSAB_LEN_HI:0],ic__fsabo_len[FSAB_LEN_HI:0],dc__fsabo_len[FSAB_LEN_HI:0]}),
-		.fsabo_datas({pre__fsabo_data[FSAB_DATA_HI:0],ic__fsabo_data[FSAB_DATA_HI:0],dc__fsabo_data[FSAB_DATA_HI:0]}),
-		.fsabo_masks({pre__fsabo_mask[FSAB_MASK_HI:0],ic__fsabo_mask[FSAB_MASK_HI:0],dc__fsabo_mask[FSAB_MASK_HI:0]}),
-		.fsabo_credits({pre__fsabo_credit,ic__fsabo_credit,dc__fsabo_credit}),
-		); */
-	FSABArbiter fsabarbiter(
-		/*AUTOINST*/
-				// Outputs
-				.fsabo_credits	({pre__fsabo_credit,ic__fsabo_credit,dc__fsabo_credit}), // Templated
-				.fsabo_valid	(fsabo_valid),
-				.fsabo_mode	(fsabo_mode[FSAB_REQ_HI:0]),
-				.fsabo_did	(fsabo_did[FSAB_DID_HI:0]),
-				.fsabo_subdid	(fsabo_subdid[FSAB_DID_HI:0]),
-				.fsabo_addr	(fsabo_addr[FSAB_ADDR_HI:0]),
-				.fsabo_len	(fsabo_len[FSAB_LEN_HI:0]),
-				.fsabo_data	(fsabo_data[FSAB_DATA_HI:0]),
-				.fsabo_mask	(fsabo_mask[FSAB_MASK_HI:0]),
-				// Inputs
-				.clk		(fclk),		 // Templated
-				.rst_b		(fclk_rst_b),	 // Templated
-				.fsabo_valids	({pre__fsabo_valid,ic__fsabo_valid,dc__fsabo_valid}), // Templated
-				.fsabo_modes	({pre__fsabo_mode[FSAB_REQ_HI:0],ic__fsabo_mode[FSAB_REQ_HI:0],dc__fsabo_mode[FSAB_REQ_HI:0]}), // Templated
-				.fsabo_dids	({pre__fsabo_did[FSAB_DID_HI:0],ic__fsabo_did[FSAB_DID_HI:0],dc__fsabo_did[FSAB_DID_HI:0]}), // Templated
-				.fsabo_subdids	({pre__fsabo_subdid[FSAB_DID_HI:0],ic__fsabo_subdid[FSAB_DID_HI:0],dc__fsabo_subdid[FSAB_DID_HI:0]}), // Templated
-				.fsabo_addrs	({pre__fsabo_addr[FSAB_ADDR_HI:0],ic__fsabo_addr[FSAB_ADDR_HI:0],dc__fsabo_addr[FSAB_ADDR_HI:0]}), // Templated
-				.fsabo_lens	({pre__fsabo_len[FSAB_LEN_HI:0],ic__fsabo_len[FSAB_LEN_HI:0],dc__fsabo_len[FSAB_LEN_HI:0]}), // Templated
-				.fsabo_datas	({pre__fsabo_data[FSAB_DATA_HI:0],ic__fsabo_data[FSAB_DATA_HI:0],dc__fsabo_data[FSAB_DATA_HI:0]}), // Templated
-				.fsabo_masks	({pre__fsabo_mask[FSAB_MASK_HI:0],ic__fsabo_mask[FSAB_MASK_HI:0],dc__fsabo_mask[FSAB_MASK_HI:0]}), // Templated
-				.fsabo_clks	(fsabo_clks[FSAB_DEVICES-1:0]),
-				.fsabo_rst_bs	(fsabo_rst_bs[FSAB_DEVICES-1:0]),
-				.fsabo_credit	(fsabo_credit));
-	defparam fsabarbiter.FSAB_DEVICES = FSAB_DEVICES;
-
+	
+	/* State machine lives on fclk and fclk_rst_b */
+	/* generates fsabo_valid, fsabo_mode, fsabo_subdid, fsabo_did, fsabo_addr, fsabo_len, fsabo_data, fsabo_mask */
+	tb_state_machine tb(/*AUTOINST*/
+			    // Outputs
+			    .fsabo_valid	(fsabo_valid),
+			    .fsabo_mode		(fsabo_mode[FSAB_REQ_HI:0]),
+			    .fsabo_did		(fsabo_did[FSAB_DID_HI:0]),
+			    .fsabo_subdid	(fsabo_subdid[FSAB_DID_HI:0]),
+			    .fsabo_addr		(fsabo_addr[FSAB_ADDR_HI:0]),
+			    .fsabo_len		(fsabo_len[FSAB_LEN_HI:0]),
+			    .fsabo_data		(fsabo_data[FSAB_DATA_HI:0]),
+			    .fsabo_mask		(fsabo_mask[FSAB_MASK_HI:0]),
+			    .tb_done		(tb_done),
+			    // Inputs
+			    .fclk		(fclk),
+			    .fclk_rst_b		(fclk_rst_b),
+			    .corerst_btn	(corerst_btn),
+			    .fsabo_credit	(fsabo_credit));
+	
 	/* FSABMemory AUTO_TEMPLATE (
 		.clk0_tb(fclk),
 		.rst0_tb(fclk_mem_rst),
@@ -312,76 +151,174 @@ module System(/*AUTOARG*/
 		       .fsabo_mask	(fsabo_mask[FSAB_MASK_HI:0]));
 	defparam mem.DEBUG = "TRUE";
 	
-	reg fsabo_triggered = 0;
-	reg [21:0] fsabo_recent = 0;
+	assign leds = {1'b0, fclk_rst_b, 1'b0, 1'b1, 1'b1, tb_done, fclk_div, phy_init_done};
+endmodule
+
+module tb_state_machine(/*AUTOARG*/
+   // Outputs
+   fsabo_valid, fsabo_mode, fsabo_did, fsabo_subdid, fsabo_addr,
+   fsabo_len, fsabo_data, fsabo_mask, tb_done,
+   // Inputs
+   fclk, fclk_rst_b, corerst_btn, fsabo_credit
+   );
+
+`include "fsab_defines.vh"
+
+	input fclk;
+	input fclk_rst_b;
+	
+	input corerst_btn;
+	
+	output reg                  fsabo_valid;
+	output reg [FSAB_REQ_HI:0]  fsabo_mode;
+	output reg [FSAB_DID_HI:0]  fsabo_did;
+	output reg [FSAB_DID_HI:0]  fsabo_subdid;
+	output reg [FSAB_ADDR_HI:0] fsabo_addr;
+	output reg [FSAB_LEN_HI:0]  fsabo_len;
+	output reg [FSAB_DATA_HI:0] fsabo_data;
+	output reg [FSAB_MASK_HI:0] fsabo_mask;
+	
+	input                       fsabo_credit;
+
+	output reg                  tb_done;
+
+	reg [4:0] state = 0, nextstate = 0;
+	reg [3:0] wordsleft = 0, nextwordsleft = 0;
+	
 	always @(posedge fclk or negedge fclk_rst_b)
 		if (!fclk_rst_b) begin
-			fsabo_recent <= 0;
-			fsabo_triggered <= 0;
+			state <= 0;
+			wordsleft <= 0;
 		end else begin
-			if (fsabo_valid) begin
-				fsabo_recent <= 1;
-				fsabo_triggered <= 1;
-			end else if (fsabo_recent == 22'd5000000)	/* 100msec -- a nice flash on the LED */
-				fsabo_recent <= 0;
-			else if (fsabo_recent != 22'd0)
-				fsabo_recent <= fsabo_recent + 1;
+			state <= nextstate;
+			wordsleft <= nextwordsleft;
 		end
-		
-	assign leds = {1'b0, fclk_rst_b, cclk_rst_b, fsabo_triggered, fsabo_recent != 0, cclk_div, fclk_div, phy_init_done};
-
-	/* FSABPreload AUTO_TEMPLATE (
-		.rst_b(cclk_rst_b),
-		.rst_core_b(cclk_preload_ready_b),
-		.clk(cclk),
-		);
-	*/
-	FSABPreload preload(/*AUTOINST*/
-			    // Outputs
-			    .rst_core_b		(cclk_preload_ready_b), // Templated
-			    .pre__fsabo_valid	(pre__fsabo_valid),
-			    .pre__fsabo_mode	(pre__fsabo_mode[FSAB_REQ_HI:0]),
-			    .pre__fsabo_did	(pre__fsabo_did[FSAB_DID_HI:0]),
-			    .pre__fsabo_subdid	(pre__fsabo_subdid[FSAB_DID_HI:0]),
-			    .pre__fsabo_addr	(pre__fsabo_addr[FSAB_ADDR_HI:0]),
-			    .pre__fsabo_len	(pre__fsabo_len[FSAB_LEN_HI:0]),
-			    .pre__fsabo_data	(pre__fsabo_data[FSAB_DATA_HI:0]),
-			    .pre__fsabo_mask	(pre__fsabo_mask[FSAB_MASK_HI:0]),
-			    // Inputs
-			    .clk		(cclk),		 // Templated
-			    .rst_b		(cclk_rst_b),	 // Templated
-			    .pre__fsabo_credit	(pre__fsabo_credit),
-			    .fsabi_valid	(fsabi_valid),
-			    .fsabi_did		(fsabi_did[FSAB_DID_HI:0]),
-			    .fsabi_subdid	(fsabi_subdid[FSAB_DID_HI:0]),
-			    .fsabi_data		(fsabi_data[FSAB_DATA_HI:0]));
-endmodule
-
-module DCM(input fclk, output cclk, input rst, output ready);
-	wire locked, fb, clkdv_buf;
-	assign ready = locked;
-
-	BUFG CLKDV_BUFG_INST (.I(clkdv_buf),
-	                      .O(cclk));
-	DCM_BASE DCM_SP_INST (.CLKIN(fclk), 
-	                      .CLKFB(fb),
-	                      .CLK0(fb),
-	                      .RST(rst), 
-	                      .CLKDV(clkdv_buf),
-	                      .LOCKED(locked));
-	defparam DCM_SP_INST.CLK_FEEDBACK = "1X";
-	defparam DCM_SP_INST.CLKDV_DIVIDE = 2.0;
-	defparam DCM_SP_INST.CLKIN_DIVIDE_BY_2 = "FALSE";
-	defparam DCM_SP_INST.CLKIN_PERIOD = 8.000;
-	defparam DCM_SP_INST.CLKOUT_PHASE_SHIFT = "NONE";
-	defparam DCM_SP_INST.DESKEW_ADJUST = "SYSTEM_SYNCHRONOUS";
-	defparam DCM_SP_INST.DFS_FREQUENCY_MODE = "LOW";
-	defparam DCM_SP_INST.DLL_FREQUENCY_MODE = "LOW";
-	defparam DCM_SP_INST.DUTY_CYCLE_CORRECTION = "TRUE";
-	defparam DCM_SP_INST.FACTORY_JF = 16'hC080;
-	defparam DCM_SP_INST.PHASE_SHIFT = 0;
-	defparam DCM_SP_INST.STARTUP_WAIT = "TRUE";
-endmodule
+	
+	always @(*) begin
+		fsabo_valid = 0;
+		fsabo_mode = 'hx;
+		fsabo_did = 4'hx;
+		fsabo_subdid = 4'hx;
+		fsabo_addr = 31'hxxxxxxxx;
+		fsabo_len = 3'hx;
+		fsabo_data = 64'hxxxxxxxxxxxxxxxx;
+		fsabo_mask = 8'hxx;
+		tb_done = 0;
+		nextstate = state;
+		nextwordsleft = wordsleft;
+		case (state)
+		'd0: begin
+			if (corerst_btn) begin
+				nextstate = nextstate + 1;
+				nextwordsleft = 8;
+			end
+		end
+		'd1: begin	/* 8 word write to 0x0 */
+			fsabo_valid = 1;
+			fsabo_mode = FSAB_WRITE;
+			fsabo_did = 0;
+			fsabo_subdid = 0;
+			fsabo_addr = 0;
+			fsabo_len = 8;
+			fsabo_data = {16{wordsleft}};
+			fsabo_mask = 8'hFF;
+			nextwordsleft = wordsleft - 1;
+			if (wordsleft == 1) begin
+				nextstate = nextstate + 1;
+				nextwordsleft = 0;
+			end
+		end
+		'd2: begin	/* Wait for credit */
+			if (fsabo_credit) begin
+				nextstate = nextstate + 1;
+			end
+		end
+		'd3: begin	/* 8 word read from 0x0 */
+			fsabo_valid = 1;
+			fsabo_mode = FSAB_READ;
+			fsabo_did = 0;
+			fsabo_subdid = 0;
+			fsabo_addr = 0;
+			fsabo_len = 8;
+			fsabo_data = 64'hDEADBEEFDEADBEEF;
+			fsabo_mask = 8'hFF;
+			nextstate = nextstate + 1;
+		end
+		'd4: begin	/* Wait for credit */
+			if (fsabo_credit) begin
+				nextstate = nextstate + 1;
+			end
+		end 
+		'd5: begin	/* 1 word write to 0x8 */
+			fsabo_valid = 1;
+			fsabo_mode = FSAB_WRITE;
+			fsabo_did = 0;
+			fsabo_subdid = 0;
+			fsabo_addr = 'h8;
+			fsabo_len = 1;
+			fsabo_data = 64'h1EA754171EA75417;
+			fsabo_mask = 8'hF0;
+			nextstate = nextstate + 1;
+		end
+		'd6: begin	/* Wait for credit */
+			if (fsabo_credit) begin
+				nextstate = nextstate + 1;
+			end
+		end 
+		'd7: begin	/* 8 word read from 0x0 */
+			fsabo_valid = 1;
+			fsabo_mode = FSAB_READ;
+			fsabo_did = 0;
+			fsabo_subdid = 0;
+			fsabo_addr = 0;
+			fsabo_len = 8;
+			fsabo_data = 64'hDEADBEEFDEADBEEF;
+			fsabo_mask = 8'hFF;
+			nextstate = nextstate + 1;
+		end
+		'd8: begin	/* Wait for credit */
+			if (fsabo_credit) begin
+				nextstate = nextstate + 1;
+			end
+		end 
+		'd9: begin	/* 1 word write to 0x4 */
+			fsabo_valid = 1;
+			fsabo_mode = FSAB_WRITE;
+			fsabo_did = 0;
+			fsabo_subdid = 0;
+			fsabo_addr = 'h4;
+			fsabo_len = 1;
+			fsabo_data = 64'h1337133713371337;
+			fsabo_mask = 8'h0F;
+			nextstate = nextstate + 1;
+		end
+		'd10: begin	/* Wait for credit */
+			if (fsabo_credit) begin
+				nextstate = nextstate + 1;
+			end
+		end 
+		'd11: begin	/* 8 word read from 0x0 */
+			fsabo_valid = 1;
+			fsabo_mode = FSAB_READ;
+			fsabo_did = 0;
+			fsabo_subdid = 0;
+			fsabo_addr = 0;
+			fsabo_len = 8;
+			fsabo_data = 64'hDEADBEEFDEADBEEF;
+			fsabo_mask = 8'hFF;
+			nextstate = nextstate + 1;
+		end
+		'd12: begin	/* Wait for credit */
+			if (fsabo_credit) begin
+				nextstate = nextstate + 1;
+			end
+		end 
+		'd13: begin
+			tb_done = 1;
+		end
+		endcase
+	end
+endmodule	
 
 
 // Local Variables:
