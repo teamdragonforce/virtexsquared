@@ -311,7 +311,7 @@ module FSABMemory(/*AUTOARG*/
 	assign app_af_addr = mem_cur_req_addr_1a;
 	assign app_af_wren = irfif_rd_1a && !mem_stall_0a;
 
-	assign app_wdf_wren = irfif_mode_1a == FSAB_WRITE && (mem_writes_left_0a != 0) && !mem_stall_0a;
+	assign app_wdf_wren = irfif_mode_1a == FSAB_WRITE && irfif_rd_1a && !mem_stall_0a;
 	assign app_wdf_data = {idfif_data2_1a, idfif_data_1a};
 	assign app_wdf_mask_data = (mem_cur_req_ddr_len_rem_0a != 0) ? ~{idfif_mask2_1a, idfif_mask_1a} : {'hffffffff, 'hffffffff};
 
@@ -329,7 +329,7 @@ module FSABMemory(/*AUTOARG*/
 			reading_req_1a <= reading_req_0a;
 		
 			if (irfif_rd_1a && !mem_stall_0a && (irfif_mode_1a == FSAB_WRITE)) begin
-				mem_writes_left_0a <= 4; /* XXX TODO MAGIC NUMBER */
+				mem_writes_left_0a <= 3; /* XXX TODO MAGIC NUMBER */
 				mem_cur_req_ddr_len_rem_0a <= irfif_ddr_len_1a - 1;
 			end else if (irfif_rd_1a && mem_stall_0a && (irfif_mode_1a == FSAB_WRITE)) begin
 				mem_cur_req_ddr_len_rem_0a <= irfif_ddr_len_1a;
