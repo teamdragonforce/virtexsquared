@@ -332,9 +332,9 @@ module DCache(/*AUTOARG*/
 	
 	always @(*) begin
 		if (!dc__addr_4a[31]) /* FSAB */ begin
+			dc__rd_data_4a = dc__addr_4a[2] ? curdata_hi_4a : curdata_lo_4a;
 			if (!dc__rw_wait_4a && dc__rd_req_4a)
 				$display("DCACHE: READ COMPLETE: Addr %08x, data %08x", dc__addr_4a, dc__rd_data_4a);
-			dc__rd_data_4a = dc__addr_4a[2] ? curdata_hi_4a : curdata_lo_4a;
 		end else /* SPAM */ begin
 			dc__rd_data_4a = (spam_timeout_4a == 0) ? 32'hDEADDEAD : spami_data_4a;
 		end
