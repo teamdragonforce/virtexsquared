@@ -253,12 +253,12 @@ module tb_state_machine(/*AUTOARG*/
 				nextstate = nextstate + 1;
 			end
 		end 
-		'd5: begin	/* 1 word write to 0x8 */
+		'd5: begin	/* 1 word write to 0x10 (aligned) */
 			fsabo_valid = 1;
 			fsabo_mode = FSAB_WRITE;
 			fsabo_did = 0;
 			fsabo_subdid = 0;
-			fsabo_addr = 'h8;
+			fsabo_addr = 'h10;
 			fsabo_len = 1;
 			fsabo_data = 64'h1EA754171EA75417;
 			fsabo_mask = 8'hF0;
@@ -285,12 +285,12 @@ module tb_state_machine(/*AUTOARG*/
 				nextstate = nextstate + 1;
 			end
 		end 
-		'd9: begin	/* 1 word write to 0x4 */
+		'd9: begin	/* 1 word write to 0x8 (unaligned) */
 			fsabo_valid = 1;
 			fsabo_mode = FSAB_WRITE;
 			fsabo_did = 0;
 			fsabo_subdid = 0;
-			fsabo_addr = 'h4;
+			fsabo_addr = 'h8;
 			fsabo_len = 1;
 			fsabo_data = 64'h1337133713371337;
 			fsabo_mask = 8'h0F;
