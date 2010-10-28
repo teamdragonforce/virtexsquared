@@ -56,7 +56,7 @@ module Core(/*AUTOARG*/
 	
 	inout [35:0] control_vio;
 	
-	parameter DEBUG = "TRUE";
+	parameter DEBUG = "FALSE";
 
 	/*AUTOWIRE*/
 	// Beginning of automatic wires (for undeclared instantiated-module outputs)

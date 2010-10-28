@@ -353,7 +353,7 @@ module DCache(/*AUTOARG*/
 			.CONTROL(dc__control1), // INOUT BUS [35:0]
 			.CLK(clk), // IN
 			.TRIG0({rst_b,
-			        start_read, dc__wr_req_3a && fsab_credit_available,
+			        start_read, dc__wr_req_3a && fsab_credit_avail,
 			        completed_read, current_read, read_pending, 
 			        dc__wr_req_3a, dc__rd_req_3a, dc__rd_req_3a || dc__wr_req_3a, dc__rw_wait_3a, cache_hit_3a,
 			        dc__addr_3a[31:0], dc__wr_data_3a[31:0],
