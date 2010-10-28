@@ -319,7 +319,7 @@ module System(/*AUTOARG*/
 			fsabo_recent <= 0;
 			fsabo_triggered <= 0;
 		end else begin
-			if (fsabo_valid) begin
+			if (fsabo_valid && (fsabo_mode == FSAB_READ)) begin
 				fsabo_recent <= 1;
 				fsabo_triggered <= 1;
 			end else if (fsabo_recent == 22'd5000000)	/* 100msec -- a nice flash on the LED */
