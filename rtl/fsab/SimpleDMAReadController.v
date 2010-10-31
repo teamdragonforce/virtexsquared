@@ -1,3 +1,17 @@
+
+/* I'm thinking somewhere in the lines of:
+   spamo_addr to config mapping: 
+     00 = next_start_addr 
+     (change the start reading location of the next trigger by changing the value here)
+     01 = next_len
+     (change the length read of the next trigger by changing the value here)
+     10 = autotrigger
+     (once it finishes reading all the way through, it will start reading again from next_start_addr)
+     11 = trigger
+     (once it finishes reading all the way through, if this value is set to 1, sets it to 0 and 
+      starts reading again from next_start_addr (valid only when autotrigger = 0)) 
+*/
+
 module SimpleDMAReadController(/*AUTOARG*/
    // Outputs
    dmac__fsabo_valid, dmac__fsabo_mode, dmac__fsabo_did,
@@ -40,6 +54,7 @@ module SimpleDMAReadController(/*AUTOARG*/
 	input      [SPAM_ADDR_HI:0] spamo_addr;
 	input      [SPAM_DATA_HI:0] spamo_data;
 
+
 	output reg                  dmac__spami_busy_b = 0;
 	output reg [63:0]           dmac__spami_data = 'h0;
 	
@@ -57,6 +72,8 @@ module SimpleDMAReadController(/*AUTOARG*/
 	parameter DEFAULT_ADDR = 31'h00000000;
 	parameter DEFAULT_LEN = 31'h00000000;
 
+        parameter DEFAULT_AUTOTRIGGER = 1'b1;
+
 `ifdef verilator	
 	initial begin
 		assert(FSAB_DID != 4'hF && FSAB_SUBDID != 4'hF && SPAM_DID != 4'hF) else $error("Unconfigured DID and SUBDID in SimpleDMAReadController");
@@ -71,6 +88,8 @@ module SimpleDMAReadController(/*AUTOARG*/
         reg [FIFO_HI:0] fifo_rpos = 0;
 	reg [FIFO_HI:0] fifo_wpos = 0;
 	reg [FSAB_ADDR_HI:0] next_fsab_addr = DEFAULT_ADDR;
+        reg [FSAB_ADDR_HI:0] next_start_addr = DEFAULT_ADDR;
+        reg [FSAB_ADDR_HI:0] curr_end_addr = DEFAULT_ADDR + DEFAULT_LEN;
 
 	wire start_read;	
 	wire fifo_full;
@@ -147,13 +166,16 @@ module SimpleDMAReadController(/*AUTOARG*/
 				fifo[fifo_wpos] <= fsabi_data;
 				fifo_wpos <= fifo_wpos + 'h1;
 				curr_fifo_length <= curr_fifo_length + 1;
-				next_fsab_addr <= next_fsab_addr + 8;		
+				if ((end_addr == next_fsab_addr) && DEFAULT_AUTOTRIGGER)
+					next_fsab_addr <= start_addr;
+				else
+					next_fsab_addr <= next_fsab_addr + 8;		
 			end
 		end
 	end
 
         wire request;
-	/* TODO: this logic is probably wrong */
+	/* TODO: this logic with ADDRMASK is probably wrong*/
         assign request = spamo_valid && spamo_r_nw && (spamo_did == SPAM_DID) && ((spamo_addr & SPAM_ADDRMASK) == (SPAM_ADDRPFX & SPAM_ADDRMASK));
 
 	always @(posedge clk or negedge rst_b) begin
@@ -191,6 +213,5 @@ module SimpleDMAReadController(/*AUTOARG*/
 		end
 	end
 
-	/* FSAB Logic End */
 
 endmodule
