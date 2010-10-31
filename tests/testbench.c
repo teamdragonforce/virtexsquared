@@ -1,5 +1,10 @@
 #ifdef X86
-extern void putc(unsigned char c);
+extern void putchar(unsigned int c);
+void putc(unsigned char c)
+{
+	putchar(c);
+}
+
 #else
 void putc(unsigned char c)
 {
