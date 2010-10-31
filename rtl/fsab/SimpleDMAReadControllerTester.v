@@ -11,6 +11,7 @@ module SimpleDMAReadControllerTester(/*AUTOARG*/
 
 	`include "fsab_defines.vh"
 	`include "spam_defines.vh"
+	`include "dma_config_defines.vh"
 
 	output reg                  dmac__fsabo_valid = 0;
 	output reg [FSAB_REQ_HI:0]  dmac__fsabo_mode = 0;
@@ -44,7 +45,7 @@ module SimpleDMAReadControllerTester(/*AUTOARG*/
 	wire [SPAM_ADDR_HI:0] spamo_addr;
 	wire [SPAM_DATA_HI:0] spamo_data;
 
-	assign spamo_r_nw = 1;
+	assign spamo_r_nw = 0;
 	assign spamo_did = SPAM_DID_DMAC;
 	assign spamo_addr = 0;
 
@@ -82,22 +83,30 @@ module SimpleDMAReadControllerTester(/*AUTOARG*/
 	defparam dmacontroller.FSAB_SUBDID = FSAB_SUBDID_CPU_DMAC;
 	defparam dmacontroller.SPAM_DID = SPAM_DID_DMAC;
 	defparam dmacontroller.FIFO_DEPTH = 16;
+	defparam dmacontroller.SPAM_ADDRPFX = 24'h000000;
+	defparam dmacontroller.SPAM_ADDRMASK = 24'h000000;
+	defparam dmacontroller.DEFAULT_LEN = 31'h00000FFF;
 
 	integer i = 0;
 	reg start_reading = 0;
-	always @ (posedge clk)
-	begin
-		i <= i + 1;
-		if (i == 10000)
-			start_reading <= 1;
-		if (start_reading)
-		begin
-			if ((i & 'hFFFF) == 0)
+
+	always @(*) begin
+		spamo_valid = 0;
+		case (i)
+			'd0: begin
 				spamo_valid = 1;
-			else
-				spamo_valid = 0;
+				spamo_addr = 32'h000002;
+				spamo_data = 32'h000002; 
+			end
+		endcase
+		if (i > 300) begin
+			request = 1;
 		end
 	end
-		
+
+	always @ (posedge clk) begin
+		if (data_ready)
+			$display("Data: %x", data);
+	end
 
 endmodule

@@ -1,8 +1,16 @@
-module System(
+module System(/*AUTOARG*/
+   // Outputs
+   lcd_db, lcd_e, lcd_rnw, lcd_rs,
+   // Inputs
    clk, rst, fsabi_clk
    );
 
 	input clk; input rst; input fsabi_clk;
+	
+	output [3:0] lcd_db;
+	output       lcd_e;
+	output       lcd_rnw;
+	output       lcd_rs;
 
 `include "fsab_defines.vh"
 `include "spam_defines.vh"
@@ -11,7 +19,7 @@ module System(
 	// Beginning of automatic wires (for undeclared instantiated-module outputs)
 	wire		cio__spami_busy_b;	// From conio of SPAM_ConsoleIO.v
 	wire [SPAM_DATA_HI:0] cio__spami_data;	// From conio of SPAM_ConsoleIO.v
-	wire [35:0]	control_vio;		// To/From core of Core.v
+	wire [35:0]	control_vio;		// To/From core of Core.v, ...
 	wire [FSAB_ADDR_HI:0] dc__fsabo_addr;	// From core of Core.v
 	wire		dc__fsabo_credit;	// From fsabarbiter of FSABArbiter.v
 	wire [FSAB_DATA_HI:0] dc__fsabo_data;	// From core of Core.v
@@ -52,6 +60,8 @@ module System(
 	wire [FSAB_REQ_HI:0] ic__fsabo_mode;	// From core of Core.v
 	wire [FSAB_DID_HI:0] ic__fsabo_subdid;	// From core of Core.v
 	wire		ic__fsabo_valid;	// From core of Core.v
+	wire		lcd__spami_busy_b;	// From lcd of SPAM_LCD.v
+	wire [SPAM_DATA_HI:0] lcd__spami_data;	// From lcd of SPAM_LCD.v
 	wire [FSAB_ADDR_HI:0] pre__fsabo_addr;	// From preload of FSABPreload.v
 	wire		pre__fsabo_credit;	// From fsabarbiter of FSABArbiter.v
 	wire [FSAB_DATA_HI:0] pre__fsabo_data;	// From preload of FSABPreload.v
@@ -79,8 +89,8 @@ module System(
 					.cio__spami_data(cio__spami_data[SPAM_DATA_HI:0]));
 `endif
 	
-	wire spami_busy_b = cio__spami_busy_b;
-	wire [SPAM_DATA_HI:0] spami_data = cio__spami_data[SPAM_DATA_HI:0];
+	wire spami_busy_b = cio__spami_busy_b | lcd__spami_busy_b;
+	wire [SPAM_DATA_HI:0] spami_data = cio__spami_data[SPAM_DATA_HI:0] | lcd__spami_data[SPAM_DATA_HI:0];
 
 	/* Core AUTO_TEMPLATE (
 		.rst_b(rst_core_b & rst_b),
@@ -145,7 +155,6 @@ module System(
 			     .spamo_data	(spamo_data[SPAM_DATA_HI:0]),
 			     .sys_idata		(sys_idata[8:0]));
 
-	wire request;
 
 	SimpleDMAReadControllerTester dmatester(/*AUTOINST*/
 						// Outputs
@@ -167,6 +176,25 @@ module System(
 						.fsabi_data	(fsabi_data[FSAB_DATA_HI:0]),
 						.clk		(clk),
 						.rst_b		(rst_b));
+	
+	SPAM_LCD lcd(/*AUTOINST*/
+		     // Outputs
+		     .lcd__spami_busy_b	(lcd__spami_busy_b),
+		     .lcd__spami_data	(lcd__spami_data[SPAM_DATA_HI:0]),
+		     .lcd_db		(lcd_db[3:0]),
+		     .lcd_e		(lcd_e),
+		     .lcd_rnw		(lcd_rnw),
+		     .lcd_rs		(lcd_rs),
+		     // Inouts
+		     .control_vio	(control_vio[35:0]),
+		     // Inputs
+		     .clk		(clk),
+		     .rst_b		(rst_b),
+		     .spamo_valid	(spamo_valid),
+		     .spamo_r_nw	(spamo_r_nw),
+		     .spamo_did		(spamo_did[SPAM_DID_HI:0]),
+		     .spamo_addr	(spamo_addr[SPAM_ADDR_HI:0]),
+		     .spamo_data	(spamo_data[SPAM_DATA_HI:0]));
 
 	/* FSABArbiter AUTO_TEMPLATE (
 		.fsabo_valids({pre__fsabo_valid,ic__fsabo_valid,dc__fsabo_valid,dmac__fsabo_valid}),
@@ -258,5 +286,5 @@ module System(
 endmodule
 
 // Local Variables:
-// verilog-library-directories:("." "../console" "../core" "../fsab" "../spam" "../fsab/sim")
+// verilog-library-directories:("." "../console" "../core" "../fsab" "../spam" "../fsab/sim" "../util")
 // End:

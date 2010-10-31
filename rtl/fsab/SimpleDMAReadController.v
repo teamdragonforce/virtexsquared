@@ -71,7 +71,7 @@ module SimpleDMAReadController(/*AUTOARG*/
 	
 	parameter SPAM_DID = 4'hx;
 	parameter SPAM_ADDRPFX = 24'h000000;
-	parameter SPAM_ADDRMASK = 24'h00000f;
+	parameter SPAM_ADDRMASK = 24'h000000;
 
 	parameter DEFAULT_ADDR = 31'h00000000;
 	parameter DEFAULT_LEN = 31'h00000000;
@@ -172,10 +172,10 @@ module SimpleDMAReadController(/*AUTOARG*/
 				case (command_register)
 					DMA_TRIGGER_ONCE: begin
 						command_register <= DMA_STOP;
-						triggered = 1;	
+						triggered <= 1;	
 					end
 					DMA_AUTOTRIGGER: begin
-						triggered = 1;
+						triggered <= 1;
 					end
 					DMA_STOP: begin
 					end
@@ -248,7 +248,9 @@ module SimpleDMAReadController(/*AUTOARG*/
 			command_register <= DMA_STOP;
 		end
 		else begin
-			if (spamo_valid && spamo_r_nw && (spamo_addr & ~SPAM_ADDRMASK) == SPAM_ADDRPFX) begin
+			if (spamo_valid && spamo_r_nw && 
+			    (spamo_addr & SPAM_ADDRMASK) == SPAM_ADDRPFX &&
+			    (spamo_did == SPAM_DID)) begin
 				dmac__spami_busy_b <= 1;
 				case (spamo_addr[DMA_SPAM_ADDR_HI:0])
 					NEXT_START_REG_ADDR:

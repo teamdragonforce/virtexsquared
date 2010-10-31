@@ -338,9 +338,9 @@ module DCache(/*AUTOARG*/
 	
 	always @(*) begin
 		if (!dc__addr_4a[31]) /* FSAB */ begin
+			dc__rd_data_4a = dc__addr_4a[2] ? curdata_hi_4a : curdata_lo_4a;
 			if (!dc__rw_wait_4a && dc__rd_req_4a)
 				$display("DCACHE: READ COMPLETE: Addr %08x, data %08x", dc__addr_4a, dc__rd_data_4a);
-			dc__rd_data_4a = dc__addr_4a[2] ? curdata_hi_4a : curdata_lo_4a;
 		end else /* SPAM */ begin
 			dc__rd_data_4a = (spam_timeout_4a == 0) ? 32'hDEADDEAD : spami_data_4a;
 		end
@@ -353,7 +353,7 @@ module DCache(/*AUTOARG*/
 			.CONTROL(dc__control1), // INOUT BUS [35:0]
 			.CLK(clk), // IN
 			.TRIG0({rst_b,
-			        start_read, dc__wr_req_3a && fsab_credit_available,
+			        start_read, dc__wr_req_3a && fsab_credit_avail,
 			        completed_read, current_read, read_pending, 
 			        dc__wr_req_3a, dc__rd_req_3a, dc__rd_req_3a || dc__wr_req_3a, dc__rw_wait_3a, cache_hit_3a,
 			        dc__addr_3a[31:0], dc__wr_data_3a[31:0],

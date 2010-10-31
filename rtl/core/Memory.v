@@ -602,10 +602,14 @@ module Memory(
 			case (lsr_state)
 			`LSR_MEMIO: begin
 				dc__rd_req_3a = insn_3a[20] /* L */ || insn_3a[22] /* B */;
-				dc__wr_req_3a = !insn_3a[20] /* L */ && !insn_3a[22]/* B */;
+				dc__wr_req_3a = !insn_3a[20] /* L */ && !insn_3a[22]/* B */ && !flush;
 			end
-			`LSR_STRB_WR:
+			`LSR_STRB_WR: begin
 				dc__wr_req_3a = 1;
+				`ifdef verilator
+					assert(!flush) else $error("flush during STRB_WR -- we really need an MOB after all...");
+				`endif
+			end
 			`LSR_BASEWB: begin end
 			`LSR_WBFLUSH: begin end
 			default: begin end
@@ -623,6 +627,9 @@ module Memory(
 				offset_sel = insn_3a[24] ? offset : prev_offset;
 				raddr = insn_3a[23] ? op0_3a + {26'b0, offset_sel} : op0_3a - {26'b0, offset_sel};
 				dc__addr_3a = raddr;
+				`ifdef verilator
+					assert(!flush) else $error("flush during LDM -- we really need an MOB after all...");
+				`endif
 			end
 			`LSM_BASEWB: begin end
 			`LSM_WBFLUSH: begin end
