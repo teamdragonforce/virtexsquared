@@ -255,5 +255,5 @@ module System(/*AUTOARG*/
 endmodule
 
 // Local Variables:
-// verilog-library-directories:("." "../console" "../core" "../fsab" "../spam" "../fsab/sim")
+// verilog-library-directories:("." "../console" "../core" "../fsab" "../spam" "../fsab/sim" "../util")
 // End:
