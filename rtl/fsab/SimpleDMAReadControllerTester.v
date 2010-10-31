@@ -32,8 +32,10 @@ module SimpleDMAReadControllerTester(/*AUTOARG*/
 
 	/*AUTOWIRE*/
 	// Beginning of automatic wires (for undeclared instantiated-module outputs)
+	wire [63:0]	data;			// From dmacontroller of SimpleDMAReadController.v
+	wire		data_ready;		// From dmacontroller of SimpleDMAReadController.v
 	wire		dmac__spami_busy_b;	// From dmacontroller of SimpleDMAReadController.v
-	wire [63:0]	dmac__spami_data;	// From dmacontroller of SimpleDMAReadController.v
+	wire [SPAM_DATA_HI:0] dmac__spami_data;	// From dmacontroller of SimpleDMAReadController.v
 	// End of automatics
 
 	wire                  spamo_valid;
@@ -56,8 +58,10 @@ module SimpleDMAReadControllerTester(/*AUTOARG*/
 					      .dmac__fsabo_len	(dmac__fsabo_len[FSAB_LEN_HI:0]),
 					      .dmac__fsabo_data	(dmac__fsabo_data[FSAB_DATA_HI:0]),
 					      .dmac__fsabo_mask	(dmac__fsabo_mask[FSAB_MASK_HI:0]),
+					      .data		(data[63:0]),
+					      .data_ready	(data_ready),
 					      .dmac__spami_busy_b(dmac__spami_busy_b),
-					      .dmac__spami_data	(dmac__spami_data[63:0]),
+					      .dmac__spami_data	(dmac__spami_data[SPAM_DATA_HI:0]),
 					      // Inputs
 					      .clk		(clk),
 					      .rst_b		(rst_b),
@@ -72,7 +76,8 @@ module SimpleDMAReadControllerTester(/*AUTOARG*/
 					      .spamo_r_nw	(spamo_r_nw),
 					      .spamo_did	(spamo_did[SPAM_DID_HI:0]),
 					      .spamo_addr	(spamo_addr[SPAM_ADDR_HI:0]),
-					      .spamo_data	(spamo_data[SPAM_DATA_HI:0]));
+					      .spamo_data	(spamo_data[SPAM_DATA_HI:0]),
+					      .request		(request));
 	defparam dmacontroller.FSAB_DID = FSAB_DID_CPU;
 	defparam dmacontroller.FSAB_SUBDID = FSAB_SUBDID_CPU_DMAC;
 	defparam dmacontroller.SPAM_DID = SPAM_DID_DMAC;
