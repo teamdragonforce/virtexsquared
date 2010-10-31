@@ -1,9 +1,10 @@
 module System(/*AUTOARG*/
    // Outputs
    ddr2_a, ddr2_ba, ddr2_cas_n, ddr2_ck, ddr2_ck_n, ddr2_cke,
-   ddr2_cs_n, ddr2_dm, ddr2_odt, ddr2_ras_n, ddr2_we_n, leds,
+   ddr2_cs_n, ddr2_dm, ddr2_odt, ddr2_ras_n, ddr2_we_n, leds, lcd_e,
+   lcd_rnw, lcd_rs,
    // Inouts
-   ddr2_dq, ddr2_dqs, ddr2_dqs_n,
+   ddr2_dq, ddr2_dqs, ddr2_dqs_n, lcd_db,
    // Inputs
    clk200_n, clk200_p, sys_clk_n, sys_clk_p, sys_rst_n, corerst_btn
    );
@@ -38,6 +39,11 @@ module System(/*AUTOARG*/
 	output		ddr2_ras_n;		// From mem of FSABMemory.v
 	output		ddr2_we_n;		// From mem of FSABMemory.v
 	output [7:0] leds;
+	
+	output [3:0]	lcd_db;			// To/From lcd of SPAM_LCD.v
+	output		lcd_e;			// From lcd of SPAM_LCD.v
+	output		lcd_rnw;		// From lcd of SPAM_LCD.v
+	output		lcd_rs;			// From lcd of SPAM_LCD.v
 	// End of automatics
 
 `include "fsab_defines.vh"
@@ -80,6 +86,8 @@ module System(/*AUTOARG*/
 	wire [FSAB_REQ_HI:0] ic__fsabo_mode;	// From core of Core.v
 	wire [FSAB_DID_HI:0] ic__fsabo_subdid;	// From core of Core.v
 	wire		ic__fsabo_valid;	// From core of Core.v
+	wire		lcd__spami_busy_b;	// From lcd of SPAM_LCD.v
+	wire [SPAM_DATA_HI:0] lcd__spami_data;	// From lcd of SPAM_LCD.v
 	wire		phy_init_done;		// From mem of FSABMemory.v
 	wire [FSAB_ADDR_HI:0] pre__fsabo_addr;	// From preload of FSABPreload.v
 	wire		pre__fsabo_credit;	// From fsabarbiter of FSABArbiter.v
@@ -138,8 +146,8 @@ module System(/*AUTOARG*/
 	
 	/*** Rest of the system (c.c) ***/
 	
-	wire spami_busy_b = cio__spami_busy_b;
-	wire [SPAM_DATA_HI:0] spami_data = cio__spami_data[SPAM_DATA_HI:0];
+	wire spami_busy_b = cio__spami_busy_b | lcd__spami_busy_b;
+	wire [SPAM_DATA_HI:0] spami_data = cio__spami_data[SPAM_DATA_HI:0] | lcd__spami_data[SPAM_DATA_HI:0];
 
 	parameter FSAB_DEVICES = 3;
 	wire [FSAB_DEVICES-1:0] fsabo_clks = {cclk, cclk, cclk};
@@ -223,6 +231,31 @@ module System(/*AUTOARG*/
 		.CLK(cclk), // IN
 		.TRIG0({0, sys_odata[8:0]}) // IN BUS [255:0]
 	);
+	
+	/* SPAM_LCD AUTO_TEMPLATE (
+		.clk(cclk),
+		.rst_b(cclk_rst_b),
+		);
+	*/
+	SPAM_LCD lcd(/*AUTOINST*/
+		     // Outputs
+		     .lcd__spami_busy_b	(lcd__spami_busy_b),
+		     .lcd__spami_data	(lcd__spami_data[SPAM_DATA_HI:0]),
+		     .lcd_e		(lcd_e),
+		     .lcd_rnw		(lcd_rnw),
+		     .lcd_rs		(lcd_rs),
+		     // Inouts
+		     .lcd_db		(lcd_db[3:0]),
+		     .control_vio	(control_vio[35:0]),
+		     // Inputs
+		     .clk		(cclk),			 // Templated
+		     .rst_b		(cclk_rst_b),		 // Templated
+		     .spamo_valid	(spamo_valid),
+		     .spamo_r_nw	(spamo_r_nw),
+		     .spamo_did		(spamo_did[SPAM_DID_HI:0]),
+		     .spamo_addr	(spamo_addr[SPAM_ADDR_HI:0]),
+		     .spamo_data	(spamo_data[SPAM_DATA_HI:0]));
+	defparam lcd.DEBUG = "TRUE";
 
 	/* FSABArbiter AUTO_TEMPLATE (
 		.clk(fclk),
@@ -310,7 +343,7 @@ module System(/*AUTOARG*/
 		       .fsabo_len	(fsabo_len[FSAB_LEN_HI:0]),
 		       .fsabo_data	(fsabo_data[FSAB_DATA_HI:0]),
 		       .fsabo_mask	(fsabo_mask[FSAB_MASK_HI:0]));
-	defparam mem.DEBUG = "TRUE";
+	defparam mem.DEBUG = "FALSE";
 	
 	reg fsabo_triggered = 0;
 	reg [21:0] fsabo_recent = 0;

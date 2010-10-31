@@ -128,11 +128,84 @@ void cellularram()
 	puts("]\n");
 }
 
+void waitok()
+{
+	volatile unsigned int *lcd_insn = 0x81000000;
+	volatile unsigned int *lcd_data = 0x81000004;
+
+	int i;
+	
+	for (i = 0; i < 512; i++)
+	{
+		int a,b;
+		a = *lcd_insn;
+		b = *lcd_insn;
+		
+		if (a & 0x8) {
+			puts("[ok] ");
+			puthex(a);
+			break;
+		}
+	}
+
+}
+
+void lcd()
+{
+	volatile unsigned int *lcd_insn = 0x81000000;
+	volatile unsigned int *lcd_data = 0x81000004;
+	int i;
+	volatile unsigned int *j = &i;
+	
+	puts("[func] ");
+	*lcd_insn = 0x2;	/* init, 4 bit */
+	
+	for (i = 0; i < 8192; i++)
+		*j;
+	
+	*lcd_insn = 0x2;	/* 4 bit */
+	*lcd_insn = 0x8;	/* 2 lines */
+	
+	for (i = 0; i < 8192; i++)
+		*j;
+
+//	waitok();
+	
+	puts("[enabling] ");
+	*lcd_insn = 0x0;	/* display on */
+	*lcd_insn = 0xC;
+	for (i = 0; i < 8192; i++)
+		*j;
+
+//	waitok();
+	
+	puts("[char] ");
+	*lcd_data = 0x4;
+	*lcd_data = 0x1;
+	for (i = 0; i < 4096; i++)
+		*j;
+
+	*lcd_data = 0x5;
+	*lcd_data = 0x3;
+	for (i = 0; i < 8192; i++)
+		*j;
+
+	*lcd_data = 0x5;
+	*lcd_data = 0x3;
+	for (i = 0; i < 8192; i++)
+		*j;
+
+//	waitok();
+	
+	puts("\n");
+}
+
 struct tests tlist[] = {
 	{"ldm pc/mul", ldm_tester},
 	{"fact", facttest},
 	{"j4cbo", j4cbo},
-	{"cellularram", cellularram},
+	//{"lcd", lcd},
+	// Disabled to avoid slowing down the testbench.
 	{"ack", acktest},
 	{"miniblarg", testmain},
 	{"corecurse", corecurse},
