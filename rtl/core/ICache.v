@@ -5,6 +5,8 @@ module ICache(/*AUTOARG*/
    ic__rd_wait_0a, ic__rd_data_1a, ic__fsabo_valid, ic__fsabo_mode,
    ic__fsabo_did, ic__fsabo_subdid, ic__fsabo_addr, ic__fsabo_len,
    ic__fsabo_data, ic__fsabo_mask,
+   // Inouts
+   ic__control2,
    // Inputs
    clk, rst_b, ic__rd_addr_0a, ic__rd_req_0a, ic__fsabo_credit,
    fsabi_valid, fsabi_did, fsabi_subdid, fsabi_data, fsabi_clk,
@@ -39,6 +41,9 @@ module ICache(/*AUTOARG*/
 	input                       fsabi_clk;
 	input                       fsabi_rst_b;
 
+	inout [35:0] ic__control2;
+	
+	parameter DEBUG = "FALSE";
 
 	/*** FSAB credit availability logic ***/
 	
@@ -88,16 +93,30 @@ module ICache(/*AUTOARG*/
 	
 	wire cache_hit_0a = cache_valid[rd_idx_0a] && (cache_tags[rd_idx_0a] == rd_tag_0a);
 	
-	wire [31:0] curdata_hi_0a = cache_data_hi[{rd_idx_0a,rd_didx_word_0a}];
-	wire [31:0] curdata_lo_0a = cache_data_lo[{rd_idx_0a,rd_didx_word_0a}];
 
 	/*** Processor control bus logic ***/
+	reg [31:0] ic__rd_addr_1a = 0;
+	reg [31:0] curdata_hi_1a = 0;
+	reg [31:0] curdata_lo_1a = 0;
+	
+	wire [31:0] curdata_hi_0a = cache_data_hi[{rd_idx_0a,rd_didx_word_0a}];
+	wire [31:0] curdata_lo_0a = cache_data_lo[{rd_idx_0a,rd_didx_word_0a}];
+	
 	always @(*) begin
 		ic__rd_wait_0a = ic__rd_req_0a && !cache_hit_0a;
+		ic__rd_data_1a = ic__rd_addr_1a[2] ? curdata_hi_1a : curdata_lo_1a;
 	end
-	always @(posedge clk) begin
-		// Do the actual read.
-		ic__rd_data_1a <= ic__rd_addr_0a[2] ? curdata_hi_0a : curdata_lo_0a;
+	always @(posedge clk or negedge rst_b) begin
+		if (!rst_b) begin
+			curdata_hi_1a <= 0;
+			curdata_lo_1a <= 0;
+			ic__rd_addr_1a <= 0;
+		end else begin
+			// Do the actual read.
+			curdata_hi_1a <= cache_data_hi[{rd_idx_0a,rd_didx_word_0a}];
+			curdata_lo_1a <= cache_data_lo[{rd_idx_0a,rd_didx_word_0a}];
+			ic__rd_addr_1a <= ic__rd_addr_0a;
+		end
 	end
 	
 	reg read_pending = 0;
@@ -219,4 +238,23 @@ module ICache(/*AUTOARG*/
 			end
 		end
 	end
+	
+	/*** Chipscope visibility ***/
+	generate
+	if (DEBUG == "TRUE") begin: debug
+		chipscope_ila ila2 (
+			.CONTROL(ic__control2), // INOUT BUS [35:0]
+			.CLK(fsabi_clk), // IN
+			.TRIG0({fsabi_rst_b, current_read_fclk, completed_read_fclk, cache_fill_pos_fclk[2:0],
+			        fsabi_valid, fsabi_did[3:0], fsabi_subdid[3:0],
+			        ic__fsabo_credit, ic__fsabo_valid, fsab_credits[2:0], fill_addr[31:0]})
+		);
+	
+	end else begin: debug_tieoff
+	
+		assign ic__control2 = {36{1'bz}};
+		
+	end
+	endgenerate
+
 endmodule

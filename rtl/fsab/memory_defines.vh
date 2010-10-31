@@ -1,6 +1,6 @@
 parameter MIG_CMD_WIDTH           = 3;
-parameter MIG_READ                = 3'b000;
-parameter MIG_WRITE               = 3'b001;
+parameter MIG_READ                = 3'b001;
+parameter MIG_WRITE               = 3'b000;
 
 parameter BANK_WIDTH              = 2;       
 // # of memory bank addr bits.

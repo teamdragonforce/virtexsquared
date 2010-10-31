@@ -1,15 +1,12 @@
 
 /* I'm thinking somewhere in the lines of:
    spamo_addr to config mapping: 
-     00 = next_start_addr 
+     0000 = next_start_addr 
      (change the start reading location of the next trigger by changing the value here)
-     01 = next_len
+     0100 = next_len
      (change the length read of the next trigger by changing the value here)
-     10 = autotrigger
-     (once it finishes reading all the way through, it will start reading again from next_start_addr)
-     11 = trigger
-     (once it finishes reading all the way through, if this value is set to 1, sets it to 0 and 
-      starts reading again from next_start_addr (valid only when autotrigger = 0)) 
+     1000 = command register
+     (0 = AUTOTRIGGER, 1 = TRIGGERONCE, 2 = STOP)
 */
 
 module SimpleDMAReadController(/*AUTOARG*/
@@ -29,7 +26,7 @@ module SimpleDMAReadController(/*AUTOARG*/
 	
 	input clk;
 	input rst_b;
-
+	
 	/* FSAB interface */
 	output reg                  dmac__fsabo_valid = 0;
 	output reg [FSAB_REQ_HI:0]  dmac__fsabo_mode = 0;
@@ -105,6 +102,9 @@ module SimpleDMAReadController(/*AUTOARG*/
 
         
 	/*** FSAB credit availability logic ***/
+	
+	wire start_trans;
+	
 	reg [FSAB_CREDITS_HI:0] fsab_credits = FSAB_INITIAL_CREDITS;
 	wire fsab_credit_avail = (fsab_credits != 0);
 	always @(posedge clk or negedge rst_b) begin

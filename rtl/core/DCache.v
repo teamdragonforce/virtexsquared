@@ -6,6 +6,8 @@ module DCache(/*AUTOARG*/
    dc__fsabo_did, dc__fsabo_subdid, dc__fsabo_addr, dc__fsabo_len,
    dc__fsabo_data, dc__fsabo_mask, spamo_valid, spamo_r_nw, spamo_did,
    spamo_addr, spamo_data,
+   // Inouts
+   dc__control1,
    // Inputs
    clk, rst_b, dc__addr_3a, dc__rd_req_3a, dc__wr_req_3a,
    dc__wr_data_3a, dc__fsabo_credit, fsabi_valid, fsabi_did,
@@ -53,6 +55,10 @@ module DCache(/*AUTOARG*/
 	
 	input                       spami_busy_b;
 	input      [SPAM_DATA_HI:0] spami_data;
+	
+	inout [35:0] dc__control1;
+	
+	parameter DEBUG = "FALSE";
 	
 	/*** FSAB credit availability logic ***/
 	
@@ -339,4 +345,26 @@ module DCache(/*AUTOARG*/
 			dc__rd_data_4a = (spam_timeout_4a == 0) ? 32'hDEADDEAD : spami_data_4a;
 		end
 	end
+	
+	/*** Chipscope visibility ***/
+	generate
+	if (DEBUG == "TRUE") begin: debug
+		chipscope_ila ila1 (
+			.CONTROL(dc__control1), // INOUT BUS [35:0]
+			.CLK(clk), // IN
+			.TRIG0({rst_b,
+			        start_read, dc__wr_req_3a && fsab_credit_available,
+			        completed_read, current_read, read_pending, 
+			        dc__wr_req_3a, dc__rd_req_3a, dc__rd_req_3a || dc__wr_req_3a, dc__rw_wait_3a, cache_hit_3a,
+			        dc__addr_3a[31:0], dc__wr_data_3a[31:0],
+			        curdata_hi_4a[31:0], curdata_lo_4a[31:0], dc__addr_4a[31:0]})
+		);
+	
+	end else begin: debug_tieoff
+	
+		assign dc__control1 = {36{1'bz}};
+		
+	end
+	endgenerate
+
 endmodule

@@ -1,4 +1,4 @@
-RUNTIME := $(shell date +R%Y%m%d-%H%M)
+RUNTIME := $(shell date +R%Y%m%d-%H%M%S)
 RUN ?= $(RUNTIME)
 RUNDIR ?= runs/$(RUN)
 
@@ -17,9 +17,26 @@ default:
 
 ###############################################################################
 
+symlinks: .DUMMY $(RUNDIR)/stamps/symlinks
+
+$(RUNDIR)/stamps/symlinks:
+	@echo "Creating run symlinks"
+	@mkdir -p runs
+	if [ -h runs/run_0a ] ; then rm runs/run_1a; mv runs/run_0a runs/run_1a ; fi
+	ln -s $(RUN) runs/run_0a
+	@mkdir -p $(RUNDIR)/stamps
+	@touch $(RUNDIR)/stamps/symlinks
+
+sim-symlinks: .DUMMY $(RUNDIR)/stamps/sim-symlinks
+
+$(RUNDIR)/stamps/sim-symlinks:  $(RUNDIR)/stamps/symlinks
+	if [ -h runs/sim_0a ] ; then rm runs/sim_1a; mv runs/sim_0a runs/sim_1a ; fi
+	ln -s $(RUN) runs/sim_0a
+	@touch $(RUNDIR)/stamps/sim-symlinks
+
 sim-genrtl: .DUMMY $(RUNDIR)/stamps/sim-genrtl
 
-$(RUNDIR)/stamps/sim-genrtl:
+$(RUNDIR)/stamps/sim-genrtl: sim-symlinks
 	@echo "Copying RTL for simulation to $(RUNDIR)/sim/rtl..."
 	@mkdir -p $(RUNDIR)/stamps
 	@mkdir -p $(RUNDIR)/sim/rtl
@@ -58,10 +75,17 @@ FPGA_TARGET = FireARM
 # not actually used? also needs to be changed in fgpa/xst/FireARM.xst
 PART = xc5vlx110t-ff1136-2
 
+fpga-symlinks: $(RUNDIR)/stamps/fpga-symlinks
+
+$(RUNDIR)/stamps/fpga-symlinks:  $(RUNDIR)/stamps/symlinks
+	if [ -h runs/fpga_0a ] ; then rm runs/fpga_1a; mv runs/fpga_0a runs/fpga_1a ; fi
+	ln -s $(RUN) runs/fpga_0a
+	@touch $(RUNDIR)/stamps/fpga-symlinks
+
 # XXX: should we generate the .xst file?
 fpga-genrtl: .DUMMY $(RUNDIR)/stamps/fpga-genrtl
 
-$(RUNDIR)/stamps/fpga-genrtl:
+$(RUNDIR)/stamps/fpga-genrtl: $(RUNDIR)/stamps/fpga-symlinks
 	@echo "FPGA RTL is currently UNSYNTHESIZABLE...?"
 	@echo "Copying RTL for synthesis to $(RUNDIR)/fpga/xst..."
 	@mkdir -p $(RUNDIR)/stamps
@@ -101,11 +125,15 @@ $(RUNDIR)/stamps/fpga-xflow: $(RUNDIR)/stamps/fpga-xflow-prep
 	cd $(RUNDIR)/fpga/xflow; xflow -p $(PART) -implement balanced.opt -config bitgen.opt $(FPGA_TARGET).ngc
 	@touch $(RUNDIR)/stamps/fpga-xflow
 	@ln -s xflow/$(FPGA_TARGET).bit $(RUNDIR)/fpga/
+	@echo "Bit file generated in $(RUNDIR)/fpga/xflow."
+	@echo -en "\n\n\n"
+	@figlet "Bit file generated! Go program the FPGA now."
+	@echo -en "\n\n\n"
 
 fpga: .DUMMY $(RUNDIR)/stamps/fpga
 
 $(RUNDIR)/stamps/fpga: $(RUNDIR)/stamps/fpga-xflow
-	@echo "Bit file generated in $(RUNDIR)/fpga/xflow."
+	@echo "Done!!!"
 	@touch $(RUNDIR)/stamps/fpga
 
 ###############################################################################
