@@ -1,10 +1,10 @@
 module System(/*AUTOARG*/
    // Outputs
    ddr2_a, ddr2_ba, ddr2_cas_n, ddr2_ck, ddr2_ck_n, ddr2_cke,
-   ddr2_cs_n, ddr2_dm, ddr2_odt, ddr2_ras_n, ddr2_we_n, leds, lcd_e,
-   lcd_rnw, lcd_rs,
+   ddr2_cs_n, ddr2_dm, ddr2_odt, ddr2_ras_n, ddr2_we_n, leds, lcd_db,
+   lcd_e, lcd_rnw, lcd_rs,
    // Inouts
-   ddr2_dq, ddr2_dqs, ddr2_dqs_n, lcd_db,
+   ddr2_dq, ddr2_dqs, ddr2_dqs_n,
    // Inputs
    clk200_n, clk200_p, sys_clk_n, sys_clk_p, sys_rst_n, corerst_btn
    );
@@ -241,11 +241,11 @@ module System(/*AUTOARG*/
 		     // Outputs
 		     .lcd__spami_busy_b	(lcd__spami_busy_b),
 		     .lcd__spami_data	(lcd__spami_data[SPAM_DATA_HI:0]),
+		     .lcd_db		(lcd_db[3:0]),
 		     .lcd_e		(lcd_e),
 		     .lcd_rnw		(lcd_rnw),
 		     .lcd_rs		(lcd_rs),
 		     // Inouts
-		     .lcd_db		(lcd_db[3:0]),
 		     .control_vio	(control_vio[35:0]),
 		     // Inputs
 		     .clk		(cclk),			 // Templated

@@ -150,11 +150,11 @@ module System(/*AUTOARG*/
 		     // Outputs
 		     .lcd__spami_busy_b	(lcd__spami_busy_b),
 		     .lcd__spami_data	(lcd__spami_data[SPAM_DATA_HI:0]),
+		     .lcd_db		(lcd_db[3:0]),
 		     .lcd_e		(lcd_e),
 		     .lcd_rnw		(lcd_rnw),
 		     .lcd_rs		(lcd_rs),
 		     // Inouts
-		     .lcd_db		(lcd_db[3:0]),
 		     .control_vio	(control_vio[35:0]),
 		     // Inputs
 		     .clk		(clk),

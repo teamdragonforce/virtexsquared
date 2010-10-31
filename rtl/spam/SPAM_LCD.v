@@ -1,8 +1,8 @@
 module SPAM_LCD(/*AUTOARG*/
    // Outputs
-   lcd__spami_busy_b, lcd__spami_data, lcd_e, lcd_rnw, lcd_rs,
+   lcd__spami_busy_b, lcd__spami_data, lcd_db, lcd_e, lcd_rnw, lcd_rs,
    // Inouts
-   lcd_db, control_vio,
+   control_vio,
    // Inputs
    clk, rst_b, spamo_valid, spamo_r_nw, spamo_did, spamo_addr,
    spamo_data
