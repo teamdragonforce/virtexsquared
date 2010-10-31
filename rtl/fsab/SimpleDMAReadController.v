@@ -105,6 +105,7 @@ module SimpleDMAReadController(/*AUTOARG*/
         reg [FSAB_ADDR_HI:0] next_len = DEFAULT_LEN;
 	reg [COMMAND_REGISTER_HI:0] command_register = DMA_STOP;
 
+	reg [FSAB_ADDR_HI:0] end_addr = DEFAULT_ADDR+DEFAULT_LEN;
 	/*** FSAB credit availability logic ***/
 	
 	wire start_trans;
@@ -148,6 +149,15 @@ module SimpleDMAReadController(/*AUTOARG*/
 		end	
 	end
 
+	always @(posedge clk) begin
+		$display("DMA: fifo_full: %x, read_pending: %x, fsab_credit_avail: %x, triggered: %x",
+		         fifo_full, read_pending, fsab_credit_avail, triggered);
+		if (start_read && rst_b)
+			$display("DMA_READ from %x", next_fsab_addr);
+	end
+
+			
+
 	reg current_read = 0;
 	reg current_read_fclk_s1 = 0;
 	reg current_read_fclk = 0;
@@ -172,32 +182,37 @@ module SimpleDMAReadController(/*AUTOARG*/
 				case (command_register)
 					DMA_TRIGGER_ONCE: begin
 						command_register <= DMA_STOP;
-						triggered <= 1;	
+						triggered <= 1;
+						next_fsab_addr <= next_start_addr;
+						end_addr <= next_start_addr+next_len;	
 					end
 					DMA_AUTOTRIGGER: begin
 						triggered <= 1;
+						next_fsab_addr <= next_start_addr;
+						end_addr <= next_start_addr+next_len;	
 					end
 					DMA_STOP: begin
 					end
 					default: begin
-						$display("Invalid command register mode");
-					end		
+						$display("DMA: Invalid command register mode");
+					end	
 				endcase 
 			end else begin
 				if (start_read) begin
 					read_pending <= 1;
 					current_read <= ~current_read;
 				end else if ((completed_read == current_read) && read_pending) begin
-					$display("DMAC_FIFO: Read %d", fsabi_data);
+					$display("DMAC_FIFO: Read %x at %x to fifo at %x", fsabi_data, next_fsab_addr, fifo_wpos);
 					read_pending <= 0;
 					fifo[fifo_wpos] <= fsabi_data;
 					fifo_wpos <= fifo_wpos + 'h1;
 					curr_fifo_length <= curr_fifo_length + 1;
-					if (end_addr == next_fsab_addr)
-						next_fsab_addr <= start_addr;
+					if (end_addr == next_fsab_addr) begin
 						triggered <= 0;
-					else
+					end
+					else begin
 						next_fsab_addr <= next_fsab_addr + 8;
+					end
 				end
 			end	
 		end
@@ -208,7 +223,7 @@ module SimpleDMAReadController(/*AUTOARG*/
 			data_ready <= 0;
 		end else begin
 			if (request && (curr_fifo_length > 0)) begin
-				$display("DMAC: Read %d", fifo[fifo_rpos]);
+				$display("DMAC: Read %x from fifo at %x", fifo[fifo_rpos], fifo_rpos);
 				data <= fifo[fifo_rpos];
 				data_ready <= 1;
 				fifo_rpos <= fifo_rpos + 'h1;
@@ -248,21 +263,21 @@ module SimpleDMAReadController(/*AUTOARG*/
 			command_register <= DMA_STOP;
 		end
 		else begin
-			if (spamo_valid && spamo_r_nw && 
+			if (spamo_valid && !spamo_r_nw && 
 			    (spamo_addr & SPAM_ADDRMASK) == SPAM_ADDRPFX &&
 			    (spamo_did == SPAM_DID)) begin
 				dmac__spami_busy_b <= 1;
 				case (spamo_addr[DMA_SPAM_ADDR_HI:0])
 					NEXT_START_REG_ADDR:
-						next_start_addr <= spamo_data;
+						next_start_addr <= spamo_data[FSAB_ADDR_HI:0];
 					NEXT_LEN_REG_ADDR:
-						next_len <= spamo_data;
+						next_len <= spamo_data[FSAB_ADDR_HI:0];
 					COMMAND_REG_ADDR:
 						command_register <= spamo_data[COMMAND_REGISTER_HI:0];
 					default: 
-						$display("Not a valid spam_address to DMA"); 
+						$display("DMA: Not a valid spam_address to DMA"); 
 				endcase 
 			end
 		end
-			
+	end	
 endmodule

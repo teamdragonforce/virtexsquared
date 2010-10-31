@@ -37,6 +37,7 @@ module SimpleDMAReadControllerTester(/*AUTOARG*/
 	wire		data_ready;		// From dmacontroller of SimpleDMAReadController.v
 	wire		dmac__spami_busy_b;	// From dmacontroller of SimpleDMAReadController.v
 	wire [SPAM_DATA_HI:0] dmac__spami_data;	// From dmacontroller of SimpleDMAReadController.v
+	reg request;
 	// End of automatics
 
 	wire                  spamo_valid;
@@ -47,7 +48,6 @@ module SimpleDMAReadControllerTester(/*AUTOARG*/
 
 	assign spamo_r_nw = 0;
 	assign spamo_did = SPAM_DID_DMAC;
-	assign spamo_addr = 0;
 
 	SimpleDMAReadController dmacontroller(/*AUTOINST*/
 					      // Outputs
@@ -85,26 +85,29 @@ module SimpleDMAReadControllerTester(/*AUTOARG*/
 	defparam dmacontroller.FIFO_DEPTH = 16;
 	defparam dmacontroller.SPAM_ADDRPFX = 24'h000000;
 	defparam dmacontroller.SPAM_ADDRMASK = 24'h000000;
-	defparam dmacontroller.DEFAULT_LEN = 31'h00000FFF;
+	defparam dmacontroller.DEFAULT_LEN = 31'h00000FF;
 
 	integer i = 0;
 	reg start_reading = 0;
 
 	always @(*) begin
 		spamo_valid = 0;
+		request = 0;
+		spamo_addr = 24'h000000;
 		case (i)
 			'd0: begin
 				spamo_valid = 1;
-				spamo_addr = 32'h000002;
+				spamo_addr = 24'h000002;
 				spamo_data = 32'h000002; 
 			end
 		endcase
-		if (i > 300) begin
+		if (i > 10000 & (i % 100 == 0)) begin
 			request = 1;
 		end
 	end
 
 	always @ (posedge clk) begin
+		i <= i+1;
 		if (data_ready)
 			$display("Data: %x", data);
 	end
