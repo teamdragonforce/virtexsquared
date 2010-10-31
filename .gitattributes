@@ -1,1 +1,2 @@
 *.hex -crlf -diff -merge
+*.hex64 -crlf -diff -merge
