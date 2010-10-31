@@ -54,9 +54,15 @@ module SimpleDMAReadController(/*AUTOARG*/
 	input      [SPAM_ADDR_HI:0] spamo_addr;
 	input      [SPAM_DATA_HI:0] spamo_data;
 
+        /* User */
+        input                       request;	       
+ 
+        output reg [63:0]           data;
+        output reg [FSAB_DATA_HI:0] bytes_left;
+
 
 	output reg                  dmac__spami_busy_b = 0;
-	output reg [63:0]           dmac__spami_data = 'h0;
+	output reg [SPAM_DATA_HI:0] dmac__spami_data = 'h0;
 	
 	`include "clog2.vh"
 	parameter FIFO_DEPTH = 128;
@@ -173,10 +179,6 @@ module SimpleDMAReadController(/*AUTOARG*/
 			end
 		end
 	end
-
-        wire request;
-	/* TODO: this logic with ADDRMASK is probably wrong*/
-        assign request = spamo_valid && spamo_r_nw && (spamo_did == SPAM_DID) && ((spamo_addr & SPAM_ADDRMASK) == (SPAM_ADDRPFX & SPAM_ADDRMASK));
 
 	always @(posedge clk or negedge rst_b) begin
 		if (!rst_b) begin
