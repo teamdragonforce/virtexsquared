@@ -1,4 +1,4 @@
-CFLAGS=-mno-thumb-interwork -march=armv4
+CFLAGS=-mno-thumb-interwork -march=armv4 -Os -g
 
 all: testbench.pad.hex testbench.pad.hex64 testbench.hex
 
