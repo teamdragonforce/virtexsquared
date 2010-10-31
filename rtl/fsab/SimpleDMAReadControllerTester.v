@@ -32,8 +32,11 @@ module SimpleDMAReadControllerTester(/*AUTOARG*/
 
 	/*AUTOWIRE*/
 	// Beginning of automatic wires (for undeclared instantiated-module outputs)
+	wire [63:0]	data;			// From dmacontroller of SimpleDMAReadController.v
+	wire		data_ready;		// From dmacontroller of SimpleDMAReadController.v
 	wire		dmac__spami_busy_b;	// From dmacontroller of SimpleDMAReadController.v
-	wire [63:0]	dmac__spami_data;	// From dmacontroller of SimpleDMAReadController.v
+	wire [SPAM_DATA_HI:0] dmac__spami_data;	// From dmacontroller of SimpleDMAReadController.v
+	reg request;
 	// End of automatics
 
 	wire                  spamo_valid;
@@ -44,7 +47,6 @@ module SimpleDMAReadControllerTester(/*AUTOARG*/
 
 	assign spamo_r_nw = 1;
 	assign spamo_did = SPAM_DID_DMAC;
-	assign spamo_addr = 0;
 
 	SimpleDMAReadController dmacontroller(/*AUTOINST*/
 					      // Outputs
@@ -56,8 +58,10 @@ module SimpleDMAReadControllerTester(/*AUTOARG*/
 					      .dmac__fsabo_len	(dmac__fsabo_len[FSAB_LEN_HI:0]),
 					      .dmac__fsabo_data	(dmac__fsabo_data[FSAB_DATA_HI:0]),
 					      .dmac__fsabo_mask	(dmac__fsabo_mask[FSAB_MASK_HI:0]),
+					      .data		(data[63:0]),
+					      .data_ready	(data_ready),
 					      .dmac__spami_busy_b(dmac__spami_busy_b),
-					      .dmac__spami_data	(dmac__spami_data[63:0]),
+					      .dmac__spami_data	(dmac__spami_data[SPAM_DATA_HI:0]),
 					      // Inputs
 					      .clk		(clk),
 					      .rst_b		(rst_b),
@@ -72,27 +76,39 @@ module SimpleDMAReadControllerTester(/*AUTOARG*/
 					      .spamo_r_nw	(spamo_r_nw),
 					      .spamo_did	(spamo_did[SPAM_DID_HI:0]),
 					      .spamo_addr	(spamo_addr[SPAM_ADDR_HI:0]),
-					      .spamo_data	(spamo_data[SPAM_DATA_HI:0]));
+					      .spamo_data	(spamo_data[SPAM_DATA_HI:0]),
+					      .request		(request));
 	defparam dmacontroller.FSAB_DID = FSAB_DID_CPU;
 	defparam dmacontroller.FSAB_SUBDID = FSAB_SUBDID_CPU_DMAC;
 	defparam dmacontroller.SPAM_DID = SPAM_DID_DMAC;
 	defparam dmacontroller.FIFO_DEPTH = 16;
+	defparam dmacontroller.SPAM_ADDRPFX = 24'h000000;
+	defparam dmacontroller.SPAM_ADDRMASK = 24'h000000;
+	defparam dmacontroller.DEFAULT_LEN = 31'h0000100;
 
 	integer i = 0;
 	reg start_reading = 0;
-	always @ (posedge clk)
-	begin
-		i <= i + 1;
-		if (i == 10000)
-			start_reading <= 1;
-		if (start_reading)
-		begin
-			if ((i & 'hFFFF) == 0)
+
+	always @(*) begin
+		spamo_valid = 0;
+		request = 0;
+		spamo_addr = 24'h000000;
+		case (i)
+			'd0: begin
 				spamo_valid = 1;
-			else
-				spamo_valid = 0;
+				spamo_addr = 24'h000002;
+				spamo_data = 32'h000002; 
+			end
+		endcase
+		if (i > 10000 & (i % 100 == 0)) begin
+			request = 1;
 		end
 	end
-		
+
+	always @ (posedge clk) begin
+		i <= i+1;
+		if (data_ready)
+			$display("DMA_INTERFACE Data: %x", data);
+	end
 
 endmodule
