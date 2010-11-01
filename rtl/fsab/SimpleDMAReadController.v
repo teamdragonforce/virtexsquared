@@ -99,9 +99,14 @@ module SimpleDMAReadController(/*AUTOARG*/
 	reg triggered = 0;
 
         /* Config */ 
-        reg [FSAB_ADDR_HI:0] next_start_addr = DEFAULT_ADDR;
-        reg [FSAB_ADDR_HI:0] next_len = DEFAULT_LEN;
+        wire [FSAB_ADDR_HI:0] next_start_addr;
+        wire [FSAB_ADDR_HI:0] next_len;
+        
+        /* This is sort of gross, but oh well. */
 	reg [COMMAND_REGISTER_HI:0] command_register = DMA_STOP;
+	reg [COMMAND_REGISTER_HI:0] command_register_next = DMA_STOP;
+	wire [COMMAND_REGISTER_HI:0] command_register_bus;
+	wire command_register_bus_written;
 
 	reg [FSAB_ADDR_HI:0] end_addr = DEFAULT_ADDR+DEFAULT_LEN;
 	/*** FSAB credit availability logic ***/
@@ -161,6 +166,18 @@ module SimpleDMAReadController(/*AUTOARG*/
 	reg completed_read_s1 = 0;
 	reg completed_read = 0;
 
+	always @(*) begin
+		command_register_next = command_register;
+		
+		if (!triggered && (command_register == DMA_TRIGGER_ONCE))
+			command_register_next = DMA_STOP;
+		
+		if (command_register_bus_written) begin
+			command_register_next = command_register_bus;
+			$display("DMA: command_register_bus_written");
+		end
+	end
+
 	always @(posedge clk or negedge rst_b) begin
 		if (!rst_b) begin
 			read_pending <= 0;
@@ -174,10 +191,11 @@ module SimpleDMAReadController(/*AUTOARG*/
 			completed_read_s1 <= completed_read_fclk;
 			completed_read <= completed_read_s1;
 
+			command_register <= command_register_next;
+
 			if (!triggered) begin
 				case (command_register)
 					DMA_TRIGGER_ONCE: begin
-						command_register <= DMA_STOP;
 						triggered <= 1;
 						next_fsab_addr <= next_start_addr;
 						end_addr <= next_start_addr+next_len;	
@@ -254,30 +272,69 @@ module SimpleDMAReadController(/*AUTOARG*/
 	end
 
 	/* Config */
+	
+	wire wr_decode = spamo_valid && !spamo_r_nw && 
+	                 ((spamo_addr & SPAM_ADDRMASK) == SPAM_ADDRPFX) &&
+	                 (spamo_did == SPAM_DID);
+	
+	always @(*)
+		if (wr_decode)
+			$display("CSR: wr_decode, rst %d", rst_b);
+	
+	wire wr_done_strobe_NEXT_START_REG;
+	CSRSyncWrite #(.WIDTH       (FSAB_ADDR_HI+1),
+	               .RESET_VALUE (DEFAULT_ADDR))
+		CSR_NEXT_START_REG (/* NOT AUTOINST */
+		                    // Outputs
+		                    .wr_wait_cclk       (),
+		                    .wr_done_strobe_cclk(wr_done_strobe_NEXT_START_REG),
+		                    .wr_strobe_tclk     (),
+		                    .wr_data_tclk       (next_start_addr[FSAB_ADDR_HI:0]),
+		                    // Inputs
+		                    .cclk               (clk),
+		                    .tclk               (clk),
+		                    .rst_b_cclk         (rst_b),
+		                    .rst_b_tclk         (rst_b),
+		                    .wr_strobe_cclk     (wr_decode && (spamo_addr[DMA_SPAM_ADDR_HI:0] == NEXT_START_REG_ADDR)),
+		                    .wr_data_cclk       (spamo_data[FSAB_ADDR_HI:0]));
 
-	always @(posedge clk or negedge rst_b) begin
-		if (!rst_b) begin
-			dmac__spami_busy_b <= 0;
-			next_start_addr <= DEFAULT_ADDR;
-			next_len <= DEFAULT_LEN;
-			command_register <= DMA_STOP;
-		end
-		else begin
-			if (spamo_valid && !spamo_r_nw && 
-			    (spamo_addr & SPAM_ADDRMASK) == SPAM_ADDRPFX &&
-			    (spamo_did == SPAM_DID)) begin
-				dmac__spami_busy_b <= 1;
-				case (spamo_addr[DMA_SPAM_ADDR_HI:0])
-					NEXT_START_REG_ADDR:
-						next_start_addr <= spamo_data[FSAB_ADDR_HI:0];
-					NEXT_LEN_REG_ADDR:
-						next_len <= spamo_data[FSAB_ADDR_HI:0];
-					COMMAND_REG_ADDR:
-						command_register <= spamo_data[COMMAND_REGISTER_HI:0];
-					default: 
-						$display("DMA: Not a valid spam_address to DMA"); 
-				endcase 
-			end
-		end
-	end	
+	wire wr_done_strobe_NEXT_LEN_REG;
+	CSRSyncWrite #(.WIDTH       (FSAB_ADDR_HI+1),
+	               .RESET_VALUE (DEFAULT_LEN))
+		CSR_NEXT_LEN_REG (/* NOT AUTOINST */
+		                  // Outputs
+		                  .wr_wait_cclk       (),
+		                  .wr_done_strobe_cclk(wr_done_strobe_NEXT_LEN_REG),
+		                  .wr_strobe_tclk     (),
+		                  .wr_data_tclk       (next_len[FSAB_ADDR_HI:0]),
+		                  // Inputs
+		                  .cclk               (clk),
+		                  .tclk               (clk),
+		                  .rst_b_cclk         (rst_b),
+		                  .rst_b_tclk         (rst_b),
+		                  .wr_strobe_cclk     (wr_decode && (spamo_addr[DMA_SPAM_ADDR_HI:0] == NEXT_LEN_REG_ADDR)),
+		                  .wr_data_cclk       (spamo_data[FSAB_ADDR_HI:0]));
+	
+	wire wr_done_strobe_COMMAND_REG;
+	CSRSyncWrite #(.WIDTH       (COMMAND_REGISTER_HI+1),
+	               .RESET_VALUE (DMA_STOP))
+		CSR_COMMAND_REG (/* NOT AUTOINST */
+		                 // Outputs
+		                 .wr_wait_cclk       (),
+		                 .wr_done_strobe_cclk(wr_done_strobe_COMMAND_REG),
+		                 .wr_strobe_tclk     (command_register_bus_written),
+		                 .wr_data_tclk       (command_register_bus[COMMAND_REGISTER_HI:0]),
+		                 // Inputs
+		                 .cclk               (clk),
+		                 .tclk               (clk),
+		                 .rst_b_cclk         (rst_b),
+		                 .rst_b_tclk         (rst_b),
+		                 .wr_strobe_cclk     (wr_decode && (spamo_addr[DMA_SPAM_ADDR_HI:0] == COMMAND_REG_ADDR)),
+		                 .wr_data_cclk       (spamo_data[COMMAND_REGISTER_HI:0]));
+	
+	assign dmac__spami_busy_b = wr_done_strobe_COMMAND_REG | wr_done_strobe_NEXT_LEN_REG | wr_done_strobe_NEXT_START_REG;
 endmodule
+
+// Local Variables:
+// verilog-library-directories:("." "../console" "../core" "../fsab" "../spam" "../fsab/sim" "../util")
+// End:
