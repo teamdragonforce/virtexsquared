@@ -51,7 +51,7 @@ module CSRSyncWrite #(
 	reg               wr_wait_cclk_1a = 0;
 	
 	always @(posedge cclk)
-		if (rst_b_cclk) begin
+		if (~rst_b_cclk) begin
 			wr_data_l_cclk <= {WIDTH{1'b0}};
 			wr_current_cclk <= 0;
 			wr_current_tclk_s1 <= 0;
@@ -74,7 +74,7 @@ module CSRSyncWrite #(
 	end
 	
 	always @(posedge tclk)
-		if (rst_b_tclk) begin
+		if (~rst_b_tclk) begin
 			wr_current_tclk <= 0;
 			wr_current_cclk_s1 <= 0;
 			wr_current_cclk_tclk <= 0;
