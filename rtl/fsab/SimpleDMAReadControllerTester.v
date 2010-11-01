@@ -109,7 +109,7 @@ module SimpleDMAReadControllerTester(/*AUTOARG*/
 	always @ (posedge clk) begin
 		i <= i+1;
 		if (data_ready)
-			$display("Data: %x", data);
+			$display("DMA_INTERFACE Data: %x", data);
 	end
 
 endmodule
