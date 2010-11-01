@@ -34,22 +34,67 @@ module CSRSyncWrite #(
 	output reg               wr_strobe_tclk = 0;
 	output reg [(WIDTH-1):0] wr_data_tclk = RESET_VALUE;
 
-`ifdef verilator
-	always @(*) begin
-		wr_strobe_tclk = wr_strobe_cclk;
-	end
+	reg [(WIDTH-1):0] wr_data_l_cclk = {WIDTH{1'b0}};
+	reg               wr_current_cclk = 0;
+	reg               wr_current_tclk_s1 = 0;
+	reg               wr_current_tclk_cclk = 0;
 	
-	always @(posedge cclk) begin
-		if (rst_b_cclk)
-			wr_data_tclk <= RESET_VALUE;
-		else begin
-			if (wr_strobe_cclk)
-				wr_data_tclk <= wr_data_cclk;
+	reg               wr_current_tclk = 0;
+	reg               wr_current_cclk_s1 = 0;
+	reg               wr_current_cclk_tclk = 0;
+	reg               wr_current_cclk_1a_tclk = 0;
+	
+	reg [(WIDTH-1):0] wr_data_l_cclk_s1 = {WIDTH{1'b0}};
+	reg [(WIDTH-1):0] wr_data_l_cclk_tclk = {WIDTH{1'b0}};
+	
+	always @(posedge cclk)
+		if (rst_b_cclk) begin
+			wr_data_l_cclk <= {WIDTH{1'b0}};
+			wr_current_cclk <= 0;
+			wr_current_tclk_s1 <= 0;
+			wr_current_tclk_cclk <= 0;
+		end else begin
+			wr_current_tclk_s1 <= wr_current_tclk;
+			wr_current_tclk_cclk <= wr_current_tclk_s1;
+		
+			if (wr_strobe_cclk) begin
+				wr_current_cclk <= ~wr_current_cclk;
+				wr_data_l_cclk <= wr_data_cclk;
+			end
 		end
-	end
-`else
+	
 	always @(*)
-		$error("CSRSyncWrite not synthesizable yet");
-`endif
+		wr_wait_cclk = wr_strobe_cclk || (wr_current_cclk != wr_current_tclk_cclk);
+	
+	always @(posedge tclk)
+		if (rst_b_tclk) begin
+			wr_current_tclk <= 0;
+			wr_current_cclk_s1 <= 0;
+			wr_current_cclk_tclk <= 0;
+			wr_current_cclk_1a_tclk <= 0;
+			wr_data_l_cclk_s1 <= {WIDTH{1'b0}};
+			wr_data_l_cclk_tclk <= {WIDTH{1'b0}};
+			wr_data_tclk <= RESET_VALUE;
+			wr_strobe_tclk <= 0;
+		end else begin
+			wr_current_cclk_s1 <= wr_current_cclk;
+			wr_current_cclk_tclk <= wr_current_cclk_s1;
+			wr_current_cclk_1a_tclk <= wr_current_cclk_tclk;
+			
+			wr_data_l_cclk_s1 <= wr_data_l_cclk;
+			wr_data_l_cclk_tclk <= wr_data_l_cclk_s1;
+			
+			/* We use the delayed version of the current signal,
+			 * because it may have arrived before the data
+			 * signals.  If we wait a clock, the data signals
+			 * are guaranteed to have arrived by now.
+			 */
+			if (wr_current_cclk_1a_tclk != wr_current_tclk) begin
+				wr_current_tclk <= wr_current_cclk_1a_tclk;
+				wr_strobe_tclk <= 1;
+				wr_data_tclk <= wr_data_l_cclk_s1;
+			end else
+				wr_strobe_tclk <= 0;
+		end
 
 endmodule
