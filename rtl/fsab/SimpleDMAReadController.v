@@ -258,7 +258,8 @@ module SimpleDMAReadController(/*AUTOARG*/
 			if (current_read_fclk ^ current_read_1a_fclk) begin
 				fifo_fill_pos_fclk <= 0;
 			end else if (fsabi_valid && (fsabi_did == FSAB_DID) && (fsabi_subdid == FSAB_SUBDID)) begin
-				completed_read_fclk <= current_read_fclk;
+				if (fifo_fill_pos_fclk == 7) /* Done? */
+					completed_read_fclk <= current_read_fclk;
 				fsabi_data_buffer[fifo_fill_pos_fclk] <= fsabi_data;
 				fifo_fill_pos_fclk <= fifo_fill_pos_fclk + 1;	
 			end
