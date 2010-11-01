@@ -214,6 +214,7 @@ module SimpleDMAReadController(/*AUTOARG*/
 	always @(posedge clk or negedge rst_b) begin
 		if (!rst_b) begin
 			data_ready <= 0;
+			fifo_rpos <= 0;
 		end else begin
 			if (request && (curr_fifo_length > 0)) begin
 				$display("DMAC: Read %x from fifo at %x", fifo[fifo_rpos], fifo_rpos);
@@ -235,6 +236,7 @@ module SimpleDMAReadController(/*AUTOARG*/
 			current_read_fclk <= 0;
 			completed_read_fclk <= 0;
 			fifo_fill_pos_fclk <= 0;
+			fifo_wpos <= 0;
 		end else begin
 			current_read_fclk_s1 <= current_read;
 			current_read_fclk <= current_read_fclk_s1;
