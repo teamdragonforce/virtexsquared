@@ -98,9 +98,6 @@ module SimpleDMAReadController(/*AUTOARG*/
 	reg read_pending = 0;
 	reg triggered = 0;
 
-	/* intermediate register to synchronize fsabi_data to the core clk domain */
-	reg [FSAB_DATA_HI:0] fsabi_data_buffer [7:0];
-
         /* Config */ 
         reg [FSAB_ADDR_HI:0] next_start_addr = DEFAULT_ADDR;
         reg [FSAB_ADDR_HI:0] next_len = DEFAULT_LEN;
@@ -201,20 +198,7 @@ module SimpleDMAReadController(/*AUTOARG*/
 					read_pending <= 1;
 					current_read <= ~current_read;
 				end else if ((completed_read == current_read) && read_pending) begin
-					$display("DMAC_FIFO: Read %x, %x, %x, %x, %x, %x, %x, %x from %x to fifo from %x", 
-                                                 fsabi_data_buffer[0], fsabi_data_buffer[1], fsabi_data_buffer[2],
-                                                 fsabi_data_buffer[3], fsabi_data_buffer[4], fsabi_data_buffer[5],
-                                                 fsabi_data_buffer[6], fsabi_data_buffer[7], next_fsab_addr, fifo_wpos);
 					read_pending <= 0;
-					fifo[fifo_wpos] <= fsabi_data_buffer[0];
-					fifo[fifo_wpos+1] <= fsabi_data_buffer[1];
-					fifo[fifo_wpos+2] <= fsabi_data_buffer[2];
-					fifo[fifo_wpos+3] <= fsabi_data_buffer[3];
-					fifo[fifo_wpos+4] <= fsabi_data_buffer[4];
-					fifo[fifo_wpos+5] <= fsabi_data_buffer[5];
-					fifo[fifo_wpos+6] <= fsabi_data_buffer[6];
-					fifo[fifo_wpos+7] <= fsabi_data_buffer[7];
-					fifo_wpos <= fifo_wpos + 'h8;
 					curr_fifo_length <= curr_fifo_length + 8;
 					if (end_addr <= next_fsab_addr) begin
 						triggered <= 0;
@@ -260,7 +244,8 @@ module SimpleDMAReadController(/*AUTOARG*/
 			end else if (fsabi_valid && (fsabi_did == FSAB_DID) && (fsabi_subdid == FSAB_SUBDID)) begin
 				if (fifo_fill_pos_fclk == 7) /* Done? */
 					completed_read_fclk <= current_read_fclk;
-				fsabi_data_buffer[fifo_fill_pos_fclk] <= fsabi_data;
+				fifo[fifo_wpos] <= fsabi_data;
+				fifo_wpos <= fifo_wpos + 1;
 				fifo_fill_pos_fclk <= fifo_fill_pos_fclk + 1;	
 			end
 		end
