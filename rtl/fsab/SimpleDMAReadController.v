@@ -200,7 +200,7 @@ module SimpleDMAReadController(/*AUTOARG*/
 				end else if ((completed_read == current_read) && read_pending) begin
 					read_pending <= 0;
 					curr_fifo_length <= curr_fifo_length + 8;
-					if (end_addr <= next_fsab_addr) begin
+					if (end_addr == next_fsab_addr + 64) begin
 						triggered <= 0;
 					end
 					else begin

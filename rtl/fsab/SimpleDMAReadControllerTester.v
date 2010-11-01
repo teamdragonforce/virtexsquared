@@ -85,7 +85,7 @@ module SimpleDMAReadControllerTester(/*AUTOARG*/
 	defparam dmacontroller.FIFO_DEPTH = 16;
 	defparam dmacontroller.SPAM_ADDRPFX = 24'h000000;
 	defparam dmacontroller.SPAM_ADDRMASK = 24'h000000;
-	defparam dmacontroller.DEFAULT_LEN = 31'h00000FF;
+	defparam dmacontroller.DEFAULT_LEN = 31'h0000100;
 
 	integer i = 0;
 	reg start_reading = 0;
