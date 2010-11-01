@@ -16,7 +16,7 @@ module CSRSyncWrite #(
 	parameter RESET_VALUE = {WIDTH{1'b0}}
 ) (/*AUTOARG*/
    // Outputs
-   wr_wait_cclk, wr_strobe_tclk, wr_data_tclk,
+   wr_wait_cclk, wr_done_strobe_cclk, wr_strobe_tclk, wr_data_tclk,
    // Inputs
    cclk, tclk, rst_b_cclk, rst_b_tclk, wr_strobe_cclk, wr_data_cclk
    );
@@ -30,6 +30,7 @@ module CSRSyncWrite #(
 	input                    wr_strobe_cclk;
 	input      [(WIDTH-1):0] wr_data_cclk;
 	output reg               wr_wait_cclk = 0;
+	output reg               wr_done_strobe_cclk = 0;
 	
 	output reg               wr_strobe_tclk = 0;
 	output reg [(WIDTH-1):0] wr_data_tclk = RESET_VALUE;
@@ -47,15 +48,19 @@ module CSRSyncWrite #(
 	reg [(WIDTH-1):0] wr_data_l_cclk_s1 = {WIDTH{1'b0}};
 	reg [(WIDTH-1):0] wr_data_l_cclk_tclk = {WIDTH{1'b0}};
 	
+	reg               wr_wait_cclk_1a = 0;
+	
 	always @(posedge cclk)
 		if (rst_b_cclk) begin
 			wr_data_l_cclk <= {WIDTH{1'b0}};
 			wr_current_cclk <= 0;
 			wr_current_tclk_s1 <= 0;
 			wr_current_tclk_cclk <= 0;
+			wr_wait_cclk_1a <= 0;
 		end else begin
 			wr_current_tclk_s1 <= wr_current_tclk;
 			wr_current_tclk_cclk <= wr_current_tclk_s1;
+			wr_wait_cclk_1a <= wr_wait_cclk;
 		
 			if (wr_strobe_cclk) begin
 				wr_current_cclk <= ~wr_current_cclk;
@@ -63,8 +68,10 @@ module CSRSyncWrite #(
 			end
 		end
 	
-	always @(*)
+	always @(*) begin
 		wr_wait_cclk = wr_strobe_cclk || (wr_current_cclk != wr_current_tclk_cclk);
+		wr_done_strobe_cclk = !wr_wait_cclk && wr_wait_cclk_1a;
+	end
 	
 	always @(posedge tclk)
 		if (rst_b_tclk) begin
