@@ -19,7 +19,8 @@ module SimpleDMAReadController(/*AUTOARG*/
    // Inputs
    core_clk, core_rst_b, dmac__fsabo_credit, fsabi_clk, fsabi_rst_b,
    fsabi_valid, fsabi_did, fsabi_subdid, fsabi_data, spamo_valid,
-   spamo_r_nw, spamo_did, spamo_addr, spamo_data, request
+   spamo_r_nw, spamo_did, spamo_addr, spamo_data, frame_clk,
+   frame_rst_b, request
    );
 
 	`include "fsab_defines.vh"
@@ -52,6 +53,9 @@ module SimpleDMAReadController(/*AUTOARG*/
 	input      [SPAM_DID_HI:0]  spamo_did;
 	input      [SPAM_ADDR_HI:0] spamo_addr;
 	input      [SPAM_DATA_HI:0] spamo_data;
+
+	input                       frame_clk;
+	input                       frame_rst_b;
 
         /* User */
         input                       request;	       
@@ -115,8 +119,8 @@ module SimpleDMAReadController(/*AUTOARG*/
 	
 	reg [FSAB_CREDITS_HI:0] fsab_credits = FSAB_INITIAL_CREDITS;
 	wire fsab_credit_avail = (fsab_credits != 0);
-	always @(posedge core_clk or negedge core_rst_b) begin
-		if (!core_rst_b) begin
+	always @(posedge frame_clk or negedge frame_rst_b) begin
+		if (!frame_rst_b) begin
 			fsab_credits <= FSAB_INITIAL_CREDITS;
 		end else begin
 			if (dmac__fsabo_credit | dmac__fsabo_valid) begin
@@ -155,8 +159,8 @@ module SimpleDMAReadController(/*AUTOARG*/
 		end	
 	end
 
-	always @(posedge core_clk) begin
-		if (start_read && core_rst_b) begin
+	always @(posedge frame_clk) begin
+		if (start_read && frame_rst_b) begin
 			`ifdef verilator
 				$display("DMA_READ from %x", next_fsab_addr);
 			`endif
@@ -187,7 +191,7 @@ module SimpleDMAReadController(/*AUTOARG*/
 	end
 
 
-	always @(posedge core_clk or negedge core_rst_b) begin
+	always @(posedge frame_clk or negedge frame_rst_b) begin
 		if (!core_rst_b) begin
 			read_pending <= 0;
 			current_read <= 0;
@@ -240,7 +244,7 @@ module SimpleDMAReadController(/*AUTOARG*/
 		end
 	end
 
-	always @(posedge core_clk or negedge core_rst_b) begin
+	always @(posedge frame_clk or negedge frame_rst_b) begin
 		if (!core_rst_b) begin
 			data_ready <= 0;
 			fifo_rpos <= 0;
@@ -309,9 +313,9 @@ module SimpleDMAReadController(/*AUTOARG*/
 		                    .wr_data_tclk       (next_start_addr[FSAB_ADDR_HI:0]),
 		                    // Inputs
 		                    .cclk               (core_clk),
-		                    .tclk               (core_clk),
+		                    .tclk               (frame_clk),
 		                    .rst_b_cclk         (core_rst_b),
-		                    .rst_b_tclk         (core_rst_b),
+		                    .rst_b_tclk         (frame_rst_b),
 		                    .wr_strobe_cclk     (wr_decode && (spamo_addr[DMA_SPAM_ADDR_HI:0] == NEXT_START_REG_ADDR)),
 		                    .wr_data_cclk       (spamo_data[FSAB_ADDR_HI:0]));
 
@@ -326,9 +330,9 @@ module SimpleDMAReadController(/*AUTOARG*/
 		                  .wr_data_tclk       (next_len[FSAB_ADDR_HI:0]),
 		                  // Inputs
 		                  .cclk               (core_clk),
-		                  .tclk               (core_clk),
+		                  .tclk               (frame_clk),
 		                  .rst_b_cclk         (core_rst_b),
-		                  .rst_b_tclk         (core_rst_b),
+		                  .rst_b_tclk         (frame_rst_b),
 		                  .wr_strobe_cclk     (wr_decode && (spamo_addr[DMA_SPAM_ADDR_HI:0] == NEXT_LEN_REG_ADDR)),
 		                  .wr_data_cclk       (spamo_data[FSAB_ADDR_HI:0]));
 	
@@ -343,9 +347,9 @@ module SimpleDMAReadController(/*AUTOARG*/
 		                 .wr_data_tclk       (command_register_bus[COMMAND_REGISTER_HI:0]),
 		                 // Inputs
 		                 .cclk               (core_clk),
-		                 .tclk               (core_clk),
+		                 .tclk               (frame_clk),
 		                 .rst_b_cclk         (core_rst_b),
-		                 .rst_b_tclk         (core_rst_b),
+		                 .rst_b_tclk         (frame_rst_b),
 		                 .wr_strobe_cclk     (wr_decode && (spamo_addr[DMA_SPAM_ADDR_HI:0] == COMMAND_REG_ADDR)),
 		                 .wr_data_cclk       (spamo_data[COMMAND_REGISTER_HI:0]));
 	
