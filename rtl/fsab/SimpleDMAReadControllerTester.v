@@ -37,7 +37,6 @@ module SimpleDMAReadControllerTester(/*AUTOARG*/
 	wire		data_ready;		// From dmacontroller of SimpleDMAReadController.v
 	wire		dmac__spami_busy_b;	// From dmacontroller of SimpleDMAReadController.v
 	wire [SPAM_DATA_HI:0] dmac__spami_data;	// From dmacontroller of SimpleDMAReadController.v
-	reg request;
 	// End of automatics
 
 	wire                  spamo_valid;
