@@ -48,6 +48,15 @@ module SimpleDMAReadControllerTester(/*AUTOARG*/
 	assign spamo_r_nw = 0;
 	assign spamo_did = SPAM_DID_DMAC;
 
+	reg request;
+
+	/* SimpleDMAReadController AUTO_TEMPLATE (
+                                   .core_rst_b(rst_b),
+	                           .core_clk(clk),
+	                           .frame_clk(clk),
+	                           .frame_rst_b(rst_b),
+	                           );
+	*/
 	SimpleDMAReadController dmacontroller(/*AUTOINST*/
 					      // Outputs
 					      .dmac__fsabo_valid(dmac__fsabo_valid),
@@ -63,8 +72,8 @@ module SimpleDMAReadControllerTester(/*AUTOARG*/
 					      .dmac__spami_busy_b(dmac__spami_busy_b),
 					      .dmac__spami_data	(dmac__spami_data[SPAM_DATA_HI:0]),
 					      // Inputs
-					      .clk		(clk),
-					      .rst_b		(rst_b),
+					      .core_clk		(clk),		 // Templated
+					      .core_rst_b	(rst_b),	 // Templated
 					      .dmac__fsabo_credit(dmac__fsabo_credit),
 					      .fsabi_clk	(fsabi_clk),
 					      .fsabi_rst_b	(fsabi_rst_b),
@@ -77,6 +86,8 @@ module SimpleDMAReadControllerTester(/*AUTOARG*/
 					      .spamo_did	(spamo_did[SPAM_DID_HI:0]),
 					      .spamo_addr	(spamo_addr[SPAM_ADDR_HI:0]),
 					      .spamo_data	(spamo_data[SPAM_DATA_HI:0]),
+					      .frame_clk	(clk),		 // Templated
+					      .frame_rst_b	(rst_b),	 // Templated
 					      .request		(request));
 	defparam dmacontroller.FSAB_DID = FSAB_DID_CPU;
 	defparam dmacontroller.FSAB_SUBDID = FSAB_SUBDID_CPU_DMAC;
@@ -96,7 +107,7 @@ module SimpleDMAReadControllerTester(/*AUTOARG*/
 		case (i)
 			'd0: begin
 				spamo_valid = 1;
-				spamo_addr = 24'h000002;
+				spamo_addr = 24'h00000c;
 				spamo_data = 32'h000002; 
 			end
 		endcase
