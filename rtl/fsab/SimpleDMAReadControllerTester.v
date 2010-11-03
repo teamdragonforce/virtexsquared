@@ -64,8 +64,8 @@ module SimpleDMAReadControllerTester(/*AUTOARG*/
 					      .dmac__spami_busy_b(dmac__spami_busy_b),
 					      .dmac__spami_data	(dmac__spami_data[SPAM_DATA_HI:0]),
 					      // Inputs
-					      .clk		(clk),
-					      .rst_b		(rst_b),
+					      .core_clk		(clk),
+					      .core_rst_b	(rst_b),
 					      .dmac__fsabo_credit(dmac__fsabo_credit),
 					      .fsabi_clk	(fsabi_clk),
 					      .fsabi_rst_b	(fsabi_rst_b),
@@ -97,7 +97,7 @@ module SimpleDMAReadControllerTester(/*AUTOARG*/
 		case (i)
 			'd0: begin
 				spamo_valid = 1;
-				spamo_addr = 24'h000002;
+				spamo_addr = 24'h00000c;
 				spamo_data = 32'h000002; 
 			end
 		endcase
