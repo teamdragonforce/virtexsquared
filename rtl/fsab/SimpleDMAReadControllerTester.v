@@ -11,6 +11,7 @@ module SimpleDMAReadControllerTester(/*AUTOARG*/
 
 	`include "fsab_defines.vh"
 	`include "spam_defines.vh"
+	`include "dma_config_defines.vh"
 
 	output reg                  dmac__fsabo_valid = 0;
 	output reg [FSAB_REQ_HI:0]  dmac__fsabo_mode = 0;
@@ -45,7 +46,7 @@ module SimpleDMAReadControllerTester(/*AUTOARG*/
 	wire [SPAM_ADDR_HI:0] spamo_addr;
 	wire [SPAM_DATA_HI:0] spamo_data;
 
-	assign spamo_r_nw = 1;
+	assign spamo_r_nw = 0;
 	assign spamo_did = SPAM_DID_DMAC;
 
 	SimpleDMAReadController dmacontroller(/*AUTOINST*/
