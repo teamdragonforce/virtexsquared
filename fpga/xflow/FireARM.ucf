@@ -16,8 +16,32 @@ NET "lcd_rnw" LOC="AC10" | IOSTANDARD=LVDCI_33; #sadly, not AC130U
 NET "lcd_rs" LOC="J17" | IOSTANDARD=LVCMOS25;
 
 # FPGA south
-NET "corerst_btn" LOC="V8";
+NET "corerst_btn" LOC="V8" | IOSTANDARD=LVDCI_33;
 
+NET "dvi_d<11>" LOC="AN14" | TNM="dvi_d" | IOSTANDARD=LVDCI_33;
+NET "dvi_d<10>" LOC="AP14" | TNM="dvi_d" | IOSTANDARD=LVDCI_33;
+NET "dvi_d<9>" LOC="AB10" | TNM="dvi_d" | IOSTANDARD=LVDCI_33;
+NET "dvi_d<8>" LOC="AA10" | TNM="dvi_d" | IOSTANDARD=LVDCI_33;
+NET "dvi_d<7>" LOC="AN13" | TNM="dvi_d" | IOSTANDARD=LVDCI_33;
+NET "dvi_d<6>" LOC="AM13" | TNM="dvi_d" | IOSTANDARD=LVDCI_33;
+NET "dvi_d<5>" LOC="AA8" | TNM="dvi_d" | IOSTANDARD=LVDCI_33;
+NET "dvi_d<4>" LOC="AA9" | TNM="dvi_d" | IOSTANDARD=LVDCI_33;
+NET "dvi_d<3>" LOC="AP12" | TNM="dvi_d" | IOSTANDARD=LVDCI_33;
+NET "dvi_d<2>" LOC="AN12" | TNM="dvi_d" | IOSTANDARD=LVDCI_33;
+NET "dvi_d<1>" LOC="AC8" | TNM="dvi_d" | IOSTANDARD=LVDCI_33;
+NET "dvi_d<0>" LOC="AB8" | TNM="dvi_d" | IOSTANDARD=LVDCI_33;
+NET "dvi_xclk_p" LOC="AL11" | TNM="dvi_c" | IOSTANDARD=LVDCI_33;
+NET "dvi_xclk_n" LOC="AL10" | TNM="dvi_c" | IOSTANDARD=LVDCI_33;
+NET "dvi_hs" LOC="AM12" | TNM="dvi_d" | IOSTANDARD=LVDCI_33;
+NET "dvi_vs" LOC="AM11" | TNM="dvi_d" | IOSTANDARD=LVDCI_33;
+NET "dvi_de" LOC="AE8" | TNM="dvi_d" | IOSTANDARD=LVDCI_33;
+NET "dvi_reset_b" LOC="AK6" | TNM="dvi_d" | IOSTANDARD=LVDCI_33;
+
+NET "dvi_scl" LOC="u27" | SLEW=fast | PULLUP | IOSTANDARD=SSTL18_II;
+NET "dvi_sda" LOC="t29" | SLEW=fast | PULLUP | IOSTANDARD=SSTL18_II;
+
+TIMESPEC "TS_dvi_setup" = FROM dvi_c TO dvi_d 500 ps;
+TIMESPEC "TS_dvi_hold" = FROM dvi_d TO dvi_c 500 ps;
 
 ###
 ### Begin import from MIG generated ucf

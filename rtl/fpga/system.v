@@ -2,9 +2,10 @@ module System(/*AUTOARG*/
    // Outputs
    ddr2_a, ddr2_ba, ddr2_cas_n, ddr2_ck, ddr2_ck_n, ddr2_cke,
    ddr2_cs_n, ddr2_dm, ddr2_odt, ddr2_ras_n, ddr2_we_n, leds, lcd_db,
-   lcd_e, lcd_rnw, lcd_rs,
+   lcd_e, lcd_rnw, lcd_rs, dvi_vs, dvi_hs, dvi_d, dvi_xclk_p,
+   dvi_xclk_n, dvi_de, dvi_reset_b,
    // Inouts
-   ddr2_dq, ddr2_dqs, ddr2_dqs_n,
+   ddr2_dq, ddr2_dqs, ddr2_dqs_n, dvi_sda, dvi_scl,
    // Inputs
    clk200_n, clk200_p, sys_clk_n, sys_clk_p, sys_rst_n, corerst_btn
    );
@@ -12,21 +13,14 @@ module System(/*AUTOARG*/
 	`include "memory_defines.vh"
 
 	/* Ok, this autoinout thing has to go. */
-	
-	// Beginning of automatic inouts (from unused autoinst inouts)
-	inout [DQ_WIDTH-1:0] ddr2_dq;		// To/From mem of FSABMemory.v
-	inout [DQS_WIDTH-1:0] ddr2_dqs;		// To/From mem of FSABMemory.v
-	inout [DQS_WIDTH-1:0] ddr2_dqs_n;	// To/From mem of FSABMemory.v
-	// End of automatics
-	// Beginning of automatic inputs (from unused autoinst inputs)
+
 	input		clk200_n;		// To mem of FSABMemory.v
 	input		clk200_p;		// To mem of FSABMemory.v
 	input		sys_clk_n;		// To mem of FSABMemory.v
 	input		sys_clk_p;		// To mem of FSABMemory.v
 	input		sys_rst_n;		// To mem of FSABMemory.v
 	input           corerst_btn;
-	// End of automatics
-	// Beginning of automatic outputs (from unused autoinst outputs)
+
 	output [ROW_WIDTH-1:0] ddr2_a;		// From mem of FSABMemory.v
 	output [BANK_WIDTH-1:0] ddr2_ba;	// From mem of FSABMemory.v
 	output		ddr2_cas_n;		// From mem of FSABMemory.v
@@ -38,13 +32,25 @@ module System(/*AUTOARG*/
 	output [ODT_WIDTH-1:0] ddr2_odt;	// From mem of FSABMemory.v
 	output		ddr2_ras_n;		// From mem of FSABMemory.v
 	output		ddr2_we_n;		// From mem of FSABMemory.v
+	inout [DQ_WIDTH-1:0] ddr2_dq;		// To/From mem of FSABMemory.v
+	inout [DQS_WIDTH-1:0] ddr2_dqs;		// To/From mem of FSABMemory.v
+	inout [DQS_WIDTH-1:0] ddr2_dqs_n;	// To/From mem of FSABMemory.v
+
 	output [7:0] leds;
 	
 	output [3:0]	lcd_db;			// To/From lcd of SPAM_LCD.v
 	output		lcd_e;			// From lcd of SPAM_LCD.v
 	output		lcd_rnw;		// From lcd of SPAM_LCD.v
 	output		lcd_rs;			// From lcd of SPAM_LCD.v
-	// End of automatics
+	
+	output dvi_vs, dvi_hs;
+	output [11:0] dvi_d;
+	output dvi_xclk_p, dvi_xclk_n;
+	output dvi_de;
+	output dvi_reset_b;
+	inout  dvi_sda;
+	inout  dvi_scl;
+
 
 `include "fsab_defines.vh"
 `include "spam_defines.vh"
@@ -109,14 +115,19 @@ module System(/*AUTOARG*/
 	
 	/*** Clock and reset synchronization ***/
 	
-	wire fclk, cclk;
+	wire fclk, cclk, fbclk;
 	wire fclk_rst_b;
-	wire cclk_ready;
+	wire cclk_ready, fbclk_ready;
 	
 	DCM dcm(.fclk(fclk),
 	        .cclk(cclk),
 	        .rst(~fclk_rst_b),
 	        .ready(cclk_ready));
+	
+	FBDCM fbdcm(.fclk(fclk),
+	            .fbclk(fbclk),
+	            .rst(~fclk_rst_b),
+	            .ready(fbclk_ready));
 	
 	reg [26:0] fclk_counter = 0;
 	wire fclk_div = fclk_counter[26];
@@ -134,15 +145,24 @@ module System(/*AUTOARG*/
 	wire cclk_rstbtn_b = ~corerstbtn_ext[2];
 	
 	assign fclk_rst_b = (~fclk_mem_rst) & (phy_init_done);
+	
 	wire cclk_rst_cause_b = (cclk_ready) & cclk_rstbtn_b & fclk_rst_b;
 	reg [15:0] cclk_rst_b_seq = 16'h0000;
 	wire cclk_rst_b = cclk_rst_b_seq[15];
-	
 	always @(posedge cclk or negedge cclk_rst_cause_b)
 		if (!cclk_rst_cause_b)
 			cclk_rst_b_seq <= 16'h0000;
 		else
 			cclk_rst_b_seq <= {cclk_rst_b_seq[14:0], 1'b1};
+	
+	wire fbclk_rst_cause_b = (fbclk_ready) & fclk_rst_b;
+	reg [15:0] fbclk_rst_b_seq = 16'h0000;
+	wire fbclk_rst_b = fbclk_rst_b_seq[15];
+	always @(posedge fbclk or negedge fbclk_rst_cause_b)
+		if (!fbclk_rst_cause_b)
+			fbclk_rst_b_seq <= 16'h0000;
+		else
+			fbclk_rst_b_seq <= {fbclk_rst_b_seq[14:0], 1'b1};
 	
 	/*** Rest of the system (c.c) ***/
 	
@@ -388,6 +408,22 @@ module System(/*AUTOARG*/
 			    .fsabi_did		(fsabi_did[FSAB_DID_HI:0]),
 			    .fsabi_subdid	(fsabi_subdid[FSAB_DID_HI:0]),
 			    .fsabi_data		(fsabi_data[FSAB_DATA_HI:0]));
+	
+	Framebuffer fb(/*AUTOINST*/
+		       // Outputs
+		       .dvi_vs		(dvi_vs),
+		       .dvi_hs		(dvi_hs),
+		       .dvi_d		(dvi_d[11:0]),
+		       .dvi_xclk_p	(dvi_xclk_p),
+		       .dvi_xclk_n	(dvi_xclk_n),
+		       .dvi_de		(dvi_de),
+		       .dvi_reset_b	(dvi_reset_b),
+		       // Inouts
+		       .dvi_sda		(dvi_sda),
+		       .dvi_scl		(dvi_scl),
+		       // Inputs
+		       .fbclk		(fbclk),
+		       .fbclk_rst_b	(fbclk_rst_b));
 endmodule
 
 module DCM(input fclk, output cclk, input rst, output ready);
@@ -411,7 +447,33 @@ module DCM(input fclk, output cclk, input rst, output ready);
 	defparam DCM_SP_INST.DFS_FREQUENCY_MODE = "LOW";
 	defparam DCM_SP_INST.DLL_FREQUENCY_MODE = "LOW";
 	defparam DCM_SP_INST.DUTY_CYCLE_CORRECTION = "TRUE";
-	defparam DCM_SP_INST.FACTORY_JF = 16'hC080;
+	defparam DCM_SP_INST.FACTORY_JF = 16'hF0F0;
+	defparam DCM_SP_INST.PHASE_SHIFT = 0;
+	defparam DCM_SP_INST.STARTUP_WAIT = "TRUE";
+endmodule
+
+module FBDCM(input fclk, output fbclk, input rst, output ready);
+	wire locked, clk0, clkdv;
+	assign ready = locked;
+
+	BUFG CLKDV_BUFG_INST (.I(clkdv),
+	                      .O(fbclk));
+	DCM_BASE DCM_SP_INST (.CLKIN(fclk), 
+	                      .CLKFB(clk0),
+	                      .CLK0(clk0),
+	                      .RST(rst), 
+	                      .CLKDV(clkdv),
+	                      .LOCKED(locked));
+	defparam DCM_SP_INST.CLK_FEEDBACK = "1X";
+	defparam DCM_SP_INST.CLKDV_DIVIDE = 5;
+	defparam DCM_SP_INST.CLKIN_DIVIDE_BY_2 = "FALSE";
+	defparam DCM_SP_INST.CLKIN_PERIOD = 8.000;
+	defparam DCM_SP_INST.CLKOUT_PHASE_SHIFT = "NONE";
+	defparam DCM_SP_INST.DESKEW_ADJUST = "SYSTEM_SYNCHRONOUS";
+	defparam DCM_SP_INST.DFS_FREQUENCY_MODE = "LOW";
+	defparam DCM_SP_INST.DLL_FREQUENCY_MODE = "LOW";
+	defparam DCM_SP_INST.DUTY_CYCLE_CORRECTION = "TRUE";
+	defparam DCM_SP_INST.FACTORY_JF = 16'hF0F0;
 	defparam DCM_SP_INST.PHASE_SHIFT = 0;
 	defparam DCM_SP_INST.STARTUP_WAIT = "TRUE";
 endmodule
