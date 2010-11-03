@@ -64,7 +64,7 @@ module SimpleDMAReadController(/*AUTOARG*/
 	output reg                  data_ready;
 
 
-	output reg                  dmac__spami_busy_b = 0;
+	output                      dmac__spami_busy_b;
 	output reg [SPAM_DATA_HI:0] dmac__spami_data = 'h0;
 	
 	`include "clog2.vh"
