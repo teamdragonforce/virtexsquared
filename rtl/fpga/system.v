@@ -3,11 +3,13 @@ module System(/*AUTOARG*/
    ddr2_a, ddr2_ba, ddr2_cas_n, ddr2_ck, ddr2_ck_n, ddr2_cke,
    ddr2_cs_n, ddr2_dm, ddr2_odt, ddr2_ras_n, ddr2_we_n, leds, lcd_db,
    lcd_e, lcd_rnw, lcd_rs, dvi_vs, dvi_hs, dvi_d, dvi_xclk_p,
-   dvi_xclk_n, dvi_de, dvi_reset_b,
+   dvi_xclk_n, dvi_de, dvi_reset_b, sace_mpa, sace_mpce_n,
+   sace_mpoe_n, sace_mpwe_n,
    // Inouts
-   ddr2_dq, ddr2_dqs, ddr2_dqs_n, dvi_sda, dvi_scl,
+   ddr2_dq, ddr2_dqs, ddr2_dqs_n, dvi_sda, dvi_scl, sace_mpd,
    // Inputs
-   clk200_n, clk200_p, sys_clk_n, sys_clk_p, sys_rst_n, corerst_btn
+   clk200_n, clk200_p, sys_clk_n, sys_clk_p, sys_rst_n, corerst_btn,
+   sace_clk
    );
 
 	`include "memory_defines.vh"
@@ -50,7 +52,13 @@ module System(/*AUTOARG*/
 	output dvi_reset_b;
 	inout  dvi_sda;
 	inout  dvi_scl;
-
+	
+	input		sace_clk;
+	output [6:0]	sace_mpa;
+	output		sace_mpce_n;
+	inout [15:0]	sace_mpd;
+	output		sace_mpoe_n;
+	output		sace_mpwe_n;
 
 `include "fsab_defines.vh"
 `include "spam_defines.vh"
@@ -104,6 +112,8 @@ module System(/*AUTOARG*/
 	wire [FSAB_REQ_HI:0] pre__fsabo_mode;	// From preload of FSABPreload.v
 	wire [FSAB_DID_HI:0] pre__fsabo_subdid;	// From preload of FSABPreload.v
 	wire		pre__fsabo_valid;	// From preload of FSABPreload.v
+	wire		sace__spami_busy_b;	// From sysace of SPAM_SysACE.v
+	wire [SPAM_DATA_HI:0] sace__spami_data;	// From sysace of SPAM_SysACE.v
 	wire [SPAM_ADDR_HI:0] spamo_addr;	// From core of Core.v
 	wire [SPAM_DATA_HI:0] spamo_data;	// From core of Core.v
 	wire [SPAM_DID_HI:0] spamo_did;		// From core of Core.v
@@ -276,6 +286,31 @@ module System(/*AUTOARG*/
 		     .spamo_addr	(spamo_addr[SPAM_ADDR_HI:0]),
 		     .spamo_data	(spamo_data[SPAM_DATA_HI:0]));
 	defparam lcd.DEBUG = "TRUE";
+	
+	/* SPAM_SysACE AUTO_TEMPLATE (
+		.clk(cclk),
+		.rst_b(cclk_rst_b),
+		);
+	*/
+	SPAM_SysACE sysace(/*AUTOINST*/
+			   // Outputs
+			   .sace__spami_busy_b	(sace__spami_busy_b),
+			   .sace__spami_data	(sace__spami_data[SPAM_DATA_HI:0]),
+			   .sace_mpa		(sace_mpa[6:0]),
+			   .sace_mpce_n		(sace_mpce_n),
+			   .sace_mpwe_n		(sace_mpwe_n),
+			   .sace_mpoe_n		(sace_mpoe_n),
+			   // Inouts
+			   .sace_mpd		(sace_mpd[15:0]),
+			   // Inputs
+			   .clk			(cclk),		 // Templated
+			   .rst_b		(cclk_rst_b),	 // Templated
+			   .spamo_valid		(spamo_valid),
+			   .spamo_r_nw		(spamo_r_nw),
+			   .spamo_did		(spamo_did[SPAM_DID_HI:0]),
+			   .spamo_addr		(spamo_addr[SPAM_ADDR_HI:0]),
+			   .spamo_data		(spamo_data[SPAM_DATA_HI:0]),
+			   .sace_clk		(sace_clk));
 
 	/* FSABArbiter AUTO_TEMPLATE (
 		.clk(fclk),

@@ -43,6 +43,36 @@ NET "dvi_sda" LOC="t29" | SLEW=fast | PULLUP | IOSTANDARD=SSTL18_II;
 TIMESPEC "TS_dvi_setup" = FROM dvi_c TO dvi_d 500 ps;
 TIMESPEC "TS_dvi_hold" = FROM dvi_d TO dvi_c 500 ps;
 
+NET sace_mpa<0> LOC=G5  |  IOSTANDARD = LVCMOS33;
+NET sace_mpa<1> LOC=N7  |  IOSTANDARD = LVCMOS33;
+NET sace_mpa<2> LOC=N5  |  IOSTANDARD = LVCMOS33;
+NET sace_mpa<3> LOC=P5  |  IOSTANDARD = LVCMOS33;
+NET sace_mpa<4> LOC=R6  |  IOSTANDARD = LVCMOS33;
+NET sace_mpa<5> LOC=M6  |  IOSTANDARD = LVCMOS33;
+NET sace_mpa<6> LOC=L6  |  IOSTANDARD = LVCMOS33;
+NET sace_clk LOC=AH17 |  IOSTANDARD = LVCMOS33  |  PERIOD = 30000 ps;
+# NET fpga_0_SysACE_CompactFlash_SysACE_MPIRQ_pin LOC=M7  |  IOSTANDARD = LVCMOS33  |  TIG;
+NET sace_mpce_n LOC=M5  |  IOSTANDARD = LVCMOS33;
+NET sace_mpoe_n LOC=N8  |  IOSTANDARD = LVCMOS33;
+NET sace_mpwe_n LOC=R9  |  IOSTANDARD = LVCMOS33;
+NET sace_mpd<0> LOC=P9  |  IOSTANDARD = LVCMOS33;
+NET sace_mpd<1> LOC=T8  |  IOSTANDARD = LVCMOS33;
+NET sace_mpd<2> LOC=J7  |  IOSTANDARD = LVCMOS33;
+NET sace_mpd<3> LOC=H7  |  IOSTANDARD = LVCMOS33;
+NET sace_mpd<4> LOC=R7  |  IOSTANDARD = LVCMOS33;
+NET sace_mpd<5> LOC=U7  |  IOSTANDARD = LVCMOS33;
+NET sace_mpd<6> LOC=P7  |  IOSTANDARD = LVCMOS33;
+NET sace_mpd<7> LOC=P6  |  IOSTANDARD = LVCMOS33;
+NET sace_mpd<8> LOC=R8  |  IOSTANDARD = LVCMOS33;
+NET sace_mpd<9> LOC=L5  |  IOSTANDARD = LVCMOS33;
+NET sace_mpd<10> LOC=L4  |  IOSTANDARD = LVCMOS33;
+NET sace_mpd<11> LOC=K6  |  IOSTANDARD = LVCMOS33;
+NET sace_mpd<12> LOC=J5  |  IOSTANDARD = LVCMOS33;
+NET sace_mpd<13> LOC=T6  |  IOSTANDARD = LVCMOS33;
+NET sace_mpd<14> LOC=K7  |  IOSTANDARD = LVCMOS33;
+NET sace_mpd<15> LOC=J6  |  IOSTANDARD = LVCMOS33;
+
+
 ###
 ### Begin import from MIG generated ucf
 ###
