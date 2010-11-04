@@ -396,6 +396,23 @@ void lcd()
 	puts("\n");
 }
 
+void systemace()
+{
+	unsigned int *sace = 0x83000000;
+
+	puts("[status: ");
+	puthex(sace[0x4]);
+	puts("] [error: ");
+	puthex(sace[0x8]);
+	puts("] [version: ");
+	puthex(sace[0x16]);
+	puthex(sace[0x17]);
+	puts("] [fatstat: ");
+	puthex(sace[0x1C]);
+	puts("]\n");
+	
+}
+
 struct tests tlist[] = {
 	/*{"screen", show_on_screen},*/
 	{"color_bars", show_smpte_color_bars},
@@ -408,6 +425,7 @@ struct tests tlist[] = {
 	{"ack", acktest},
 	{"miniblarg", testmain},
 	{"corecurse", corecurse},*/
+	{"SystemACE", systemace},
 	{0, 0}};
 
 int main()

@@ -7,3 +7,4 @@ parameter SPAM_DATA_HI = 31;
 parameter SPAM_DID_CONSOLE = 0;
 parameter SPAM_DID_LCD = 1;
 parameter SPAM_DID_FRAMEBUFFER = 2;
+parameter SPAM_DID_SACE = 3;

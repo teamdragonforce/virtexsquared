@@ -127,5 +127,5 @@ module SimpleDMAReadControllerTester(/*AUTOARG*/
 endmodule
 
 // Local Variables:
-// verilog-library-directories:("." "../../core" "../../fsab" "../../spam" "../../fsab/sim" "../../util")
+// verilog-library-directories:("." "../../core" "../../fsab" "../../spam" "../../fsab/sim" "../../util" "..")
 // End:
