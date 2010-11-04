@@ -17,7 +17,7 @@ module SimpleDMAReadController(/*AUTOARG*/
    dmac__fsabo_data, dmac__fsabo_mask, data, data_ready,
    dmac__spami_busy_b, dmac__spami_data,
    // Inputs
-   core_clk, core_rst_b, dmac__fsabo_credit, fsabi_clk, fsabi_rst_b,
+   cclk, cclk_rst_b, dmac__fsabo_credit, fsabi_clk, fsabi_rst_b,
    fsabi_valid, fsabi_did, fsabi_subdid, fsabi_data, spamo_valid,
    spamo_r_nw, spamo_did, spamo_addr, spamo_data, frame_clk,
    frame_rst_b, request
@@ -27,8 +27,8 @@ module SimpleDMAReadController(/*AUTOARG*/
 	`include "spam_defines.vh"
 	`include "dma_config_defines.vh"
 	
-	input core_clk;
-	input core_rst_b;
+	input cclk;
+	input cclk_rst_b;
 	
 	/* FSAB interface */
 	output reg                  dmac__fsabo_valid = 0;
@@ -92,7 +92,8 @@ module SimpleDMAReadController(/*AUTOARG*/
 
 	/*** Queue of all the things read so far. ***/
 	reg [FSAB_DATA_HI:0] fifo [(FIFO_DEPTH-1):0];
-	reg [(FIFO_HI+1):0] curr_fifo_length = 0;
+	reg [FIFO_HI+1:0] curr_fifo_length = 0;
+	reg [FIFO_HI+1:0] next_fifo_length = 0;
         reg [FIFO_HI:0] fifo_rpos = 0;
 	reg [FIFO_HI:0] fifo_wpos = 0;
 	reg [FSAB_ADDR_HI:0] next_fsab_addr = DEFAULT_ADDR;
@@ -148,7 +149,7 @@ module SimpleDMAReadController(/*AUTOARG*/
 		dmac__fsabo_len = {{FSAB_LEN_HI+1}{1'bx}};
 		dmac__fsabo_data = {{FSAB_DATA_HI+1}{1'bx}};
 		dmac__fsabo_mask = {{FSAB_MASK_HI+1}{1'bx}};
-		if (start_read && core_rst_b)
+		if (start_read && frame_rst_b)
 		begin
 			dmac__fsabo_valid = 1;
 			dmac__fsabo_mode = FSAB_READ;
@@ -192,7 +193,7 @@ module SimpleDMAReadController(/*AUTOARG*/
 
 
 	always @(posedge frame_clk or negedge frame_rst_b) begin
-		if (!core_rst_b) begin
+		if (!frame_rst_b) begin
 			read_pending <= 0;
 			current_read <= 0;
 			completed_read <= 0;
@@ -200,11 +201,15 @@ module SimpleDMAReadController(/*AUTOARG*/
 			curr_fifo_length <= 0;
 			next_fsab_addr <= DEFAULT_ADDR;
 			triggered <= 0;
+			command_register <= DMA_STOP;
+			end_addr <= DEFAULT_ADDR+DEFAULT_LEN;
 		end else begin
 			completed_read_s1 <= completed_read_fclk;
 			completed_read <= completed_read_s1;
 
 			command_register <= command_register_next;
+
+			curr_fifo_length <= next_fifo_length;
 
 			if (!triggered) begin
 				case (command_register)
@@ -232,7 +237,6 @@ module SimpleDMAReadController(/*AUTOARG*/
 					current_read <= ~current_read;
 				end else if ((completed_read == current_read) && read_pending) begin
 					read_pending <= 0;
-					curr_fifo_length <= curr_fifo_length + 8;
 					if (end_addr == next_fsab_addr + 64) begin
 						triggered <= 0;
 					end
@@ -245,7 +249,7 @@ module SimpleDMAReadController(/*AUTOARG*/
 	end
 
 	always @(posedge frame_clk or negedge frame_rst_b) begin
-		if (!core_rst_b) begin
+		if (!frame_rst_b) begin
 			data_ready <= 0;
 			fifo_rpos <= 0;
 		end else begin
@@ -256,7 +260,6 @@ module SimpleDMAReadController(/*AUTOARG*/
 				data <= fifo[fifo_rpos];
 				data_ready <= 1;
 				fifo_rpos <= fifo_rpos + 'h1;
-				curr_fifo_length <= curr_fifo_length - 1;
 			end else 
 				data_ready <= 0;
 		end
@@ -271,6 +274,7 @@ module SimpleDMAReadController(/*AUTOARG*/
 			current_read_fclk <= 0;
 			completed_read_fclk <= 0;
 			fifo_fill_pos_fclk <= 0;
+			current_read_1a_fclk <= 0;
 			fifo_wpos <= 0;
 		end else begin
 			current_read_fclk_s1 <= current_read;
@@ -288,6 +292,16 @@ module SimpleDMAReadController(/*AUTOARG*/
 		end
 	end
 
+	always @(*) begin
+		next_fifo_length = curr_fifo_length;
+		if (request && (curr_fifo_length > 0)) begin
+			next_fifo_length = next_fifo_length - 1;
+		end
+		if (triggered & ((completed_read == current_read) && read_pending)) begin
+			next_fifo_length = next_fifo_length + 8;
+		end 
+	end
+
 	/* Config */
 	
 	wire wr_decode = spamo_valid && !spamo_r_nw && 
@@ -297,10 +311,11 @@ module SimpleDMAReadController(/*AUTOARG*/
 	always @(*) begin
 		if (wr_decode) begin
 		`ifdef verilator
-			$display("CSR: wr_decode, rst %d", core_rst_b);
+			$display("CSR: wr_decode, rst %d", frame_rst_b);
 		`endif
 		end
 	end
+
 	
 	wire wr_done_strobe_NEXT_START_REG;
 	CSRSyncWrite #(.WIDTH       (FSAB_ADDR_HI+1),
@@ -312,9 +327,9 @@ module SimpleDMAReadController(/*AUTOARG*/
 		                    .wr_strobe_tclk     (),
 		                    .wr_data_tclk       (next_start_addr[FSAB_ADDR_HI:0]),
 		                    // Inputs
-		                    .cclk               (core_clk),
+		                    .cclk               (cclk),
 		                    .tclk               (frame_clk),
-		                    .rst_b_cclk         (core_rst_b),
+		                    .rst_b_cclk         (cclk_rst_b),
 		                    .rst_b_tclk         (frame_rst_b),
 		                    .wr_strobe_cclk     (wr_decode && (spamo_addr[DMA_SPAM_ADDR_HI:0] == NEXT_START_REG_ADDR)),
 		                    .wr_data_cclk       (spamo_data[FSAB_ADDR_HI:0]));
@@ -329,9 +344,9 @@ module SimpleDMAReadController(/*AUTOARG*/
 		                  .wr_strobe_tclk     (),
 		                  .wr_data_tclk       (next_len[FSAB_ADDR_HI:0]),
 		                  // Inputs
-		                  .cclk               (core_clk),
+		                  .cclk               (cclk),
 		                  .tclk               (frame_clk),
-		                  .rst_b_cclk         (core_rst_b),
+		                  .rst_b_cclk         (cclk_rst_b),
 		                  .rst_b_tclk         (frame_rst_b),
 		                  .wr_strobe_cclk     (wr_decode && (spamo_addr[DMA_SPAM_ADDR_HI:0] == NEXT_LEN_REG_ADDR)),
 		                  .wr_data_cclk       (spamo_data[FSAB_ADDR_HI:0]));
@@ -346,9 +361,9 @@ module SimpleDMAReadController(/*AUTOARG*/
 		                 .wr_strobe_tclk     (command_register_bus_written),
 		                 .wr_data_tclk       (command_register_bus[COMMAND_REGISTER_HI:0]),
 		                 // Inputs
-		                 .cclk               (core_clk),
+		                 .cclk               (cclk),
 		                 .tclk               (frame_clk),
-		                 .rst_b_cclk         (core_rst_b),
+		                 .rst_b_cclk         (cclk_rst_b),
 		                 .rst_b_tclk         (frame_rst_b),
 		                 .wr_strobe_cclk     (wr_decode && (spamo_addr[DMA_SPAM_ADDR_HI:0] == COMMAND_REG_ADDR)),
 		                 .wr_data_cclk       (spamo_data[COMMAND_REGISTER_HI:0]));

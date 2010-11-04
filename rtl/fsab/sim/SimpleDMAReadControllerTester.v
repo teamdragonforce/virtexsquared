@@ -72,8 +72,8 @@ module SimpleDMAReadControllerTester(/*AUTOARG*/
 					      .dmac__spami_busy_b(dmac__spami_busy_b),
 					      .dmac__spami_data	(dmac__spami_data[SPAM_DATA_HI:0]),
 					      // Inputs
-					      .core_clk		(clk),		 // Templated
-					      .core_rst_b	(rst_b),	 // Templated
+					      .cclk		(cclk),
+					      .cclk_rst_b	(cclk_rst_b),
 					      .dmac__fsabo_credit(dmac__fsabo_credit),
 					      .fsabi_clk	(fsabi_clk),
 					      .fsabi_rst_b	(fsabi_rst_b),
@@ -123,3 +123,7 @@ module SimpleDMAReadControllerTester(/*AUTOARG*/
 	end
 
 endmodule
+
+// Local Variables:
+// verilog-library-directories:("." "../../core" "../../fsab" "../../spam" "../../fsab/sim" "../../util")
+// End:

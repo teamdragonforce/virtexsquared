@@ -133,6 +133,27 @@ void cellularram()
 	puts("]\n");
 }
 
+void show_on_screen()
+{
+	int *frame_start = 0x82000000;
+	*frame_start = 0x01000000;
+	
+	unsigned int *d = 0x01000000;
+	int x,y;
+
+
+	/* 480 and 640 */	
+	for (y = 0; y < 50; y++)
+	  for (x = 0; x < 50; x++)
+	    *(d++) = (x | (x << 10) | (x << 20)) ^ (y | (y << 10) | (y << 20));
+
+
+	int *frame_autotrigger = 0x82000008;
+	*frame_autotrigger = 2;
+
+	puts("You should now see bullshit on the screen");
+}
+
 void waitok()
 {
 	volatile unsigned int *lcd_insn = 0x81000000;
@@ -206,14 +227,15 @@ void lcd()
 }
 
 struct tests tlist[] = {
-	{"ldm pc/mul", ldm_tester},
+	{"screen", show_on_screen},
+	/*{"ldm pc/mul", ldm_tester},
 	{"fact", facttest},
 	{"j4cbo", j4cbo},
 	//{"lcd", lcd},
 	// Disabled to avoid slowing down the testbench.
 	{"ack", acktest},
 	{"miniblarg", testmain},
-	{"corecurse", corecurse},
+	{"corecurse", corecurse},*/
 	{0, 0}};
 
 int main()
