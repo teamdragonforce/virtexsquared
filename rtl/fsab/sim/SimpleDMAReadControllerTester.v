@@ -37,6 +37,7 @@ module SimpleDMAReadControllerTester(/*AUTOARG*/
 	wire		data_ready;		// From dmacontroller of SimpleDMAReadController.v
 	wire		dmac__spami_busy_b;	// From dmacontroller of SimpleDMAReadController.v
 	wire [SPAM_DATA_HI:0] dmac__spami_data;	// From dmacontroller of SimpleDMAReadController.v
+	wire		fifo_empty;		// From dmacontroller of SimpleDMAReadController.v
 	// End of automatics
 
 	wire                  spamo_valid;
@@ -69,11 +70,12 @@ module SimpleDMAReadControllerTester(/*AUTOARG*/
 					      .dmac__fsabo_mask	(dmac__fsabo_mask[FSAB_MASK_HI:0]),
 					      .data		(data[63:0]),
 					      .data_ready	(data_ready),
+					      .fifo_empty	(fifo_empty),
 					      .dmac__spami_busy_b(dmac__spami_busy_b),
 					      .dmac__spami_data	(dmac__spami_data[SPAM_DATA_HI:0]),
 					      // Inputs
-					      .core_clk		(clk),		 // Templated
-					      .core_rst_b	(rst_b),	 // Templated
+					      .cclk		(cclk),
+					      .cclk_rst_b	(cclk_rst_b),
 					      .dmac__fsabo_credit(dmac__fsabo_credit),
 					      .fsabi_clk	(fsabi_clk),
 					      .fsabi_rst_b	(fsabi_rst_b),
@@ -123,3 +125,7 @@ module SimpleDMAReadControllerTester(/*AUTOARG*/
 	end
 
 endmodule
+
+// Local Variables:
+// verilog-library-directories:("." "../../core" "../../fsab" "../../spam" "../../fsab/sim" "../../util")
+// End:

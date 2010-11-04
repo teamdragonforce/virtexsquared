@@ -133,6 +133,123 @@ void cellularram()
 	puts("]\n");
 }
 
+void show_on_screen()
+{
+	int *frame_start = 0x82000000;
+	
+	*frame_start = 0x00100000;
+	
+	unsigned int *d = 0x00100000;
+	int x,y;
+
+	puts("Painting screen...\n");
+	for (y = 0; y < 480; y++) {
+		for (x = 0; x < 640; x++)
+			*(d++) = ((x >> 1) ^ (x << 10) ^ (x << 20)) ^ ((y >> 1) ^ (y << 10) ^ (y << 20));
+        }
+
+
+	int *frame_autotrigger = 0x82000008;
+	*frame_autotrigger = 2;
+
+	puts("You should now see bullshit on the screen.\n");
+}
+
+void show_smpte_color_bars()
+{
+	int *frame_start = 0x82000000;
+	
+	*frame_start = 0x00100000;
+	
+	unsigned int *d = 0x00100000;
+	int x,y;
+
+	puts("Painting screen...\n");
+	for (y = 0; y < 480; y++) {
+		for (x = 0; x < 640; x++) {
+			if (y < 300) {
+				if (x < 91) {
+					*(d++) = 0xc0c0c000;
+				}
+				else if (x < 183) {
+					*(d++) = 0xc0c00000;
+				}
+				else if (x < 274) {
+					*(d++) = 0x00c0c000;
+				}
+				else if (x < 365) {
+					*(d++) = 0x00c00000;
+				}
+				else if (x < 456) {
+					*(d++) = 0xc000c000;
+				}
+				else if (x < 548) {
+					*(d++) = 0xc0000000;
+				}
+				else {
+					*(d++) = 0x0000c000;
+				}
+			}
+			else if (y < 330) {
+				if (x < 91) {
+					*(d++) = 0x0000c000;
+				}
+				else if (x < 183) {
+					*(d++) = 0x13131300;
+				}
+				else if (x < 274) {
+					*(d++) = 0xc000c000;
+				}
+				else if (x < 365) {
+					*(d++) = 0x13131300;
+				}
+				else if (x < 456) {
+					*(d++) = 0x00c0c000;
+				}
+				else if (x < 548) {
+					*(d++) = 0x13131300;
+				}
+				else {
+					*(d++) = 0xc0c0c000;
+				}
+			}
+			else {
+				if (x < 114) {
+					*(d++) = 0x00214c00;
+				}
+				else if (x < 228) {
+					*(d++) = 0xffffff00;
+				}
+				else if (x < 342) {
+					*(d++) = 0x32006a00;
+				}
+				else if (x < 456) {
+					*(d++) = 0x13131300;
+				}
+				else if (x < 487) {
+					*(d++) = 0x09090900;
+				}
+				else if (x < 518) {
+					*(d++) = 0x13131300;
+				}
+				else if (x < 548) {
+					*(d++) = 0x1d1d1d00;
+				}
+				else {
+					*(d++) = 0x13131300;
+				}
+			}
+		}
+        }
+
+
+	int *frame_autotrigger = 0x82000008;
+	*frame_autotrigger = 2;
+
+	puts("You should now see color bar on the screen.\n");
+	
+}
+
 void waitok()
 {
 	volatile unsigned int *lcd_insn = 0x81000000;
@@ -206,14 +323,16 @@ void lcd()
 }
 
 struct tests tlist[] = {
-	{"ldm pc/mul", ldm_tester},
+	/*{"screen", show_on_screen},*/
+	{"color_bars", show_smpte_color_bars},
+	/*{"ldm pc/mul", ldm_tester},
 	{"fact", facttest},
 	{"j4cbo", j4cbo},
 	//{"lcd", lcd},
 	// Disabled to avoid slowing down the testbench.
 	{"ack", acktest},
 	{"miniblarg", testmain},
-	{"corecurse", corecurse},
+	{"corecurse", corecurse},*/
 	{0, 0}};
 
 int main()

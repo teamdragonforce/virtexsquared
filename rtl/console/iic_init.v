@@ -1,3 +1,5 @@
+/* verilator lint_off WIDTH */
+
 `timescale 1 ns / 100 ps
 module iic_init( Clk,                          //I
                  Reset_n,                      //I

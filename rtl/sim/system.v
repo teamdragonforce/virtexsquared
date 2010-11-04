@@ -29,15 +29,26 @@ module System(/*AUTOARG*/
 	wire [FSAB_REQ_HI:0] dc__fsabo_mode;	// From core of Core.v
 	wire [FSAB_DID_HI:0] dc__fsabo_subdid;	// From core of Core.v
 	wire		dc__fsabo_valid;	// From core of Core.v
-	wire [FSAB_ADDR_HI:0] dmac__fsabo_addr;	// From dmatester of SimpleDMAReadControllerTester.v
-	wire		dmac__fsabo_credit;	// From fsabarbiter of FSABArbiter.v
-	wire [FSAB_DATA_HI:0] dmac__fsabo_data;	// From dmatester of SimpleDMAReadControllerTester.v
-	wire [FSAB_DID_HI:0] dmac__fsabo_did;	// From dmatester of SimpleDMAReadControllerTester.v
-	wire [FSAB_LEN_HI:0] dmac__fsabo_len;	// From dmatester of SimpleDMAReadControllerTester.v
-	wire [FSAB_MASK_HI:0] dmac__fsabo_mask;	// From dmatester of SimpleDMAReadControllerTester.v
-	wire [FSAB_REQ_HI:0] dmac__fsabo_mode;	// From dmatester of SimpleDMAReadControllerTester.v
-	wire [FSAB_DID_HI:0] dmac__fsabo_subdid;// From dmatester of SimpleDMAReadControllerTester.v
-	wire		dmac__fsabo_valid;	// From dmatester of SimpleDMAReadControllerTester.v
+	wire [11:0]	dvi_d;			// From frame of Framebuffer.v
+	wire		dvi_de;			// From frame of Framebuffer.v
+	wire		dvi_hs;			// From frame of Framebuffer.v
+	wire		dvi_reset_b;		// From frame of Framebuffer.v
+	wire		dvi_scl;		// To/From frame of Framebuffer.v
+	wire		dvi_sda;		// To/From frame of Framebuffer.v
+	wire		dvi_vs;			// From frame of Framebuffer.v
+	wire		dvi_xclk_n;		// From frame of Framebuffer.v
+	wire		dvi_xclk_p;		// From frame of Framebuffer.v
+	wire [FSAB_ADDR_HI:0] fb__fsabo_addr;	// From frame of Framebuffer.v
+	wire		fb__fsabo_credit;	// From fsabarbiter of FSABArbiter.v
+	wire [FSAB_DATA_HI:0] fb__fsabo_data;	// From frame of Framebuffer.v
+	wire [FSAB_DID_HI:0] fb__fsabo_did;	// From frame of Framebuffer.v
+	wire [FSAB_LEN_HI:0] fb__fsabo_len;	// From frame of Framebuffer.v
+	wire [FSAB_MASK_HI:0] fb__fsabo_mask;	// From frame of Framebuffer.v
+	wire [FSAB_REQ_HI:0] fb__fsabo_mode;	// From frame of Framebuffer.v
+	wire [FSAB_DID_HI:0] fb__fsabo_subdid;	// From frame of Framebuffer.v
+	wire		fb__fsabo_valid;	// From frame of Framebuffer.v
+	wire		fb__spami_busy_b;	// From frame of Framebuffer.v
+	wire [SPAM_DATA_HI:0] fb__spami_data;	// From frame of Framebuffer.v
 	wire [FSAB_DATA_HI:0] fsabi_data;	// From simmem of FSABSimMemory.v
 	wire [FSAB_DID_HI:0] fsabi_did;		// From simmem of FSABSimMemory.v
 	wire [FSAB_DID_HI:0] fsabi_subdid;	// From simmem of FSABSimMemory.v
@@ -175,37 +186,64 @@ module System(/*AUTOARG*/
 		     .spamo_data	(spamo_data[SPAM_DATA_HI:0]));
 
 	wire request;
-	SimpleDMAReadControllerTester dmatester(/*AUTOINST*/
-						// Outputs
-						.dmac__fsabo_valid(dmac__fsabo_valid),
-						.dmac__fsabo_mode(dmac__fsabo_mode[FSAB_REQ_HI:0]),
-						.dmac__fsabo_did(dmac__fsabo_did[FSAB_DID_HI:0]),
-						.dmac__fsabo_subdid(dmac__fsabo_subdid[FSAB_DID_HI:0]),
-						.dmac__fsabo_addr(dmac__fsabo_addr[FSAB_ADDR_HI:0]),
-						.dmac__fsabo_len(dmac__fsabo_len[FSAB_LEN_HI:0]),
-						.dmac__fsabo_data(dmac__fsabo_data[FSAB_DATA_HI:0]),
-						.dmac__fsabo_mask(dmac__fsabo_mask[FSAB_MASK_HI:0]),
-						// Inputs
-						.dmac__fsabo_credit(dmac__fsabo_credit),
-						.fsabi_clk	(fsabi_clk),
-						.fsabi_rst_b	(fsabi_rst_b),
-						.fsabi_valid	(fsabi_valid),
-						.fsabi_did	(fsabi_did[FSAB_DID_HI:0]),
-						.fsabi_subdid	(fsabi_subdid[FSAB_DID_HI:0]),
-						.fsabi_data	(fsabi_data[FSAB_DATA_HI:0]),
-						.clk		(clk),
-						.rst_b		(rst_b));
+	/* Framebuffer AUTO_TEMPLATE (
+		.cclk(clk),
+		.cclk_rst_b(rst_b),
+		.fbclk(clk),
+		.fbclk_rst_b(rst_b),
+		);
+	*/
+	Framebuffer frame(/*AUTOINST*/
+			  // Outputs
+			  .dvi_vs		(dvi_vs),
+			  .dvi_hs		(dvi_hs),
+			  .dvi_d		(dvi_d[11:0]),
+			  .dvi_xclk_p		(dvi_xclk_p),
+			  .dvi_xclk_n		(dvi_xclk_n),
+			  .dvi_de		(dvi_de),
+			  .dvi_reset_b		(dvi_reset_b),
+			  .fb__fsabo_valid	(fb__fsabo_valid),
+			  .fb__fsabo_mode	(fb__fsabo_mode[FSAB_REQ_HI:0]),
+			  .fb__fsabo_did	(fb__fsabo_did[FSAB_DID_HI:0]),
+			  .fb__fsabo_subdid	(fb__fsabo_subdid[FSAB_DID_HI:0]),
+			  .fb__fsabo_addr	(fb__fsabo_addr[FSAB_ADDR_HI:0]),
+			  .fb__fsabo_len	(fb__fsabo_len[FSAB_LEN_HI:0]),
+			  .fb__fsabo_data	(fb__fsabo_data[FSAB_DATA_HI:0]),
+			  .fb__fsabo_mask	(fb__fsabo_mask[FSAB_MASK_HI:0]),
+			  .fb__spami_busy_b	(fb__spami_busy_b),
+			  .fb__spami_data	(fb__spami_data[SPAM_DATA_HI:0]),
+			  // Inouts
+			  .dvi_sda		(dvi_sda),
+			  .dvi_scl		(dvi_scl),
+			  .control_vio		(control_vio[35:0]),
+			  // Inputs
+			  .fbclk		(clk),		 // Templated
+			  .fbclk_rst_b		(rst_b),	 // Templated
+			  .cclk			(clk),		 // Templated
+			  .cclk_rst_b		(rst_b),	 // Templated
+			  .fsabi_clk		(fsabi_clk),
+			  .fsabi_rst_b		(fsabi_rst_b),
+			  .fsabi_valid		(fsabi_valid),
+			  .fsabi_did		(fsabi_did[FSAB_DID_HI:0]),
+			  .fsabi_subdid		(fsabi_subdid[FSAB_DID_HI:0]),
+			  .fsabi_data		(fsabi_data[FSAB_DATA_HI:0]),
+			  .fb__fsabo_credit	(fb__fsabo_credit),
+			  .spamo_valid		(spamo_valid),
+			  .spamo_r_nw		(spamo_r_nw),
+			  .spamo_did		(spamo_did[SPAM_DID_HI:0]),
+			  .spamo_addr		(spamo_addr[SPAM_ADDR_HI:0]),
+			  .spamo_data		(spamo_data[SPAM_DATA_HI:0]));
 
 	/* FSABArbiter AUTO_TEMPLATE (
-		.fsabo_valids({pre__fsabo_valid,ic__fsabo_valid,dc__fsabo_valid,dmac__fsabo_valid}),
-		.fsabo_modes({pre__fsabo_mode[FSAB_REQ_HI:0],ic__fsabo_mode[FSAB_REQ_HI:0],dc__fsabo_mode[FSAB_REQ_HI:0],dmac__fsabo_mode[FSAB_REQ_HI:0]}),
-		.fsabo_dids({pre__fsabo_did[FSAB_DID_HI:0],ic__fsabo_did[FSAB_DID_HI:0],dc__fsabo_did[FSAB_DID_HI:0],dmac__fsabo_did[FSAB_DID_HI:0]}),
-		.fsabo_subdids({pre__fsabo_subdid[FSAB_DID_HI:0],ic__fsabo_subdid[FSAB_DID_HI:0],dc__fsabo_subdid[FSAB_DID_HI:0],dmac__fsabo_subdid[FSAB_DID_HI:0]}),
-		.fsabo_addrs({pre__fsabo_addr[FSAB_ADDR_HI:0],ic__fsabo_addr[FSAB_ADDR_HI:0],dc__fsabo_addr[FSAB_ADDR_HI:0],dmac__fsabo_addr[FSAB_ADDR_HI:0]}),
-		.fsabo_lens({pre__fsabo_len[FSAB_LEN_HI:0],ic__fsabo_len[FSAB_LEN_HI:0],dc__fsabo_len[FSAB_LEN_HI:0],dmac__fsabo_len[FSAB_LEN_HI:0]}),
-		.fsabo_datas({pre__fsabo_data[FSAB_DATA_HI:0],ic__fsabo_data[FSAB_DATA_HI:0],dc__fsabo_data[FSAB_DATA_HI:0],dmac__fsabo_data[FSAB_DATA_HI:0]}),
-		.fsabo_masks({pre__fsabo_mask[FSAB_MASK_HI:0],ic__fsabo_mask[FSAB_MASK_HI:0],dc__fsabo_mask[FSAB_MASK_HI:0],dmac__fsabo_mask[FSAB_MASK_HI:0]}),
-		.fsabo_credits({pre__fsabo_credit,ic__fsabo_credit,dc__fsabo_credit,dmac__fsabo_credit}),
+		.fsabo_valids({pre__fsabo_valid,ic__fsabo_valid,dc__fsabo_valid,fb__fsabo_valid}),
+		.fsabo_modes({pre__fsabo_mode[FSAB_REQ_HI:0],ic__fsabo_mode[FSAB_REQ_HI:0],dc__fsabo_mode[FSAB_REQ_HI:0],fb__fsabo_mode[FSAB_REQ_HI:0]}),
+		.fsabo_dids({pre__fsabo_did[FSAB_DID_HI:0],ic__fsabo_did[FSAB_DID_HI:0],dc__fsabo_did[FSAB_DID_HI:0],fb__fsabo_did[FSAB_DID_HI:0]}),
+		.fsabo_subdids({pre__fsabo_subdid[FSAB_DID_HI:0],ic__fsabo_subdid[FSAB_DID_HI:0],dc__fsabo_subdid[FSAB_DID_HI:0],fb__fsabo_subdid[FSAB_DID_HI:0]}),
+		.fsabo_addrs({pre__fsabo_addr[FSAB_ADDR_HI:0],ic__fsabo_addr[FSAB_ADDR_HI:0],dc__fsabo_addr[FSAB_ADDR_HI:0],fb__fsabo_addr[FSAB_ADDR_HI:0]}),
+		.fsabo_lens({pre__fsabo_len[FSAB_LEN_HI:0],ic__fsabo_len[FSAB_LEN_HI:0],dc__fsabo_len[FSAB_LEN_HI:0],fb__fsabo_len[FSAB_LEN_HI:0]}),
+		.fsabo_datas({pre__fsabo_data[FSAB_DATA_HI:0],ic__fsabo_data[FSAB_DATA_HI:0],dc__fsabo_data[FSAB_DATA_HI:0],fb__fsabo_data[FSAB_DATA_HI:0]}),
+		.fsabo_masks({pre__fsabo_mask[FSAB_MASK_HI:0],ic__fsabo_mask[FSAB_MASK_HI:0],dc__fsabo_mask[FSAB_MASK_HI:0],fb__fsabo_mask[FSAB_MASK_HI:0]}),
+		.fsabo_credits({pre__fsabo_credit,ic__fsabo_credit,dc__fsabo_credit,fb__fsabo_credit}),
 		.fsabo_clks({clk,clk,clk,clk}),
 		.fsabo_rst_bs({rst_b,rst_b,rst_b,rst_b}),
 		.clk(fsabi_clk),
@@ -214,7 +252,7 @@ module System(/*AUTOARG*/
 	FSABArbiter fsabarbiter(
 		/*AUTOINST*/
 				// Outputs
-				.fsabo_credits	({pre__fsabo_credit,ic__fsabo_credit,dc__fsabo_credit,dmac__fsabo_credit}), // Templated
+				.fsabo_credits	({pre__fsabo_credit,ic__fsabo_credit,dc__fsabo_credit,fb__fsabo_credit}), // Templated
 				.fsabo_valid	(fsabo_valid),
 				.fsabo_mode	(fsabo_mode[FSAB_REQ_HI:0]),
 				.fsabo_did	(fsabo_did[FSAB_DID_HI:0]),
@@ -226,14 +264,14 @@ module System(/*AUTOARG*/
 				// Inputs
 				.clk		(fsabi_clk),	 // Templated
 				.rst_b		(fsabi_rst_b),	 // Templated
-				.fsabo_valids	({pre__fsabo_valid,ic__fsabo_valid,dc__fsabo_valid,dmac__fsabo_valid}), // Templated
-				.fsabo_modes	({pre__fsabo_mode[FSAB_REQ_HI:0],ic__fsabo_mode[FSAB_REQ_HI:0],dc__fsabo_mode[FSAB_REQ_HI:0],dmac__fsabo_mode[FSAB_REQ_HI:0]}), // Templated
-				.fsabo_dids	({pre__fsabo_did[FSAB_DID_HI:0],ic__fsabo_did[FSAB_DID_HI:0],dc__fsabo_did[FSAB_DID_HI:0],dmac__fsabo_did[FSAB_DID_HI:0]}), // Templated
-				.fsabo_subdids	({pre__fsabo_subdid[FSAB_DID_HI:0],ic__fsabo_subdid[FSAB_DID_HI:0],dc__fsabo_subdid[FSAB_DID_HI:0],dmac__fsabo_subdid[FSAB_DID_HI:0]}), // Templated
-				.fsabo_addrs	({pre__fsabo_addr[FSAB_ADDR_HI:0],ic__fsabo_addr[FSAB_ADDR_HI:0],dc__fsabo_addr[FSAB_ADDR_HI:0],dmac__fsabo_addr[FSAB_ADDR_HI:0]}), // Templated
-				.fsabo_lens	({pre__fsabo_len[FSAB_LEN_HI:0],ic__fsabo_len[FSAB_LEN_HI:0],dc__fsabo_len[FSAB_LEN_HI:0],dmac__fsabo_len[FSAB_LEN_HI:0]}), // Templated
-				.fsabo_datas	({pre__fsabo_data[FSAB_DATA_HI:0],ic__fsabo_data[FSAB_DATA_HI:0],dc__fsabo_data[FSAB_DATA_HI:0],dmac__fsabo_data[FSAB_DATA_HI:0]}), // Templated
-				.fsabo_masks	({pre__fsabo_mask[FSAB_MASK_HI:0],ic__fsabo_mask[FSAB_MASK_HI:0],dc__fsabo_mask[FSAB_MASK_HI:0],dmac__fsabo_mask[FSAB_MASK_HI:0]}), // Templated
+				.fsabo_valids	({pre__fsabo_valid,ic__fsabo_valid,dc__fsabo_valid,fb__fsabo_valid}), // Templated
+				.fsabo_modes	({pre__fsabo_mode[FSAB_REQ_HI:0],ic__fsabo_mode[FSAB_REQ_HI:0],dc__fsabo_mode[FSAB_REQ_HI:0],fb__fsabo_mode[FSAB_REQ_HI:0]}), // Templated
+				.fsabo_dids	({pre__fsabo_did[FSAB_DID_HI:0],ic__fsabo_did[FSAB_DID_HI:0],dc__fsabo_did[FSAB_DID_HI:0],fb__fsabo_did[FSAB_DID_HI:0]}), // Templated
+				.fsabo_subdids	({pre__fsabo_subdid[FSAB_DID_HI:0],ic__fsabo_subdid[FSAB_DID_HI:0],dc__fsabo_subdid[FSAB_DID_HI:0],fb__fsabo_subdid[FSAB_DID_HI:0]}), // Templated
+				.fsabo_addrs	({pre__fsabo_addr[FSAB_ADDR_HI:0],ic__fsabo_addr[FSAB_ADDR_HI:0],dc__fsabo_addr[FSAB_ADDR_HI:0],fb__fsabo_addr[FSAB_ADDR_HI:0]}), // Templated
+				.fsabo_lens	({pre__fsabo_len[FSAB_LEN_HI:0],ic__fsabo_len[FSAB_LEN_HI:0],dc__fsabo_len[FSAB_LEN_HI:0],fb__fsabo_len[FSAB_LEN_HI:0]}), // Templated
+				.fsabo_datas	({pre__fsabo_data[FSAB_DATA_HI:0],ic__fsabo_data[FSAB_DATA_HI:0],dc__fsabo_data[FSAB_DATA_HI:0],fb__fsabo_data[FSAB_DATA_HI:0]}), // Templated
+				.fsabo_masks	({pre__fsabo_mask[FSAB_MASK_HI:0],ic__fsabo_mask[FSAB_MASK_HI:0],dc__fsabo_mask[FSAB_MASK_HI:0],fb__fsabo_mask[FSAB_MASK_HI:0]}), // Templated
 				.fsabo_clks	({clk,clk,clk,clk}), // Templated
 				.fsabo_rst_bs	({rst_b,rst_b,rst_b,rst_b}), // Templated
 				.fsabo_credit	(fsabo_credit));
