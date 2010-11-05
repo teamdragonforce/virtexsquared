@@ -4,7 +4,7 @@ module System(/*AUTOARG*/
    ddr2_cs_n, ddr2_dm, ddr2_odt, ddr2_ras_n, ddr2_we_n, leds, lcd_db,
    lcd_e, lcd_rnw, lcd_rs, dvi_vs, dvi_hs, dvi_d, dvi_xclk_p,
    dvi_xclk_n, dvi_de, dvi_reset_b, sace_mpa, sace_mpce_n,
-   sace_mpoe_n, sace_mpwe_n,
+   sace_mpoe_n, sace_mpwe_n, usb_cs_n,
    // Inouts
    ddr2_dq, ddr2_dqs, ddr2_dqs_n, dvi_sda, dvi_scl, sace_mpd,
    // Inputs
@@ -59,6 +59,9 @@ module System(/*AUTOARG*/
 	inout [15:0]	sace_mpd;
 	output		sace_mpoe_n;
 	output		sace_mpwe_n;
+	output wire     usb_cs_n;
+	
+	assign usb_cs_n = 1;
 
 `include "fsab_defines.vh"
 `include "spam_defines.vh"
@@ -176,8 +179,8 @@ module System(/*AUTOARG*/
 	
 	/*** Rest of the system (c.c) ***/
 	
-	wire spami_busy_b = cio__spami_busy_b | lcd__spami_busy_b;
-	wire [SPAM_DATA_HI:0] spami_data = cio__spami_data[SPAM_DATA_HI:0] | lcd__spami_data[SPAM_DATA_HI:0];
+	wire spami_busy_b = cio__spami_busy_b | lcd__spami_busy_b | sace__spami_busy_b;
+	wire [SPAM_DATA_HI:0] spami_data = cio__spami_data[SPAM_DATA_HI:0] | lcd__spami_data[SPAM_DATA_HI:0] | sace__spami_data[SPAM_DATA_HI:0];
 
 	parameter FSAB_DEVICES = 3;
 	wire [FSAB_DEVICES-1:0] fsabo_clks = {cclk, cclk, cclk};

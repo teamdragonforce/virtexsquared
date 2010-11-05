@@ -123,3 +123,7 @@ module SimpleDMAReadControllerTester(/*AUTOARG*/
 	end
 
 endmodule
+
+// Local Variables:
+// verilog-library-directories:("..")
+// End:
