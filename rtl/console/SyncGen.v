@@ -2,10 +2,11 @@ module SyncGen(/*AUTOARG*/
    // Outputs
    vs, hs, x, y, border,
    // Inputs
-   fbclk
+   fbclk, rst_b
    );
 
 	input fbclk;
+	input rst_b;
 	output reg vs, hs;
 	output reg [11:0] x, y;
 	output reg border;
@@ -22,15 +23,21 @@ module SyncGen(/*AUTOARG*/
 	
 	always @(posedge fbclk)
 	begin
-		if (x >= (XRES + XFPORCH + XSYNC + XBPORCH))
-		begin
-			if (y >= (YRES + YFPORCH + YSYNC + YBPORCH))
-				y <= 0;
-			else
-				y <= y + 1;
+		if (!rst_b) begin
 			x <= 0;
-		end else
-			x <= x + 1;
+			y <= 0;
+		end
+		else begin
+			if (x >= (XRES + XFPORCH + XSYNC + XBPORCH))
+			begin
+				if (y >= (YRES + YFPORCH + YSYNC + YBPORCH))
+					y <= 0;
+				else
+					y <= y + 1;
+				x <= 0;
+			end else
+				x <= x + 1;
+		end
 	end
 
 	always @(*) begin

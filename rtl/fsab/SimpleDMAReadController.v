@@ -14,7 +14,7 @@ module SimpleDMAReadController(/*AUTOARG*/
    // Outputs
    dmac__fsabo_valid, dmac__fsabo_mode, dmac__fsabo_did,
    dmac__fsabo_subdid, dmac__fsabo_addr, dmac__fsabo_len,
-   dmac__fsabo_data, dmac__fsabo_mask, data, data_ready,
+   dmac__fsabo_data, dmac__fsabo_mask, data, data_ready, fifo_empty,
    dmac__spami_busy_b, dmac__spami_data,
    // Inputs
    cclk, cclk_rst_b, dmac__fsabo_credit, fsabi_clk, fsabi_rst_b,
@@ -62,6 +62,7 @@ module SimpleDMAReadController(/*AUTOARG*/
  
         output reg [63:0]           data;
 	output reg                  data_ready;
+	output                      fifo_empty;
 
 
 	output                      dmac__spami_busy_b;
@@ -137,6 +138,7 @@ module SimpleDMAReadController(/*AUTOARG*/
 	/* TODO: This is only reading 8 bytes from FSAB at a time.
 	   Needs to do a batch read. (Possibly reading 64 bytes at a time like a cache?) */
 	assign fifo_almost_full = ((FIFO_DEPTH-8) < curr_fifo_length);
+	assign fifo_empty = (curr_fifo_length == 0);
 	assign start_read = !fifo_almost_full && !read_pending && fsab_credit_avail && triggered;
 
 	always @(*)
@@ -253,7 +255,7 @@ module SimpleDMAReadController(/*AUTOARG*/
 			data_ready <= 0;
 			fifo_rpos <= 0;
 		end else begin
-			if (request && (curr_fifo_length > 0)) begin
+			if (request && !fifo_empty) begin
 			`ifdef verilator
 				$display("DMAC: Read %x from fifo at %x", fifo[fifo_rpos], fifo_rpos);
 			`endif
@@ -294,7 +296,7 @@ module SimpleDMAReadController(/*AUTOARG*/
 
 	always @(*) begin
 		next_fifo_length = curr_fifo_length;
-		if (request && (curr_fifo_length > 0)) begin
+		if (request && !fifo_empty) begin
 			next_fifo_length = next_fifo_length - 1;
 		end
 		if (triggered & ((completed_read == current_read) && read_pending)) begin

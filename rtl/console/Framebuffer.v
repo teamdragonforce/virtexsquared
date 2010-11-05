@@ -65,6 +65,7 @@ module Framebuffer(/*AUTOARG*/
 	// Beginning of automatic wires (for undeclared instantiated-module outputs)
 	wire [63:0]	data;			// From frame_dma of SimpleDMAReadController.v
 	wire		data_ready;		// From frame_dma of SimpleDMAReadController.v
+	wire		fifo_empty_0a;		// From frame_dma of SimpleDMAReadController.v
 	wire		iic_done;		// From init of iic_init.v
 	// End of automatics
 	
@@ -73,6 +74,12 @@ module Framebuffer(/*AUTOARG*/
 
 	wire vs, hs;
 
+	reg fifo_empty_1a = 1;
+
+	/* SyncGen AUTO_TEMPLATE (
+		.rst_b(~fifo_empty_1a),
+		);
+	*/
 	SyncGen sync(/*AUTOINST*/
 		     // Outputs
 		     .vs		(vs),
@@ -81,13 +88,15 @@ module Framebuffer(/*AUTOARG*/
 		     .y			(y[11:0]),
 		     .border		(border),
 		     // Inputs
-		     .fbclk		(fbclk));
+		     .fbclk		(fbclk),
+		     .rst_b		(~fifo_empty_1a));	 // Templated
 
 	reg offset = 0; /* 0 if reading the first half of the 8 bytes for colors
 	                   1 if reading the second half of the 8 bytes for colors */
 	reg next_offset = 0;
 
 	reg request = 0;
+
 
 
 `define MAKE_DDR(n,q,d1,d2) ODDR n (.C(fbclk), .Q(q), .D1(d1), .D2(d2), .R(0), .S(0), .CE(1))
@@ -97,9 +106,9 @@ module Framebuffer(/*AUTOARG*/
 	wire first_pixel = (offset == 0);
 	wire second_pixel = (offset == 1);	
 
-	assign red   = (border) ? 8'h00 : (second_pixel) ? data[31:24] : (first_pixel) ? data[63:56] : 8'hff;
-	assign green = (border) ? 8'h00 : (second_pixel) ? data[23:16] : (first_pixel) ? data[55:48] : 8'h00;
-	assign blue  = (border) ? 8'hff : (second_pixel) ? data[15:8] : (first_pixel) ? data[47:40] : 8'h00;
+	assign red   = (border) ? 8'h00 : (second_pixel) ? data[63:56] : (first_pixel) ? data[31:24] : 8'hff;
+	assign green = (border) ? 8'h00 : (second_pixel) ? data[55:48] : (first_pixel) ? data[23:16] : 8'h00;
+	assign blue  = (border) ? 8'hff : (second_pixel) ? data[47:40] : (first_pixel) ? data[15:8] : 8'h00;
 
 
 `ifdef verilator
@@ -149,6 +158,7 @@ module Framebuffer(/*AUTOARG*/
 	                        .dmac__spami_busy_b(fb__spami_busy_b),
 				.dmac__spami_data(fb__spami_data),
 	                        .dmac__fsabo_credit(fb__fsabo_credit),
+	                        .fifo_empty(fifo_empty_0a),
                                 );
          */	
 	SimpleDMAReadController frame_dma(/*AUTOINST*/
@@ -163,6 +173,7 @@ module Framebuffer(/*AUTOARG*/
 					  .dmac__fsabo_mask	(fb__fsabo_mask), // Templated
 					  .data			(data[63:0]),
 					  .data_ready		(data_ready),
+					  .fifo_empty		(fifo_empty_0a), // Templated
 					  .dmac__spami_busy_b	(fb__spami_busy_b), // Templated
 					  .dmac__spami_data	(fb__spami_data), // Templated
 					  // Inputs
@@ -230,9 +241,11 @@ module Framebuffer(/*AUTOARG*/
 	always @ (posedge fbclk or negedge fbclk_rst_b) begin
 		if (!fbclk_rst_b) begin
 			offset <= 0;
+			fifo_empty_1a <= 1;
 		end
 		else begin
 			offset <= next_offset;
+			fifo_empty_1a <= fifo_empty_0a;
 		end
 	end
 
