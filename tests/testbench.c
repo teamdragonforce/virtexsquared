@@ -136,22 +136,23 @@ void cellularram()
 void show_on_screen()
 {
 	int *frame_start = 0x82000000;
-	*frame_start = 0x01000000;
 	
-	unsigned int *d = 0x01000000;
+	*frame_start = 0x00100000;
+	
+	unsigned int *d = 0x00100000;
 	int x,y;
 
-
-	/* 480 and 640 */	
-	for (y = 0; y < 50; y++)
-	  for (x = 0; x < 50; x++)
-	    *(d++) = (x | (x << 10) | (x << 20)) ^ (y | (y << 10) | (y << 20));
+	puts("Painting screen...\n");
+	for (y = 0; y < 480; y++) {
+		for (x = 0; x < 640; x++)
+			*(d++) = ((x >> 1) ^ (x << 10) ^ (x << 20)) ^ ((y >> 1) ^ (y << 10) ^ (y << 20));
+        }
 
 
 	int *frame_autotrigger = 0x82000008;
 	*frame_autotrigger = 2;
 
-	puts("You should now see bullshit on the screen");
+	puts("You should now see bullshit on the screen.\n");
 }
 
 void waitok()
