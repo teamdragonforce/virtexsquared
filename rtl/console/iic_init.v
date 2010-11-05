@@ -1,3 +1,5 @@
+/* verilator lint_off WIDTH */
+
 `timescale 1 ns / 100 ps
 module iic_init( Clk,                          //I
                  Reset_n,                      //I
@@ -17,7 +19,7 @@ output Done;
 parameter CLK_RATE_MHZ = 200,
           SCK_PERIOD_US = 30,
           TRANSITION_CYCLE = (CLK_RATE_MHZ * SCK_PERIOD_US) / 2,
-          TRANSITION_CYCLE_MSB = 31;  
+          TRANSITION_CYCLE_MSB = 11;  
   
           
 localparam    IDLE = 3'd0,

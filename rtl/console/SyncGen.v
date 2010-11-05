@@ -25,14 +25,17 @@ module SyncGen(/*AUTOARG*/
 		if (x >= (XRES + XFPORCH + XSYNC + XBPORCH))
 		begin
 			if (y >= (YRES + YFPORCH + YSYNC + YBPORCH))
-				y = 0;
+				y <= 0;
 			else
-				y = y + 1;
-			x = 0;
+				y <= y + 1;
+			x <= 0;
 		end else
-			x = x + 1;
-		hs <= (x >= (XRES + XFPORCH)) && (x < (XRES + XFPORCH + XSYNC));
-		vs <= (y >= (YRES + YFPORCH)) && (y < (YRES + YFPORCH + YSYNC));
-		border <= (x > XRES) || (y > YRES);
+			x <= x + 1;
+	end
+
+	always @(*) begin
+		hs = (x >= (XRES + XFPORCH)) && (x < (XRES + XFPORCH + XSYNC));
+		vs = (y >= (YRES + YFPORCH)) && (y < (YRES + YFPORCH + YSYNC));
+		border = (x >= XRES) || (y >= YRES);
 	end
 endmodule

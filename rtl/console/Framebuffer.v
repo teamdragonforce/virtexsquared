@@ -104,10 +104,7 @@ module Framebuffer(/*AUTOARG*/
 
 `ifdef verilator
 	always @ (posedge fbclk) begin
-		if (spamo_valid && spamo_did == 2)
-			$display("Framebuffer: spamo_r_nw: %x, spamo_did: %x, spamo_addr: %x, spamo_data: %x", spamo_r_nw, spamo_did, spamo_addr, spamo_data);
-		if (data_ready)
-			$display("Framebuffer: Read %x", data);
+		$display("Framebuffer: Read %x for x: %x, y: %x data_ready: %x, border: %x, request: %x, offset: %x", data, x, y, data_ready, border, request, offset);
 	end
 `endif
 	
@@ -253,7 +250,7 @@ module Framebuffer(/*AUTOARG*/
 		chipscope_ila ila0 (
 			.CONTROL(control0),	
 			.CLK(fbclk), // IN
-			.TRIG0({0, request, offset, fbclk_rst_b, next_offset, border, data_ready, data[63:0], red[7:0], green[7:0], blue[7:0], x[11:0], y[11:0]})
+			.TRIG0({0, request, offset, fbclk_rst_b, next_offset, border, data_ready, data[63:0], red[7:0], green[7:0], blue[7:0], x[11:0], y[11:0], vs, hs})
 		);
 
 		chipscope_ila ila1 (
