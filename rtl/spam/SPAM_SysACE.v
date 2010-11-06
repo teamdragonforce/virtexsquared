@@ -3,7 +3,7 @@ module SPAM_SysACE(/*AUTOARG*/
    sace__spami_busy_b, sace__spami_data, sace_mpa, sace_mpce_n,
    sace_mpwe_n, sace_mpoe_n,
    // Inouts
-   sace_mpd,
+   sace_mpd, control_vio,
    // Inputs
    clk, rst_b, spamo_valid, spamo_r_nw, spamo_did, spamo_addr,
    spamo_data, sace_clk
@@ -28,6 +28,10 @@ module SPAM_SysACE(/*AUTOARG*/
 	output wire                 sace_mpce_n;
 	output reg                  sace_mpwe_n = 1;
 	output reg                  sace_mpoe_n = 1;
+	
+	inout [35:0] control_vio;
+	
+	parameter DEBUG = "FALSE";
 	
 	wire [15:0] sace_mpd_rd;
 	wire [15:0] sace_mpd_wr;
@@ -186,11 +190,57 @@ module SPAM_SysACE(/*AUTOARG*/
 				end
 				3'b101: begin
 					sace_mpoe_n <= 1;
-					state <= 2'b00;
+					state <= 2'b10;
+				end
+				3'b110: begin
 					sace_mpd_rd_l_sclk <= sace_mpd_rd;
+					state <= 2'b00;
 					completed_request_sclk <= cur_request_cclk_1a_sclk;
 				end
 				endcase
 			end
 		end
+
+	generate
+	if (DEBUG == "TRUE") begin: debug
+		wire [35:0] control0, control1, control2;
+		
+		chipscope_icon icon (
+			.CONTROL0(control0), // INOUT BUS [35:0]
+			.CONTROL1(control1), // INOUT BUS [35:0]
+			.CONTROL2(control2), // INOUT BUS [35:0]
+			.CONTROL3(control_vio)  // INOUT BUS [35:0]
+		);
+		
+		chipscope_ila ila0 (
+			.CONTROL(control0), // INOUT BUS [35:0]
+			.CLK(sace_clk), // IN
+			.TRIG0({state[1:0], sace_mpce_n, sace_mpoe_n, sace_mpwe_n, sace_mpd_wr[15:0],
+			        sace_mpa[6:0], sace_mpd_rd[15:0], completed_request_sclk, cur_request_cclk_1a_sclk,
+			        cur_r_nw_cclk_sclk, sace_mpd_rd_l_sclk[15:0], cur_addr_cclk_sclk[9:0], cur_request_cclk_sclk,
+			        sace_clk_rst_b_sync})
+		);
+		
+		chipscope_ila ila1 (
+			.CONTROL(control1), // INOUT BUS [35:0]
+			.CLK(clk), // IN
+			.TRIG0({spamo_valid, spamo_did[3:0], spamo_r_nw, cur_request_cclk, spamo_addr[15:0],
+			        spamo_data[15:0], completed_request_sclk_1a_cclk, completed_request_sclk_2a_cclk,
+			        sace_mpd_rd_l_sclk_cclk[15:0], sace__spami_data[15:0], sace__spami_busy_b,
+			        rst_b})
+		);
+		
+		chipscope_ila ila2 (
+			.CONTROL(control2), // INOUT BUS [35:0]
+			.CLK(clk), // IN
+			.TRIG0(256'b0)
+		);
+		
+	end else begin: debug_tieoff
+	
+		assign control_vio = {36{1'bz}};
+		
+	end
+	endgenerate
+
 endmodule

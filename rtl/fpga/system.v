@@ -288,7 +288,7 @@ module System(/*AUTOARG*/
 		     .spamo_did		(spamo_did[SPAM_DID_HI:0]),
 		     .spamo_addr	(spamo_addr[SPAM_ADDR_HI:0]),
 		     .spamo_data	(spamo_data[SPAM_DATA_HI:0]));
-	defparam lcd.DEBUG = "TRUE";
+	defparam lcd.DEBUG = "FALSE";
 	
 	/* SPAM_SysACE AUTO_TEMPLATE (
 		.clk(cclk),
@@ -305,6 +305,7 @@ module System(/*AUTOARG*/
 			   .sace_mpoe_n		(sace_mpoe_n),
 			   // Inouts
 			   .sace_mpd		(sace_mpd[15:0]),
+			   .control_vio		(control_vio[35:0]),
 			   // Inputs
 			   .clk			(cclk),		 // Templated
 			   .rst_b		(cclk_rst_b),	 // Templated
@@ -314,6 +315,7 @@ module System(/*AUTOARG*/
 			   .spamo_addr		(spamo_addr[SPAM_ADDR_HI:0]),
 			   .spamo_data		(spamo_data[SPAM_DATA_HI:0]),
 			   .sace_clk		(sace_clk));
+	defparam lcd.DEBUG = "TRUE";
 
 	/* FSABArbiter AUTO_TEMPLATE (
 		.clk(fclk),
