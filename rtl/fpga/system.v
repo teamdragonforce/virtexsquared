@@ -55,6 +55,8 @@ module System(/*AUTOARG*/
 `include "fsab_defines.vh"
 `include "spam_defines.vh"
 
+	/*AUTO_LISP(defvar list-of-prefixes '("pre" "ic" "dc" "fb"))*/
+
 	/*AUTOWIRE*/
 	// Beginning of automatic wires (for undeclared instantiated-module outputs)
 	wire		cclk_preload_ready_b;	// From preload of FSABPreload.v
@@ -288,18 +290,19 @@ module System(/*AUTOARG*/
 		     .spamo_data	(spamo_data[SPAM_DATA_HI:0]));
 	defparam lcd.DEBUG = "FALSE";
 
+	
 	/* FSABArbiter AUTO_TEMPLATE (
 		.clk(fclk),
 		.rst_b(fclk_rst_b),
-		.fsabo_valids({pre__fsabo_valid,ic__fsabo_valid,dc__fsabo_valid,fb__fsabo_valid}),
-		.fsabo_modes({pre__fsabo_mode[FSAB_REQ_HI:0],ic__fsabo_mode[FSAB_REQ_HI:0],dc__fsabo_mode[FSAB_REQ_HI:0],fb__fsabo_mode[FSAB_REQ_HI:0]}),
-		.fsabo_dids({pre__fsabo_did[FSAB_DID_HI:0],ic__fsabo_did[FSAB_DID_HI:0],dc__fsabo_did[FSAB_DID_HI:0],fb__fsabo_did[FSAB_DID_HI:0]}),
-		.fsabo_subdids({pre__fsabo_subdid[FSAB_DID_HI:0],ic__fsabo_subdid[FSAB_DID_HI:0],dc__fsabo_subdid[FSAB_DID_HI:0],fb__fsabo_subdid[FSAB_DID_HI:0]}),
-		.fsabo_addrs({pre__fsabo_addr[FSAB_ADDR_HI:0],ic__fsabo_addr[FSAB_ADDR_HI:0],dc__fsabo_addr[FSAB_ADDR_HI:0],fb__fsabo_addr[FSAB_ADDR_HI:0]}),
-		.fsabo_lens({pre__fsabo_len[FSAB_LEN_HI:0],ic__fsabo_len[FSAB_LEN_HI:0],dc__fsabo_len[FSAB_LEN_HI:0],fb__fsabo_len[FSAB_LEN_HI:0]}),
-		.fsabo_datas({pre__fsabo_data[FSAB_DATA_HI:0],ic__fsabo_data[FSAB_DATA_HI:0],dc__fsabo_data[FSAB_DATA_HI:0],fb__fsabo_data[FSAB_DATA_HI:0]}),
-		.fsabo_masks({pre__fsabo_mask[FSAB_MASK_HI:0],ic__fsabo_mask[FSAB_MASK_HI:0],dc__fsabo_mask[FSAB_MASK_HI:0],fb__fsabo_mask[FSAB_MASK_HI:0]}),
-		.fsabo_credits({pre__fsabo_credit,ic__fsabo_credit,dc__fsabo_credit,fb__fsabo_credit}),
+		.fsabo_valids(@"(template \"__fsabo_valid\")"),
+		.fsabo_modes(@"(template \"__fsabo_mode[FSAB_REQ_HI:0]\")"),
+		.fsabo_dids(@"(template \"__fsabo_did[FSAB_DID_HI:0]\")"),
+		.fsabo_subdids(@"(template \"__fsabo_subdid[FSAB_DID_HI:0]\")"),
+		.fsabo_addrs(@"(template \"__fsabo_addr[FSAB_ADDR_HI:0]\")"),
+		.fsabo_lens(@"(template \"__fsabo_len[FSAB_LEN_HI:0]\")"),
+		.fsabo_datas(@"(template \"__fsabo_data[FSAB_DATA_HI:0]\")"),
+		.fsabo_masks(@"(template \"__fsabo_mask[FSAB_MASK_HI:0]\")"),
+		.fsabo_credits(@"(template \"__fsabo_credit\")"),
 		); */
 	FSABArbiter fsabarbiter(
 		/*AUTOINST*/
@@ -521,6 +524,26 @@ module FBDCM(input fclk, output fbclk, input rst, output ready);
 endmodule
 
 
-// Local Variables:
-// verilog-library-directories:("." "../console" "../core" "../fsab" "../spam" "../util/" "../fsab/sim")
-// End:
+/*
+Local Variables:
+eval:
+  (require 'cl)
+eval:
+  (defun prefixer (prefixes suffix)
+    (mapcar #'(lambda (prefix) (concatenate 'string prefix suffix))
+            prefixes))
+eval:  
+  (defun concat-with (separator strings)
+    (reduce #'(lambda (&rest args)
+                (if (null args) ""
+                    (concatenate 'string (car args) separator (cadr args))))
+               strings))
+eval:
+  (defun template (suffix)
+    (concatenate 'string
+      "{"
+      (concat-with "," (prefixer list-of-prefixes suffix))
+      "}"))
+verilog-library-directories:("." "../console" "../core" "../fsab" "../spam" "../util/" "../fsab/sim")
+End:
+*/
