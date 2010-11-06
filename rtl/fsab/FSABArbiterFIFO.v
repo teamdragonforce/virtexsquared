@@ -7,6 +7,7 @@ module FSABArbiterFIFO(/*AUTOARG*/
    inp_subdid, inp_addr, inp_len, inp_data, inp_mask, start_trans
    );
 	`include "fsab_defines.vh"
+	`include "clog2.vh"
 
 	input iclk;
 	input oclk;
@@ -38,7 +39,6 @@ module FSABArbiterFIFO(/*AUTOARG*/
 	output wire                  active;
 
 	parameter myindex = 0;
-	parameter ARB_RFIF_HI = FSAB_REQ_HI+1 + FSAB_DID_HI+1 + FSAB_DID_HI+1 + FSAB_ADDR_HI+1 + FSAB_LEN_HI;
 
 	/*** Inbound credit synchronization ***/
 	wire inp_credit_oclk;
@@ -89,65 +89,27 @@ module FSABArbiterFIFO(/*AUTOARG*/
 		end
 	
 	/*** Inbound request FIFO (RFIF) ***/
+
+`define ARB_RFIF_DEPTH (FSAB_INITIAL_CREDITS)
+`define ARB_RFIF_WIDTH (FSAB_REQ_HI+1 + FSAB_DID_HI+1 + FSAB_DID_HI+1 + FSAB_ADDR_HI+1 + FSAB_LEN_HI+1)
 	wire rfif_wr_0a_iclk;
 	wire rfif_rd_0a_oclk;
-	reg [FSAB_CREDITS_HI:0] rfif_wpos_0a_iclk = 'h0;
-	wire [FSAB_CREDITS_HI:0] rfif_wpos_0a_iclk_next = rfif_wr_0a_iclk ? (rfif_wpos_0a_iclk + 'h1) : rfif_wpos_0a_iclk;
-	reg [FSAB_CREDITS_HI:0] rfif_rpos_0a_oclk = 'h0;
-	reg [ARB_RFIF_HI:0] rfif_fifo [(FSAB_INITIAL_CREDITS-1):0];
-	reg [ARB_RFIF_HI:0] rfif_wdat_0a_iclk = 'h0;
-	reg [ARB_RFIF_HI:0] rfif_rdat_1a_oclk = 'h0;
-	
-	reg [FSAB_CREDITS_HI:0] rfif_wpos_0a_g_iclk = 'h0;
-	reg [FSAB_CREDITS_HI:0] rfif_wpos_0a_iclk_g_oclk_s1 = 'h0;
-	reg [FSAB_CREDITS_HI:0] rfif_wpos_0a_iclk_g_oclk = 'h0;
-	
-	wire [FSAB_CREDITS_HI:0] rfif_rpos_0a_g_oclk = rfif_rpos_0a_oclk ^ (rfif_rpos_0a_oclk << 1);
-	
-	/* There is no issue here with empty showing up too late, because
-	 * only the write pointer is delayed; the read pointer remains
-	 * synchronous with the read operation.  So, 'empty' might return
-	 * empty for too long, but never for too short.
-	 */
-	wire rfif_empty_0a_oclk = (rfif_rpos_0a_g_oclk == rfif_wpos_0a_iclk_g_oclk);
-`ifdef verilator
-	/* This is ONLY valid in Verilator (not clock domain correct). */
-	wire rfif_full_0a_iclk = (rfif_wpos_0a_iclk == (rfif_rpos_0a_oclk + FSAB_INITIAL_CREDITS));
-`endif
-	
-	always @(posedge iclk or negedge iclk_rst_b)
-		if (!iclk_rst_b) begin
-			rfif_wpos_0a_iclk <= 'h0;
-			rfif_wpos_0a_g_iclk <= 0;
-		end else begin
-			if (rfif_wr_0a_iclk) begin
-				`ifdef verilator
-				$display("ARB[%2d]: %5d: writing to rfif (%d word %s to %08x)", myindex, $time, inp_len, (inp_mode == FSAB_WRITE) ? "write" : "read", inp_addr);
-				`endif
-				rfif_fifo[rfif_wpos_0a_iclk[1:0]] <= rfif_wdat_0a_iclk;
-				rfif_wpos_0a_iclk <= rfif_wpos_0a_iclk + 'h1;
-			end
-			rfif_wpos_0a_iclk <= rfif_wpos_0a_iclk_next;
-			rfif_wpos_0a_g_iclk <= rfif_wpos_0a_iclk_next ^ (rfif_wpos_0a_iclk_next << 1);
-		end
-	
-	always @(posedge oclk or negedge oclk_rst_b)
-		if (!oclk_rst_b) begin
-			rfif_rpos_0a_oclk <= 'h0;
-			rfif_wpos_0a_iclk_g_oclk_s1 <= 'h0;
-			rfif_wpos_0a_iclk_g_oclk <= 'h0;
-		end else begin
-			if (rfif_rd_0a_oclk) begin
-				`ifdef verilator
-				$display("ARB[%2d]: %5d: reading from rfif", myindex, $time);
-				`endif
-				/* NOTE: this FIFO style will NOT port to Xilinx! */
-				rfif_rdat_1a_oclk <= rfif_fifo[rfif_rpos_0a_oclk[1:0]];
-				rfif_rpos_0a_oclk <= rfif_rpos_0a_oclk + 'h1;
-			end
-			rfif_wpos_0a_iclk_g_oclk_s1 <= rfif_wpos_0a_g_iclk;
-			rfif_wpos_0a_iclk_g_oclk <= rfif_wpos_0a_iclk_g_oclk_s1;
-		end
+	wire rfif_empty_0a_oclk;
+	wire rfif_full_0a_iclk;
+	reg  [`ARB_RFIF_WIDTH-1:0] rfif_wdat_0a_iclk = 'h0;
+	wire [`ARB_RFIF_WIDTH-1:0] rfif_rdat_1a_oclk;
+	AsyncFifo #(.DEPTH          (`ARB_RFIF_DEPTH),
+	            .WIDTH          (`ARB_RFIF_WIDTH))
+	rfif       (.iclk           (iclk),
+	            .oclk           (oclk),
+	            .iclk_rst_b     (iclk_rst_b),
+	            .oclk_rst_b     (oclk_rst_b),
+	            .wr_en          (rfif_wr_0a_iclk),
+	            .rd_en          (rfif_rd_0a_oclk),
+	            .wr_dat         (rfif_wdat_0a_iclk),
+	            .rd_dat         (rfif_rdat_1a_oclk),
+	            .empty          (rfif_empty_0a_oclk),
+	            .full           (rfif_full_0a_iclk));
 	
 	`ifdef verilator
 	always @(posedge oclk)
@@ -192,64 +154,28 @@ module FSABArbiterFIFO(/*AUTOARG*/
 		end
 	
 	/*** Inbound data FIFO (DFIF) ***/
-`include "clog2.vh"
-`define ARB_DFIF_MAX ((FSAB_INITIAL_CREDITS * FSAB_LEN_MAX) - 1)
-`define ARB_DFIF_HI (clog2(`ARB_DFIF_MAX) - 1)
+`define ARB_DFIF_DEPTH (FSAB_INITIAL_CREDITS * FSAB_LEN_MAX)
+`define ARB_DFIF_WIDTH (FSAB_DATA_HI+1 + FSAB_MASK_HI+1)
+
 	wire dfif_wr_0a_iclk;
 	wire dfif_rd_0a_oclk;
-	reg [`ARB_DFIF_HI:0] dfif_wpos_0a_iclk = 'h0;
-	wire [`ARB_DFIF_HI:0] dfif_wpos_0a_iclk_next = dfif_wr_0a_iclk ? (dfif_wpos_0a_iclk + 'h1) : dfif_wpos_0a_iclk;
-	reg [`ARB_DFIF_HI:0] dfif_rpos_0a_oclk = 'h0;
-	reg [FSAB_DATA_HI+1 + FSAB_MASK_HI:0] dfif_fifo [`ARB_DFIF_MAX:0];
-	wire [FSAB_DATA_HI+1 + FSAB_MASK_HI:0] dfif_wdat_0a_iclk;
-	reg [FSAB_DATA_HI+1 + FSAB_MASK_HI:0] dfif_rdat_1a_oclk;
+	wire dfif_empty_0a_oclk;
+	wire dfif_full_0a_iclk;
+	wire [`ARB_DFIF_WIDTH-1:0] dfif_wdat_0a_iclk;
+	wire [`ARB_DFIF_WIDTH-1:0] dfif_rdat_1a_oclk;
 
-	reg [`ARB_DFIF_HI:0] dfif_wpos_0a_g_iclk = 'h0;
-	reg [`ARB_DFIF_HI:0] dfif_wpos_0a_iclk_g_oclk_s1 = 'h0;
-	reg [`ARB_DFIF_HI:0] dfif_wpos_0a_iclk_g_oclk = 'h0;
-	
-	wire [`ARB_DFIF_HI:0] dfif_rpos_0a_g_oclk = dfif_rpos_0a_oclk ^ (dfif_rpos_0a_oclk << 1);
-	
-	wire dfif_empty_0a_oclk = (dfif_rpos_0a_g_oclk == dfif_wpos_0a_iclk_g_oclk);
-`ifdef verilator
-	/* This is ONLY valid in Verilator (not clock domain correct). */
-	wire dfif_full_0a_iclk = (dfif_wpos_0a_iclk == (dfif_rpos_0a_oclk + `ARB_DFIF_MAX));
-`endif
-	
-	always @(posedge iclk or negedge iclk_rst_b)
-		if (!iclk_rst_b) begin
-			dfif_wpos_0a_iclk <= 'h0;
-			dfif_wpos_0a_g_iclk <= 0;
-		end else begin
-			if (dfif_wr_0a_iclk) begin
-				`ifdef verilator
-				$display("ARB[%2d]: %5d: writing to dfif (ad %d, %08b mask, %08x data)", myindex, $time, dfif_wpos_0a_iclk, inp_mask, inp_data);
-				`endif
-				dfif_fifo[dfif_wpos_0a_iclk] <= dfif_wdat_0a_iclk;
-			end
-			dfif_wpos_0a_iclk <= dfif_wpos_0a_iclk_next;
-			dfif_wpos_0a_g_iclk <= dfif_wpos_0a_iclk_next ^ (dfif_wpos_0a_iclk_next << 1);
-		end
-
-	always @(posedge oclk or negedge oclk_rst_b)
-		if (!oclk_rst_b) begin
-			dfif_rpos_0a_oclk <= 'h0;
-			dfif_wpos_0a_iclk_g_oclk_s1 <= 'h0;
-			dfif_wpos_0a_iclk_g_oclk <= 'h0;
-		end else begin
-			if (dfif_rd_0a_oclk) begin
-				`ifdef verilator
-				$display("ARB[%2d]: %5d: reading from dfif (ad %d, da %x)", myindex, $time, dfif_rpos_0a_oclk, dfif_fifo[dfif_rpos_0a_oclk]);
-				`endif
-				/* NOTE: this FIFO style will NOT port to Xilinx! */
-				dfif_rdat_1a_oclk <= dfif_fifo[dfif_rpos_0a_oclk];
-				dfif_rpos_0a_oclk <= dfif_rpos_0a_oclk + 'h1;
-			end else begin
-				dfif_rdat_1a_oclk <= {(FSAB_DATA_HI+1 + FSAB_MASK_HI+1){1'hx}};
-			end
-			dfif_wpos_0a_iclk_g_oclk_s1 <= dfif_wpos_0a_g_iclk;
-			dfif_wpos_0a_iclk_g_oclk <= dfif_wpos_0a_iclk_g_oclk_s1;
-		end
+	AsyncFifo #(.DEPTH          (`ARB_DFIF_DEPTH),
+	            .WIDTH          (`ARB_DFIF_WIDTH))
+	dfif       (.iclk           (iclk),
+	            .oclk           (oclk),
+	            .iclk_rst_b     (iclk_rst_b),
+	            .oclk_rst_b     (oclk_rst_b),
+	            .wr_en          (dfif_wr_0a_iclk),
+	            .rd_en          (dfif_rd_0a_oclk),
+	            .wr_dat         (dfif_wdat_0a_iclk),
+	            .rd_dat         (dfif_rdat_1a_oclk),
+	            .empty          (dfif_empty_0a_oclk),
+	            .full           (dfif_full_0a_iclk));
 	
 	`ifdef verilator
 	always @(posedge oclk)
