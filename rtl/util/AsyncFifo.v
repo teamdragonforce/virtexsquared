@@ -48,9 +48,9 @@ module AsyncFifo #(
 	 * synchronous with the read operation.  So, 'empty' might return
 	 * empty for too long, but never for too short.
 	 */
-	wire empty = (rpos_empty_g_oclk == wpos_empty_g_oclk_2);
+	assign empty = (rpos_empty_g_oclk == wpos_empty_g_oclk_2);
 	/* Same deal the other way around for full. */
-	wire full = (rpos_full_g_iclk_2 == wpos_full_g_iclk);
+	assign full = (rpos_full_g_iclk_2 == wpos_full_g_iclk);
 
 	always @(posedge iclk or negedge iclk_rst_b) begin
 		if (~iclk_rst_b) begin
