@@ -250,6 +250,80 @@ void show_smpte_color_bars()
 	
 }
 
+/* XXX: If this is 'char' then the world ends.  This is probably a core bug
+ * that needs to be intoed.  */
+int pixels[][2] = {
+#include "charset.h"
+};
+
+int r_int[] = { 1, 1, 0, 0, 0, 1, 0, 1, 1 };
+int g_int[] = { 0, 1, 1, 1, 0, 0, 0, 1, 0 };
+int b_int[] = { 0, 0, 0, 1, 1, 1, 0, 1, 0 };
+
+unsigned char color_r(int t)
+{
+	int offs = (t >> 8) & 0x7;
+	int c1 = r_int[offs];
+	int c2 = r_int[offs+1];
+	int tt = t & 0xFF;
+	
+	return (255-tt)*c1 + tt*c2;
+}
+
+unsigned char color_g(int t)
+{
+	int offs = (t >> 8) & 0x7;
+	int c1 = g_int[offs];
+	int c2 = g_int[offs+1];
+	int tt = t & 0xFF;
+	
+	return (255-tt)*c1 + tt*c2;
+}
+
+unsigned char color_b(int t)
+{
+	int offs = (t >> 8) & 0x7;
+	int c1 = b_int[offs];
+	int c2 = b_int[offs+1];
+	int tt = t & 0xFF;
+	
+	return (255-tt)*c1 + tt*c2;
+}
+
+void make_chars()
+{
+	int c;
+	static int t = 0;
+	int p;
+	int tofs = 0;
+	unsigned int *d = 0x00100000;
+	
+	t += 2;
+	
+	p = (color_r(t) << 24) | (color_g(t) << 16) | (color_b(t) << 8);
+	
+	for (c = 0; pixels[c][0] != -1; c++)
+	{
+		int x,y;
+		int xofs, yofs;
+		
+		if (pixels[c][1] == -1)
+		{
+                	tofs += 10;
+                	p = (color_r(t+tofs) << 24) | (color_g(t+tofs) << 16) | (color_b(t+tofs) << 8);
+			continue;
+		}
+		
+		xofs = pixels[c][0] * 8 + (640 - 536) / 2;
+		yofs = (9-pixels[c][1]) * 8 + 280;
+		
+		for (x = 0; x < 8; x++)
+			for (y = 0; y < 8; y++)
+				d[(y+yofs) * 640 + (x+xofs)] = p;
+	}
+}
+
+
 void waitok()
 {
 	volatile unsigned int *lcd_insn = 0x81000000;
@@ -325,6 +399,7 @@ void lcd()
 struct tests tlist[] = {
 	/*{"screen", show_on_screen},*/
 	{"color_bars", show_smpte_color_bars},
+	{"make_chars", make_chars},
 	/*{"ldm pc/mul", ldm_tester},
 	{"fact", facttest},
 	{"j4cbo", j4cbo},
@@ -351,6 +426,8 @@ int main()
 	puts("Done! Echoing characters.\n");
 	
 	while (1)
-		putc(serial_getc());
+	{
+		make_chars();
+        }
 	return 0;
 }
