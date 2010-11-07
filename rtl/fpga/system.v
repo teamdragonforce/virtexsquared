@@ -315,7 +315,7 @@ module System(/*AUTOARG*/
 			   .spamo_addr		(spamo_addr[SPAM_ADDR_HI:0]),
 			   .spamo_data		(spamo_data[SPAM_DATA_HI:0]),
 			   .sace_clk		(sace_clk));
-	defparam lcd.DEBUG = "TRUE";
+	defparam sysace.DEBUG = "TRUE";
 
 	/* FSABArbiter AUTO_TEMPLATE (
 		.clk(fclk),

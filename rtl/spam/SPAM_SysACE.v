@@ -123,6 +123,7 @@ module SPAM_SysACE(/*AUTOARG*/
 	reg [SPAM_DATA_HI:0] cur_wrdata_cclk_sclk = 0;
 	
 	reg                  cur_request_cclk_1a_sclk = 0;
+	reg                  cur_request_cclk_2a_sclk = 0;
 	
 	always @(posedge sace_clk or negedge sace_rst_b) begin
 		if (!sace_rst_b) begin
@@ -139,6 +140,7 @@ module SPAM_SysACE(/*AUTOARG*/
 			cur_wrdata_cclk_sclk <= 0;
 			
 			cur_request_cclk_1a_sclk <= 0;
+			cur_request_cclk_2a_sclk <= 0;
 		end else begin
 			cur_request_cclk_s <= cur_request_cclk;
 			cur_r_nw_cclk_s <= cur_r_nw_cclk;
@@ -153,6 +155,8 @@ module SPAM_SysACE(/*AUTOARG*/
 			cur_wrdata_cclk_sclk <= cur_wrdata_cclk_s;
 			
 			cur_request_cclk_1a_sclk <= cur_request_cclk_sclk;
+			cur_request_cclk_2a_sclk <= cur_request_cclk_1a_sclk;
+			
 		end
 	end
 	
@@ -161,7 +165,7 @@ module SPAM_SysACE(/*AUTOARG*/
 	
 	assign sace_mpa = cur_addr_cclk_sclk[8:2];
 	assign sace_mpd_wr = cur_wrdata_cclk_sclk[15:0];
-	assign sace_mpce_n = completed_request_sclk != cur_request_cclk_1a_sclk;
+	assign sace_mpce_n = ~(completed_request_sclk != cur_request_cclk_2a_sclk);
 	
 	reg [1:0] state = 2'b00;
 	
@@ -173,7 +177,7 @@ module SPAM_SysACE(/*AUTOARG*/
 			sace_mpoe_n <= 1;
 			state <= 2'b00;
 		end else begin
-			if (completed_request_sclk != cur_request_cclk_1a_sclk) begin
+			if (completed_request_sclk != cur_request_cclk_2a_sclk) begin
 				case ({cur_r_nw_cclk_sclk, state})
 				3'b000: begin
 					sace_mpwe_n <= 0;
@@ -189,11 +193,11 @@ module SPAM_SysACE(/*AUTOARG*/
 					state <= 2'b01;
 				end
 				3'b101: begin
-					sace_mpoe_n <= 1;
 					state <= 2'b10;
 				end
 				3'b110: begin
 					sace_mpd_rd_l_sclk <= sace_mpd_rd;
+					sace_mpoe_n <= 1;
 					state <= 2'b00;
 					completed_request_sclk <= cur_request_cclk_1a_sclk;
 				end
