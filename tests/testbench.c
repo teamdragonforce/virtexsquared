@@ -164,9 +164,15 @@ void show_smpte_color_bars()
 	unsigned int *d = 0x00100000;
 	int x,y;
 
+	int *frame_autotrigger = 0x82000008;
+	*frame_autotrigger = 2;
+
+	volatile int *test = 0x8200000c;
+
 	puts("Painting screen...\n");
 	for (y = 0; y < 480; y++) {
 		for (x = 0; x < 640; x++) {
+			puthex(*test);
 			if (y < 300) {
 				if (x < 91) {
 					*(d++) = 0xc0c0c000;
@@ -241,10 +247,6 @@ void show_smpte_color_bars()
 			}
 		}
         }
-
-
-	int *frame_autotrigger = 0x82000008;
-	*frame_autotrigger = 2;
 
 	puts("You should now see color bar on the screen.\n");
 	

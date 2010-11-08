@@ -100,8 +100,8 @@ module System(/*AUTOARG*/
 					.cio__spami_data(cio__spami_data[SPAM_DATA_HI:0]));
 `endif
 	
-	wire spami_busy_b = cio__spami_busy_b | lcd__spami_busy_b;
-	wire [SPAM_DATA_HI:0] spami_data = cio__spami_data[SPAM_DATA_HI:0] | lcd__spami_data[SPAM_DATA_HI:0];
+	wire spami_busy_b = cio__spami_busy_b | lcd__spami_busy_b | fb__spami_busy_b;
+	wire [SPAM_DATA_HI:0] spami_data = cio__spami_data[SPAM_DATA_HI:0] | lcd__spami_data[SPAM_DATA_HI:0] | fb__spami_data[SPAM_DATA_HI:0];
 
 	/* Core AUTO_TEMPLATE (
 		.rst_b(rst_core_b & rst_b),

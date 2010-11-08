@@ -1,11 +1,14 @@
 
 /* I'm thinking somewhere in the lines of:
-   spamo_addr to config mapping: 
-     0000 = next_start_addr 
-     (change the start reading location of the next trigger by changing the value here)
-     0100 = next_len
-     (change the length read of the next trigger by changing the value here)
-     1000 = command register
+spamo_addr to config mapping: 
+	0000 = next_start_addr (Write only)
+	(change the start reading location of the next trigger by changing the value here)
+   	0100 = next_len (Write only)
+   	(change the length read of the next trigger by changing the value here)
+   	1000 = command register (Write_only)
+   	1100 = fifo_bytes_read (Read_only) 
+	(number of bytes that the fifo read)
+/
 */
 
 /* Read 64 bytes at a time through the FSAB bus */
@@ -66,7 +69,7 @@ module SimpleDMAReadController(/*AUTOARG*/
 
 
 	output                      dmac__spami_busy_b;
-	output reg [SPAM_DATA_HI:0] dmac__spami_data = 'h0;
+	output reg [SPAM_DATA_HI:0] dmac__spami_data;
 	
 	`include "clog2.vh"
 	parameter FIFO_DEPTH = 128; /* must be a power of 2 */
@@ -109,7 +112,8 @@ module SimpleDMAReadController(/*AUTOARG*/
         wire [FSAB_ADDR_HI:0] next_len;
 
 	/* Bytes Read */
-	reg [FSAB_ADDR_HI:0] fifo_bytes_read = 0;
+	reg [FSAB_ADDR_HI:0] fifo_bytes_read_tclk = 0;
+	reg [FSAB_ADDR_HI:0] fifo_bytes_read_cclk = 0;
         
         /* This is sort of gross, but oh well. */
 	reg [COMMAND_REGISTER_HI:0] command_register = DMA_STOP;
@@ -208,7 +212,7 @@ module SimpleDMAReadController(/*AUTOARG*/
 			triggered <= 0;
 			command_register <= DMA_STOP;
 			end_addr <= DEFAULT_ADDR+DEFAULT_LEN;
-			fifo_bytes_read <= 0;
+			fifo_bytes_read_tclk <= 0;
 		end else begin
 			completed_read_s1 <= completed_read_fclk;
 			completed_read <= completed_read_s1;
@@ -243,11 +247,12 @@ module SimpleDMAReadController(/*AUTOARG*/
 					current_read <= ~current_read;
 				end else if ((completed_read == current_read) && read_pending) begin
 					read_pending <= 0;
-					fifo_bytes_read <= fifo_bytes_read + 64;
 					if (end_addr == next_fsab_addr + 64) begin
 						triggered <= 0;
+						fifo_bytes_read_tclk <= 0;
 					end
 					else begin
+						fifo_bytes_read_tclk <= fifo_bytes_read_tclk + 64;
 						next_fsab_addr <= next_fsab_addr + 64;
 					end
 				end
@@ -314,6 +319,10 @@ module SimpleDMAReadController(/*AUTOARG*/
 	wire wr_decode = spamo_valid && !spamo_r_nw && 
 	                 ((spamo_addr & SPAM_ADDRMASK) == SPAM_ADDRPFX) &&
 	                 (spamo_did == SPAM_DID);
+	wire rd_decode = spamo_valid && spamo_r_nw &&
+	                 ((spamo_addr & SPAM_ADDRMASK) == SPAM_ADDRPFX) &&
+	                 (spamo_did == SPAM_DID);
+	                 
 	
 	always @(*) begin
 		if (wr_decode) begin
@@ -374,8 +383,45 @@ module SimpleDMAReadController(/*AUTOARG*/
 		                 .rst_b_tclk         (target_rst_b),
 		                 .wr_strobe_cclk     (wr_decode && (spamo_addr[DMA_SPAM_ADDR_HI:0] == COMMAND_REG_ADDR)),
 		                 .wr_data_cclk       (spamo_data[COMMAND_REGISTER_HI:0]));
-	
-	assign dmac__spami_busy_b = wr_done_strobe_COMMAND_REG | wr_done_strobe_NEXT_LEN_REG | wr_done_strobe_NEXT_START_REG;
+
+
+	CSRAsyncRead #(.WIDTH        (FSAB_ADDR_HI+1))
+		CSR_FIFO_BYTES_READ (/* NOT AUTOINST */
+				     // Outputs
+				     .rd_data_cclk	(fifo_bytes_read_cclk),
+				     .rd_wait_cclk	(),
+				     .rd_done_strobe_cclk(),
+				     .rd_strobe_tclk	(),
+				     // Inputs
+				     .cclk		(cclk),
+				     .tclk		(target_clk),
+				     .rst_b_cclk	(cclk_rst_b),
+				     .rst_b_tclk	(target_rst_b),
+				     .rd_strobe_cclk	(1'b1),
+				     .rd_data_tclk	(fifo_bytes_read_tclk));
+
+	reg rd_done_strobe_FIFO_BYTES_READ;
+	always @ (posedge cclk) begin
+		if (rd_decode && (spamo_addr[DMA_SPAM_ADDR_HI:0] == FIFO_BYTES_READ_REG_ADDR)) begin
+			rd_done_strobe_FIFO_BYTES_READ <= 1'b1;
+			dmac__spami_data <= {{(SPAM_DATA_HI-FSAB_ADDR_HI){1'b0}}, fifo_bytes_read_cclk};
+		end
+		else begin
+			rd_done_strobe_FIFO_BYTES_READ <= 1'b0;
+			dmac__spami_data <= 0;
+		end
+	end
+
+	assign dmac__spami_busy_b = wr_done_strobe_COMMAND_REG | wr_done_strobe_NEXT_LEN_REG | wr_done_strobe_NEXT_START_REG | rd_done_strobe_FIFO_BYTES_READ;
+
+
+	always @(posedge cclk) begin
+		if (rd_done_strobe_FIFO_BYTES_READ) begin
+			$display("DMA: %x bytes read", dmac__spami_data);
+		end
+	end
+
+
 endmodule
 
 // Local Variables:
