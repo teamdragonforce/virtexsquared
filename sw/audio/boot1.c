@@ -5,43 +5,93 @@
 #define F 1000
 #define T (SAMPLE_RATE / F)
 
-void main()
+struct ptab {
+	unsigned char flags;
+	unsigned char sh, scl, sch;
+	unsigned char type;
+	unsigned char eh, ecl, ech;
+	unsigned char lba[4];
+	unsigned char size[4];
+};
+
+int find_fat16()
+{
+	static unsigned char buf[512];
+	struct ptab *table;
+	int i;
+	
+	if (sysace_readsec(0, (unsigned int *)buf) < 0)
+	{
+		puts("failed to read sector 0!\r\n");
+		return -1;
+	}
+	
+	table = (struct ptab *)&(buf[446]);
+	for (i = 0; i < 4; i++)
+	{
+		if (table[i].type == 0x06 /* FAT16 */)
+		{
+			puts("(partition ");
+			puthex(i);
+			puts(") ");
+			return table[i].lba[0] |
+			       table[i].lba[1] << 8 |
+			       table[i].lba[2] << 16 |
+			       table[i].lba[3] << 24;
+		}
+	}
+	
+	return -1;
+}
+
+#define LEN 85258656
+
+void startplayback()
 {
 	volatile int *dma_start  = (int*) 0x84000000;
 	volatile int *dma_length = (int*) 0x84000004;
 	volatile int *dma_cmd    = (int*) 0x84000008;
 	volatile int *dma_nread  = (int*) 0x8400000c;
-	short *mem = (short*) (6 * (1<<20));
-	int sample;
-	int count = 0;
-	int state = 0;
-	puts("Generating samples... ");
-	for (sample = 0; sample < 2*SAMPLE_RATE; sample++, count++) {
-		if (count == (T >> 1)) {
-			state = !state;
-			count = 0;
-		}
-		if (state) {
-			mem[2*sample]   = -10000;
-			mem[2*sample+1] = -10000;
-		}
-		else {
-			mem[2*sample]   = 10000;
-			mem[2*sample+1] = 10000;
-		}
-	}
-	puts("done!\r\n");
 
-	puts("Launching audio DMA...\r\n");
-	*dma_start = mem;
-	*dma_length = SAMPLE_RATE*2*2*2;
-	*dma_cmd = 1;
-#if 0
-	while(1)
+	*dma_start = 0x00800000;
+	*dma_length = LEN & ~0xFF;
+	*dma_cmd = 2;
+}
+
+void loadaudio()
+{
+	int location = find_fat16();
+	unsigned int *base = 0x00800000;
+	int i;
+
+	if (location < 0)
 	{
-		puthex(*dma_nread); puts("\r\n");
-		int i; for (i = 0; i < 1000; i++) *dma_nread;
+		puts("no FAT16-now-audio partition?\r\n");
+		return;
 	}
-#endif
+	puts("Loading audio into memory (");
+	puthex(LEN/512);
+	puts(" sectors)... ");
+	for (i = 0; i < (LEN / 512); i++)
+	{
+		sysace_readsec(location + i, base);
+		base += (512/4);
+		if ((i & 0x1F) == 0)
+		{
+			puthex(i);
+			if (i == 0x20)	/* OK, we've loaded enough. */
+				startplayback();
+		}
+		puts(".");
+	}
+	puts("\r\n");
+}
+
+void main()
+{
+	short *mem = (short*) (6 * (1<<20));
+
+	loadaudio();
+
 	return 0;
 }
