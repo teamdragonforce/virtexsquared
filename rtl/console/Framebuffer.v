@@ -145,8 +145,8 @@ module Framebuffer(/*AUTOARG*/
 `endif
 
 	/* SimpleDMAReadController AUTO_TEMPLATE(
-	                        .frame_clk(fbclk),
-	                        .frame_rst_b(fbclk_rst_b),
+	                        .target_clk(fbclk),
+	                        .target_rst_b(fbclk_rst_b),
 	                        .dmac__fsabo_valid(fb__fsabo_valid),
 	                        .dmac__fsabo_mode(fb__fsabo_mode),
 	                        .dmac__fsabo_did(fb__fsabo_did),
@@ -191,8 +191,8 @@ module Framebuffer(/*AUTOARG*/
 					  .spamo_did		(spamo_did[SPAM_DID_HI:0]),
 					  .spamo_addr		(spamo_addr[SPAM_ADDR_HI:0]),
 					  .spamo_data		(spamo_data[SPAM_DATA_HI:0]),
-					  .frame_clk		(fbclk),	 // Templated
-					  .frame_rst_b		(fbclk_rst_b),	 // Templated
+					  .target_clk		(fbclk),	 // Templated
+					  .target_rst_b		(fbclk_rst_b),	 // Templated
 					  .request		(request));
 	defparam frame_dma.FIFO_DEPTH = 512;
 	defparam frame_dma.FSAB_DID = FSAB_DID_FRAME;

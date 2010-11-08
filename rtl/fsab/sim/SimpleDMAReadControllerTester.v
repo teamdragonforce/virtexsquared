@@ -88,8 +88,8 @@ module SimpleDMAReadControllerTester(/*AUTOARG*/
 					      .spamo_did	(spamo_did[SPAM_DID_HI:0]),
 					      .spamo_addr	(spamo_addr[SPAM_ADDR_HI:0]),
 					      .spamo_data	(spamo_data[SPAM_DATA_HI:0]),
-					      .frame_clk	(clk),		 // Templated
-					      .frame_rst_b	(rst_b),	 // Templated
+					      .target_clk	(target_clk),
+					      .target_rst_b	(target_rst_b),
 					      .request		(request));
 	defparam dmacontroller.FSAB_DID = FSAB_DID_CPU;
 	defparam dmacontroller.FSAB_SUBDID = FSAB_SUBDID_CPU_DMAC;
