@@ -4,12 +4,13 @@ module System(/*AUTOARG*/
    ddr2_cs_n, ddr2_dm, ddr2_odt, ddr2_ras_n, ddr2_we_n, leds, lcd_db,
    lcd_e, lcd_rnw, lcd_rs, dvi_vs, dvi_hs, dvi_d, dvi_xclk_p,
    dvi_xclk_n, dvi_de, dvi_reset_b, sace_mpa, sace_mpce_n,
-   sace_mpoe_n, sace_mpwe_n, usb_cs_n,
+   sace_mpoe_n, sace_mpwe_n, usb_cs_n, ac97_sdata_out, ac97_sync,
+   ac97_reset_b,
    // Inouts
    ddr2_dq, ddr2_dqs, ddr2_dqs_n, dvi_sda, dvi_scl, sace_mpd,
    // Inputs
    clk200_n, clk200_p, sys_clk_n, sys_clk_p, sys_rst_n, corerst_btn,
-   sace_clk
+   sace_clk, ac97_bitclk, ac97_sdata_in
    );
 
 	`include "memory_defines.vh"
@@ -63,13 +64,31 @@ module System(/*AUTOARG*/
 	
 	assign usb_cs_n = 1;
 
+	input              ac97_bitclk;
+	input              ac97_sdata_in;
+	output wire        ac97_sdata_out;
+	output wire        ac97_sync;
+	output wire        ac97_reset_b;
+
+
 `include "fsab_defines.vh"
 `include "spam_defines.vh"
 
-	/*AUTO_LISP(defvar list-of-prefixes '("pre" "ic" "dc" "fb"))*/
+	/*AUTO_LISP(defvar list-of-prefixes '("pre" "ic" "dc" "fb" "audio"))*/
 
 	/*AUTOWIRE*/
 	// Beginning of automatic wires (for undeclared instantiated-module outputs)
+	wire [FSAB_ADDR_HI:0] audio__fsabo_addr;// From audio of Audio.v
+	wire		audio__fsabo_credit;	// From fsabarbiter of FSABArbiter.v
+	wire [FSAB_DATA_HI:0] audio__fsabo_data;// From audio of Audio.v
+	wire [FSAB_DID_HI:0] audio__fsabo_did;	// From audio of Audio.v
+	wire [FSAB_LEN_HI:0] audio__fsabo_len;	// From audio of Audio.v
+	wire [FSAB_MASK_HI:0] audio__fsabo_mask;// From audio of Audio.v
+	wire [FSAB_REQ_HI:0] audio__fsabo_mode;	// From audio of Audio.v
+	wire [FSAB_DID_HI:0] audio__fsabo_subdid;// From audio of Audio.v
+	wire		audio__fsabo_valid;	// From audio of Audio.v
+	wire		audio__spami_busy_b;	// From audio of Audio.v
+	wire [SPAM_DATA_HI:0] audio__spami_data;// From audio of Audio.v
 	wire		cclk_preload_ready_b;	// From preload of FSABPreload.v
 	wire		cio__spami_busy_b;	// From conio of SPAM_ConsoleIO.v
 	wire [SPAM_DATA_HI:0] cio__spami_data;	// From conio of SPAM_ConsoleIO.v
@@ -141,9 +160,11 @@ module System(/*AUTOARG*/
 	
 	/*** Clock and reset synchronization ***/
 	
-	wire fclk, cclk, fbclk;
+	wire fclk, cclk, fbclk, aclk;
 	wire fclk_rst_b;
 	wire cclk_ready, fbclk_ready;
+
+	assign aclk = ac97_bitclk;
 	
 	DCM dcm(.fclk(fclk),
 	        .cclk(cclk),
@@ -192,12 +213,12 @@ module System(/*AUTOARG*/
 	
 	/*** Rest of the system (c.c) ***/
 	
-	wire spami_busy_b = cio__spami_busy_b | lcd__spami_busy_b | fb__spami_busy_b | sace__spami_busy_b;
-	wire [SPAM_DATA_HI:0] spami_data = cio__spami_data[SPAM_DATA_HI:0] | lcd__spami_data[SPAM_DATA_HI:0] | fb__spami_data[SPAM_DATA_HI:0] | sace__spami_data[SPAM_DATA_HI:0];
+	wire spami_busy_b = cio__spami_busy_b | lcd__spami_busy_b | fb__spami_busy_b | sace__spami_busy_b | audio__spami_busy_b;
+	wire [SPAM_DATA_HI:0] spami_data = cio__spami_data[SPAM_DATA_HI:0] | lcd__spami_data[SPAM_DATA_HI:0] | fb__spami_data[SPAM_DATA_HI:0] | sace__spami_data[SPAM_DATA_HI:0] | audio__spami_data[SPAM_DATA_HI:0];
 
-	parameter FSAB_DEVICES = 4;
-	wire [FSAB_DEVICES-1:0] fsabo_clks = {cclk, cclk, cclk, fbclk};
-	wire [FSAB_DEVICES-1:0] fsabo_rst_bs = {cclk_rst_b, cclk_rst_b, cclk_rst_b, fbclk_rst_b};
+	parameter FSAB_DEVICES = 5;
+	wire [FSAB_DEVICES-1:0] fsabo_clks = {cclk, cclk, cclk, fbclk, aclk};
+	wire [FSAB_DEVICES-1:0] fsabo_rst_bs = {cclk_rst_b, cclk_rst_b, cclk_rst_b, fbclk_rst_b, ac97_reset_b};
 	
 
 	/* XXX: fsabi_rst_b synch? */
@@ -347,7 +368,7 @@ module System(/*AUTOARG*/
 	FSABArbiter fsabarbiter(
 		/*AUTOINST*/
 				// Outputs
-				.fsabo_credits	({pre__fsabo_credit,ic__fsabo_credit,dc__fsabo_credit,fb__fsabo_credit}), // Templated
+				.fsabo_credits	({pre__fsabo_credit,ic__fsabo_credit,dc__fsabo_credit,fb__fsabo_credit,audio__fsabo_credit}), // Templated
 				.fsabo_valid	(fsabo_valid),
 				.fsabo_mode	(fsabo_mode[FSAB_REQ_HI:0]),
 				.fsabo_did	(fsabo_did[FSAB_DID_HI:0]),
@@ -359,14 +380,14 @@ module System(/*AUTOARG*/
 				// Inputs
 				.clk		(fclk),		 // Templated
 				.rst_b		(fclk_rst_b),	 // Templated
-				.fsabo_valids	({pre__fsabo_valid,ic__fsabo_valid,dc__fsabo_valid,fb__fsabo_valid}), // Templated
-				.fsabo_modes	({pre__fsabo_mode[FSAB_REQ_HI:0],ic__fsabo_mode[FSAB_REQ_HI:0],dc__fsabo_mode[FSAB_REQ_HI:0],fb__fsabo_mode[FSAB_REQ_HI:0]}), // Templated
-				.fsabo_dids	({pre__fsabo_did[FSAB_DID_HI:0],ic__fsabo_did[FSAB_DID_HI:0],dc__fsabo_did[FSAB_DID_HI:0],fb__fsabo_did[FSAB_DID_HI:0]}), // Templated
-				.fsabo_subdids	({pre__fsabo_subdid[FSAB_DID_HI:0],ic__fsabo_subdid[FSAB_DID_HI:0],dc__fsabo_subdid[FSAB_DID_HI:0],fb__fsabo_subdid[FSAB_DID_HI:0]}), // Templated
-				.fsabo_addrs	({pre__fsabo_addr[FSAB_ADDR_HI:0],ic__fsabo_addr[FSAB_ADDR_HI:0],dc__fsabo_addr[FSAB_ADDR_HI:0],fb__fsabo_addr[FSAB_ADDR_HI:0]}), // Templated
-				.fsabo_lens	({pre__fsabo_len[FSAB_LEN_HI:0],ic__fsabo_len[FSAB_LEN_HI:0],dc__fsabo_len[FSAB_LEN_HI:0],fb__fsabo_len[FSAB_LEN_HI:0]}), // Templated
-				.fsabo_datas	({pre__fsabo_data[FSAB_DATA_HI:0],ic__fsabo_data[FSAB_DATA_HI:0],dc__fsabo_data[FSAB_DATA_HI:0],fb__fsabo_data[FSAB_DATA_HI:0]}), // Templated
-				.fsabo_masks	({pre__fsabo_mask[FSAB_MASK_HI:0],ic__fsabo_mask[FSAB_MASK_HI:0],dc__fsabo_mask[FSAB_MASK_HI:0],fb__fsabo_mask[FSAB_MASK_HI:0]}), // Templated
+				.fsabo_valids	({pre__fsabo_valid,ic__fsabo_valid,dc__fsabo_valid,fb__fsabo_valid,audio__fsabo_valid}), // Templated
+				.fsabo_modes	({pre__fsabo_mode[FSAB_REQ_HI:0],ic__fsabo_mode[FSAB_REQ_HI:0],dc__fsabo_mode[FSAB_REQ_HI:0],fb__fsabo_mode[FSAB_REQ_HI:0],audio__fsabo_mode[FSAB_REQ_HI:0]}), // Templated
+				.fsabo_dids	({pre__fsabo_did[FSAB_DID_HI:0],ic__fsabo_did[FSAB_DID_HI:0],dc__fsabo_did[FSAB_DID_HI:0],fb__fsabo_did[FSAB_DID_HI:0],audio__fsabo_did[FSAB_DID_HI:0]}), // Templated
+				.fsabo_subdids	({pre__fsabo_subdid[FSAB_DID_HI:0],ic__fsabo_subdid[FSAB_DID_HI:0],dc__fsabo_subdid[FSAB_DID_HI:0],fb__fsabo_subdid[FSAB_DID_HI:0],audio__fsabo_subdid[FSAB_DID_HI:0]}), // Templated
+				.fsabo_addrs	({pre__fsabo_addr[FSAB_ADDR_HI:0],ic__fsabo_addr[FSAB_ADDR_HI:0],dc__fsabo_addr[FSAB_ADDR_HI:0],fb__fsabo_addr[FSAB_ADDR_HI:0],audio__fsabo_addr[FSAB_ADDR_HI:0]}), // Templated
+				.fsabo_lens	({pre__fsabo_len[FSAB_LEN_HI:0],ic__fsabo_len[FSAB_LEN_HI:0],dc__fsabo_len[FSAB_LEN_HI:0],fb__fsabo_len[FSAB_LEN_HI:0],audio__fsabo_len[FSAB_LEN_HI:0]}), // Templated
+				.fsabo_datas	({pre__fsabo_data[FSAB_DATA_HI:0],ic__fsabo_data[FSAB_DATA_HI:0],dc__fsabo_data[FSAB_DATA_HI:0],fb__fsabo_data[FSAB_DATA_HI:0],audio__fsabo_data[FSAB_DATA_HI:0]}), // Templated
+				.fsabo_masks	({pre__fsabo_mask[FSAB_MASK_HI:0],ic__fsabo_mask[FSAB_MASK_HI:0],dc__fsabo_mask[FSAB_MASK_HI:0],fb__fsabo_mask[FSAB_MASK_HI:0],audio__fsabo_mask[FSAB_MASK_HI:0]}), // Templated
 				.fsabo_clks	(fsabo_clks[FSAB_DEVICES-1:0]),
 				.fsabo_rst_bs	(fsabo_rst_bs[FSAB_DEVICES-1:0]),
 				.fsabo_credit	(fsabo_credit));
@@ -509,6 +530,45 @@ module System(/*AUTOARG*/
 		       .spamo_addr	(spamo_addr[SPAM_ADDR_HI:0]),
 		       .spamo_data	(spamo_data[SPAM_DATA_HI:0]));
 	defparam fb.DEBUG = "FALSE";
+
+	/* Audio AUTO_TEMPLATE (
+		.fsabi_rst_b(fclk_rst_b),
+		.fsabi_clk(fclk),
+		.ac97_bitclk(aclk),
+		);
+	*/
+	Audio audio (/*AUTOINST*/
+		     // Outputs
+		     .ac97_sdata_out	(ac97_sdata_out),
+		     .ac97_sync		(ac97_sync),
+		     .ac97_reset_b	(ac97_reset_b),
+		     .audio__fsabo_valid(audio__fsabo_valid),
+		     .audio__fsabo_mode	(audio__fsabo_mode[FSAB_REQ_HI:0]),
+		     .audio__fsabo_did	(audio__fsabo_did[FSAB_DID_HI:0]),
+		     .audio__fsabo_subdid(audio__fsabo_subdid[FSAB_DID_HI:0]),
+		     .audio__fsabo_addr	(audio__fsabo_addr[FSAB_ADDR_HI:0]),
+		     .audio__fsabo_len	(audio__fsabo_len[FSAB_LEN_HI:0]),
+		     .audio__fsabo_data	(audio__fsabo_data[FSAB_DATA_HI:0]),
+		     .audio__fsabo_mask	(audio__fsabo_mask[FSAB_MASK_HI:0]),
+		     .audio__spami_busy_b(audio__spami_busy_b),
+		     .audio__spami_data	(audio__spami_data[SPAM_DATA_HI:0]),
+		     // Inputs
+		     .ac97_bitclk	(aclk),			 // Templated
+		     .ac97_sdata_in	(ac97_sdata_in),
+		     .fsabi_clk		(fclk),			 // Templated
+		     .fsabi_rst_b	(fclk_rst_b),		 // Templated
+		     .fsabi_valid	(fsabi_valid),
+		     .fsabi_did		(fsabi_did[FSAB_DID_HI:0]),
+		     .fsabi_subdid	(fsabi_subdid[FSAB_DID_HI:0]),
+		     .fsabi_data	(fsabi_data[FSAB_DATA_HI:0]),
+		     .audio__fsabo_credit(audio__fsabo_credit),
+		     .cclk		(cclk),
+		     .cclk_rst_b	(cclk_rst_b),
+		     .spamo_valid	(spamo_valid),
+		     .spamo_r_nw	(spamo_r_nw),
+		     .spamo_did		(spamo_did[SPAM_DID_HI:0]),
+		     .spamo_addr	(spamo_addr[SPAM_ADDR_HI:0]),
+		     .spamo_data	(spamo_data[SPAM_DATA_HI:0]));
 endmodule
 
 module DCM(input fclk, output cclk, input rst, output ready);
@@ -584,6 +644,6 @@ eval:
       "{"
       (concat-with "," (prefixer list-of-prefixes suffix))
       "}"))
-verilog-library-directories:("." "../console" "../core" "../fsab" "../spam" "../util/" "../fsab/sim")
+verilog-library-directories:("." "../console" "../core" "../fsab" "../spam" "../util/" "../fsab/sim" "../audio")
 End:
 */
