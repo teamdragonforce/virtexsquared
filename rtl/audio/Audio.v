@@ -79,7 +79,7 @@ module Audio(/*AUTOARG*/
 
 	reg         ac97_out_slot3_valid = 0;
 	reg         ac97_out_slot4_valid = 0;
-	reg         secondhalf = 0;
+	reg         secondhalf = 1;
 	wire        request = secondhalf && !fifo_empty;
 
 	wire [19:0] ac97_out_slot3 = {secondhalf ? data[47:32] : data[15:0], 0};
@@ -89,6 +89,7 @@ module Audio(/*AUTOARG*/
 		if (!ac97_reset_b) begin
 			ac97_out_slot3_valid <= 0;
 			ac97_out_slot4_valid <= 0;
+			secondhalf <= 1;
 		end
 		else if (ac97_strobe) begin
 			if (!secondhalf) begin
