@@ -398,6 +398,198 @@ void lcd()
 	puts("\n");
 }
 
+#define SACE_CONTROLREG_0 (0xC << 1)
+#define SACE_CONTROLREG_0_LOCKREQ 0x2
+
+#define SACE_STATUSREG_0 (0x2 << 1)
+#define SACE_STATUSREG_0_MPULOCK 0x2
+#define SACE_STATUSREG_0_CFDETECT 0x10
+#define SACE_STATUSREG_0_RDYFORCFCMD 0x100
+#define SACE_STATUSREG_0_DATABUFRDY 0x20
+
+#define SACE_MPULBA_0 (0x8 << 1)
+#define SACE_MPULBA_1 (0x9 << 1)
+
+#define SACE_SECCNTCMDREG (0xA << 1)
+#define SACE_SECCNTCMDREG_READ (0x3 << 8)
+#define SACE_SECCNTCMDREG_SECTORS(x) ((x) & 0xFF)
+
+#define SACE_DATABUFREG (0x20 << 1)
+
+void systemace()
+{
+	unsigned int *sace = 0x83000000;
+
+	sace[0x0] = 0x1;	/* Put the SystemACE in word-wide mode */
+
+	puts("[status: ");
+	puthex(sace[0x2 << 1]);
+	puts("] [error: ");
+	puthex(sace[0x4 << 1]);
+	puts("] [version: ");
+	puthex(sace[0xB << 1]);
+	puts("] [fatstat: ");
+	puthex(sace[0xE << 1]);
+	puts("]\n");
+}
+
+/* CF = ClusterFuck */
+int systemace_getcflock()
+{
+	volatile unsigned int *sace = 0x83000000;
+	int timeout = 10000;
+	
+	sace[SACE_CONTROLREG_0] = SACE_CONTROLREG_0_LOCKREQ;
+	
+	while (!(sace[SACE_STATUSREG_0] & SACE_STATUSREG_0_MPULOCK))
+		if ((timeout--) == 0)
+		{
+			puts("CF lock timed out!\n");
+			return -1;
+		}
+	
+	return 0;
+}
+
+int systemace_waitready()
+{
+	volatile unsigned int *sace = 0x83000000;
+	int timeout = 10000;
+	
+	while (!(sace[SACE_STATUSREG_0] & SACE_STATUSREG_0_RDYFORCFCMD))
+		if ((timeout--) == 0)
+		{
+			puts("CF ready wait timed out!\n");
+			return -1;
+		}
+	
+	return 0;
+}
+
+int systemace_waitbufready()
+{
+	volatile unsigned int *sace = 0x83000000;
+	int timeout = 250000;
+	
+	while (!(sace[SACE_STATUSREG_0] & SACE_STATUSREG_0_DATABUFRDY))
+		if ((timeout--) == 0)
+		{
+			puts("CF buffer ready wait timed out!\n");
+			return -1;
+		}
+	
+	return 0;
+}
+
+
+int systemace_readsec(unsigned int lbasect, unsigned int *dest)
+{
+	volatile unsigned int *sace = 0x83000000;
+	
+	int i;
+	
+	if (systemace_getcflock() < 0)
+		return -1;
+	if (systemace_waitready() < 0)
+		return -1;
+	
+	sace[SACE_MPULBA_0] = lbasect & 0xFFFF;
+	sace[SACE_MPULBA_1] = lbasect >> 16;
+	
+	sace[SACE_SECCNTCMDREG] = SACE_SECCNTCMDREG_READ | SACE_SECCNTCMDREG_SECTORS(1);
+		
+	/* XXX they say I must hold the config controller in reset, but
+	 * their source indicates that "This breaks mvl, beware!". ???
+	 */
+	for(i = 0; i < 512; i += 32)
+	{
+		int j;
+		
+		/* Every 16 words (32 bytes), we must wait for buffer ready. */
+		if (systemace_waitbufready() < 0)
+			return -1;
+		
+		for (j = 0; j < 32; j += 4)
+		{
+			unsigned int word;
+			word = sace[SACE_DATABUFREG] & 0xFFFF;
+			word |= sace[SACE_DATABUFREG] << 16;
+			
+			dest[(i+j) >> 2] = word;
+		}
+	}
+	
+	sace[SACE_CONTROLREG_0] = 0;
+	
+	return 0;
+}
+
+void systemace_boot()
+{
+	unsigned char ptab[512];
+	volatile unsigned int *sace = 0x83000000;
+	void *dest = 0x00200000;
+	unsigned int lbastart = 0;
+	unsigned int lbasize = 0;
+	int part, i;
+
+	if (!(sace[SACE_STATUSREG_0] & SACE_STATUSREG_0_CFDETECT))
+	{
+		puts("no CompactFlash card; aborting boot\n");
+		return;
+	}
+	
+	if (systemace_readsec(0, (unsigned char *)ptab) < 0)
+	{
+		puts("partition table read failed; aborting boot\n");
+		return;
+	}
+	
+	for (part = 0; part < 4; part++)
+	{
+		if (ptab[446 + 16 * part] & 0x80)
+		{
+			/* Found bootable partition. */
+			
+			lbastart = ptab[446 + 16*part + 8] |
+			           ptab[446 + 16*part + 9] << 8 |
+			           ptab[446 + 16*part + 10] << 16 |
+			           ptab[446 + 16*part + 11] << 24;
+			lbasize = ptab[446 + 16*part + 12] |
+			          ptab[446 + 16*part + 13] << 8 |
+			          ptab[446 + 16*part + 14] << 16 |
+			          ptab[446 + 16*part + 15] << 24;
+			
+			break;
+		}
+	}
+	
+	if (part == 4)
+	{
+		puts("no bootable partition found; aborting boot\n");
+		return;
+	}
+	
+	puts("[bootable partition start: ");
+	puthex(lbastart);
+	puts(", size: ");
+	puthex(lbasize);
+	puts("]");
+	
+	for (i = 0; i < lbasize; i++)
+	{
+		if (systemace_readsec(lbastart + i, dest) < 0)
+		{
+			puts("sector read failed; aborting boot\n");
+			return;
+		}
+		dest += 512;
+	}
+	
+	puts("[booting]\n");
+	((void (*)())0x00200000)();
+}
+
 struct tests tlist[] = {
 	/*{"screen", show_on_screen},*/
 	{"color_bars", show_smpte_color_bars},
@@ -410,6 +602,8 @@ struct tests tlist[] = {
 	{"ack", acktest},
 	{"miniblarg", testmain},
 	{"corecurse", corecurse},*/
+	{"SystemACE", systemace},
+	{"SystemACE boot", systemace_boot},
 	{0, 0}};
 
 int main()
