@@ -113,7 +113,7 @@ module SimpleDMAReadController(/*AUTOARG*/
 
 	/* Bytes Read */
 	reg [FSAB_ADDR_HI:0] fifo_bytes_read_tclk = 0;
-	wire [FSAB_ADDR_HI:0] fifo_bytes_read_cclk = 0;
+	wire [FSAB_ADDR_HI:0] fifo_bytes_read_cclk;
         
         /* This is sort of gross, but oh well. */
 	reg [COMMAND_REGISTER_HI:0] command_register = DMA_STOP;
