@@ -172,7 +172,6 @@ void show_smpte_color_bars()
 	puts("Painting screen...\n");
 	for (y = 0; y < 480; y++) {
 		for (x = 0; x < 640; x++) {
-			puthex(*test);
 			if (y < 300) {
 				if (x < 91) {
 					*(d++) = 0xc0c0c000;
