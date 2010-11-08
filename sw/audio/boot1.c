@@ -7,21 +7,20 @@
 
 void main()
 {
-	int *dma_start  = (int*) 0x84000000;
-	int *dma_length = (int*) 0x84000004;
-	int *dma_cmd    = (int*) 0x84000008;
-	int *dma_nREad  = (int*) 0x8400000c;
+	volatile int *dma_start  = (int*) 0x84000000;
+	volatile int *dma_length = (int*) 0x84000004;
+	volatile int *dma_cmd    = (int*) 0x84000008;
+	volatile int *dma_nread  = (int*) 0x8400000c;
 	short *mem = (short*) (6 * (1<<20));
 	int sample;
-	int count;
+	int count = 0;
 	int state = 0;
 	puts("Generating samples... ");
 	for (sample = 0; sample < 2*SAMPLE_RATE; sample++, count++) {
 		if (count == (T >> 1)) {
-			state = ~state;
+			state = !state;
 			count = 0;
 		}
-		//if ((sample / T) % 2 == 0) {
 		if (state) {
 			mem[2*sample]   = -10000;
 			mem[2*sample+1] = -10000;
@@ -37,5 +36,12 @@ void main()
 	*dma_start = mem;
 	*dma_length = SAMPLE_RATE*2*2*2;
 	*dma_cmd = 1;
+#if 0
+	while(1)
+	{
+		puthex(*dma_nread); puts("\r\n");
+		int i; for (i = 0; i < 1000; i++) *dma_nread;
+	}
+#endif
 	return 0;
 }
