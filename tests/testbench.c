@@ -53,9 +53,9 @@ int fact(int n)
 void facttest()
 {
 	if (fact(10) != 3628800)
-		puts("FAIL\n");
+		puts("FAIL\r\n");
 	else
-		puts("PASS\n");
+		puts("PASS\r\n");
 }
 
 struct tests {
@@ -109,9 +109,9 @@ void ldm_tester()
 	{
 		puts("FAIL: result was ");
 		puthex(x);
-		puts("\n");
+		puts("\r\n");
 	} else
-		puts("PASS\n");
+		puts("PASS\r\n");
 }
 
 void cellularram()
@@ -130,7 +130,7 @@ void cellularram()
 	puthex(p[1]);
 	puthex(p[2]);
 	puthex(p[3]);
-	puts("]\n");
+	puts("]\r\n");
 }
 
 void show_on_screen()
@@ -142,7 +142,7 @@ void show_on_screen()
 	unsigned int *d = 0x00100000;
 	int x,y;
 
-	puts("Painting screen...\n");
+	puts("Painting screen...\r\n");
 	for (y = 0; y < 480; y++) {
 		for (x = 0; x < 640; x++)
 			*(d++) = ((x >> 1) ^ (x << 10) ^ (x << 20)) ^ ((y >> 1) ^ (y << 10) ^ (y << 20));
@@ -152,7 +152,7 @@ void show_on_screen()
 	int *frame_autotrigger = 0x82000008;
 	*frame_autotrigger = 2;
 
-	puts("You should now see bullshit on the screen.\n");
+	puts("You should now see bullshit on the screen.\r\n");
 }
 
 void show_smpte_color_bars()
@@ -169,7 +169,7 @@ void show_smpte_color_bars()
 
 	volatile int *test = 0x8200000c;
 
-	puts("Painting screen...\n");
+	puts("Painting screen...\r\n");
 	for (y = 0; y < 480; y++) {
 		for (x = 0; x < 640; x++) {
 			if (y < 300) {
@@ -247,7 +247,7 @@ void show_smpte_color_bars()
 		}
         }
 
-	puts("You should now see color bar on the screen.\n");
+	puts("You should now see color bar on the screen.\r\n");
 	
 }
 
@@ -394,7 +394,7 @@ void lcd()
 
 //	waitok();
 	
-	puts("\n");
+	puts("\r\n");
 }
 
 #define SACE_CONTROLREG_0 (0xC << 1)
@@ -429,7 +429,7 @@ void systemace()
 	puthex(sace[0xB << 1]);
 	puts("] [fatstat: ");
 	puthex(sace[0xE << 1]);
-	puts("]\n");
+	puts("]\r\n");
 }
 
 /* CF = ClusterFuck */
@@ -443,7 +443,7 @@ int systemace_getcflock()
 	while (!(sace[SACE_STATUSREG_0] & SACE_STATUSREG_0_MPULOCK))
 		if ((timeout--) == 0)
 		{
-			puts("CF lock timed out!\n");
+			puts("CF lock timed out!\r\n");
 			return -1;
 		}
 	
@@ -458,7 +458,7 @@ int systemace_waitready()
 	while (!(sace[SACE_STATUSREG_0] & SACE_STATUSREG_0_RDYFORCFCMD))
 		if ((timeout--) == 0)
 		{
-			puts("CF ready wait timed out!\n");
+			puts("CF ready wait timed out!\r\n");
 			return -1;
 		}
 	
@@ -473,7 +473,7 @@ int systemace_waitbufready()
 	while (!(sace[SACE_STATUSREG_0] & SACE_STATUSREG_0_DATABUFRDY))
 		if ((timeout--) == 0)
 		{
-			puts("CF buffer ready wait timed out!\n");
+			puts("CF buffer ready wait timed out!\r\n");
 			return -1;
 		}
 	
@@ -534,13 +534,13 @@ void systemace_boot()
 
 	if (!(sace[SACE_STATUSREG_0] & SACE_STATUSREG_0_CFDETECT))
 	{
-		puts("no CompactFlash card; aborting boot\n");
+		puts("no CompactFlash card; aborting boot\r\n");
 		return;
 	}
 	
 	if (systemace_readsec(0, (unsigned char *)ptab) < 0)
 	{
-		puts("partition table read failed; aborting boot\n");
+		puts("partition table read failed; aborting boot\r\n");
 		return;
 	}
 	
@@ -565,7 +565,7 @@ void systemace_boot()
 	
 	if (part == 4)
 	{
-		puts("no bootable partition found; aborting boot\n");
+		puts("no bootable partition found; aborting boot\r\n");
 		return;
 	}
 	
@@ -573,19 +573,19 @@ void systemace_boot()
 	puthex(lbastart);
 	puts(", size: ");
 	puthex(lbasize);
-	puts("]");
+	puts("] ");
 	
 	for (i = 0; i < lbasize; i++)
 	{
 		if (systemace_readsec(lbastart + i, dest) < 0)
 		{
-			puts("sector read failed; aborting boot\n");
+			puts("sector read failed; aborting boot\r\n");
 			return;
 		}
 		dest += 512;
 	}
 	
-	puts("[booting]\n");
+	puts("[booting]\r\n");
 	((void (*)())0x00400000)();
 }
 
@@ -609,7 +609,7 @@ int main()
 {
 	struct tests *t;
 	
-	puts("Testbench running\n");
+	puts("Testbench running\r\n");
 	
 	for (t = tlist; t->name; t++)
 	{
@@ -618,7 +618,7 @@ int main()
 		puts(": ");
 		t->test();
 	}
-	puts("Done! Echoing characters.\n");
+	puts("Done! Echoing characters.\r\n");
 	
 	while (1)
 	{
