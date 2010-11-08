@@ -29,6 +29,8 @@ module SPAM_SysACE(/*AUTOARG*/
 	output reg                  sace_mpwe_n = 1;
 	output reg                  sace_mpoe_n = 1;
 	
+	reg sace_dowrite_n = 1;
+	
 	inout [35:0] control_vio;
 	
 	parameter DEBUG = "FALSE";
@@ -40,7 +42,7 @@ module SPAM_SysACE(/*AUTOARG*/
 		.I(sace_mpd_wr),
 		.O(sace_mpd_rd),
 		.IO(sace_mpd),
-		.T(sace_mpwe_n));
+		.T(sace_dowrite_n));
 
 	/*** SPAM command queueing and clock domain transitioning ***/
 	
@@ -180,11 +182,19 @@ module SPAM_SysACE(/*AUTOARG*/
 			if (completed_request_sclk != cur_request_cclk_2a_sclk) begin
 				case ({cur_r_nw_cclk_sclk, state})
 				3'b000: begin
-					sace_mpwe_n <= 0;
+					sace_dowrite_n <= 0;
 					state <= 2'b01;
 				end
 				3'b001: begin
+					sace_mpwe_n <= 0;
+					state <= 2'b10;
+				end
+				3'b010: begin
+					state <= 2'b11;
+				end
+				3'b011: begin
 					sace_mpwe_n <= 1;
+					sace_dowrite_n <= 1;
 					state <= 2'b00;
 					completed_request_sclk <= cur_request_cclk_1a_sclk;
 				end
