@@ -4,8 +4,8 @@ module System(/*AUTOARG*/
    ddr2_cs_n, ddr2_dm, ddr2_odt, ddr2_ras_n, ddr2_we_n, leds, lcd_db,
    lcd_e, lcd_rnw, lcd_rs, dvi_vs, dvi_hs, dvi_d, dvi_xclk_p,
    dvi_xclk_n, dvi_de, dvi_reset_b, sace_mpa, sace_mpce_n,
-   sace_mpoe_n, sace_mpwe_n, usb_cs_n, ac97_sdata_out, ac97_sync,
-   ac97_reset_b,
+   sace_mpoe_n, sace_mpwe_n, usb_cs_n, serial_tx, ac97_sdata_out,
+   ac97_sync, ac97_reset_b,
    // Inouts
    ddr2_dq, ddr2_dqs, ddr2_dqs_n, dvi_sda, dvi_scl, sace_mpd,
    // Inputs
@@ -61,6 +61,8 @@ module System(/*AUTOARG*/
 	output		sace_mpoe_n;
 	output		sace_mpwe_n;
 	output wire     usb_cs_n;
+	
+	output wire serial_tx;
 	
 	assign usb_cs_n = 1;
 
@@ -298,6 +300,14 @@ module System(/*AUTOARG*/
 		.CLK(cclk), // IN
 		.TRIG0({0, sys_odata[8:0]}) // IN BUS [255:0]
 	);
+	
+	RS232TX rs232(/*AUTOINST*/
+		      // Outputs
+		      .serial_tx	(serial_tx),
+		      // Inputs
+		      .cclk		(cclk),
+		      .cclk_rst_b	(cclk_rst_b),
+		      .sys_odata	(sys_odata[8:0]));
 	
 	/* SPAM_LCD AUTO_TEMPLATE (
 		.clk(cclk),

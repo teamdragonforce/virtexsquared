@@ -101,14 +101,21 @@ module Framebuffer(/*AUTOARG*/
 
 `define MAKE_DDR(n,q,d1,d2) ODDR n (.C(fbclk), .Q(q), .D1(d1), .D2(d2), .R(0), .S(0), .CE(1))
 	
-	wire [7:0] red, green, blue;
+	wire [7:0] red_p, green_p, blue_p;
 
 	wire first_pixel = (offset == 0);
 	wire second_pixel = (offset == 1);	
 
-	assign red   = (border) ? 8'h00 : (second_pixel) ? data[63:56] : (first_pixel) ? data[31:24] : 8'hff;
-	assign green = (border) ? 8'h00 : (second_pixel) ? data[55:48] : (first_pixel) ? data[23:16] : 8'h00;
-	assign blue  = (border) ? 8'hff : (second_pixel) ? data[47:40] : (first_pixel) ? data[15:8] : 8'h00;
+	assign red_p   = (border) ? 8'h00 : (second_pixel) ? data[63:56] : (first_pixel) ? data[31:24] : 8'hff;
+	assign green_p = (border) ? 8'h00 : (second_pixel) ? data[55:48] : (first_pixel) ? data[23:16] : 8'h00;
+	assign blue_p  = (border) ? 8'hff : (second_pixel) ? data[47:40] : (first_pixel) ? data[15:8] : 8'h00;
+	
+	reg [7:0] red, green, blue;
+	always @(negedge fbclk) begin
+		red <= red_p;
+		green <= green_p;
+		blue <= blue_p;
+	end
 
 
 `ifdef verilator
@@ -125,8 +132,10 @@ module Framebuffer(/*AUTOARG*/
 	assign dvi_hs = 0;
 	assign dvi_d = 0;
 `else
-	`MAKE_DDR(ODDR_dvi_xclk_p, dvi_xclk_p, 1'b0, 1'b1);
-	`MAKE_DDR(ODDR_dvi_xclk_n, dvi_xclk_n, 1'b1, 1'b0);
+	wire dvi_xclk_p_nodly, dvi_xclk_n_nodly;
+
+	`MAKE_DDR(ODDR_dvi_xclk_p, dvi_xclk_p_nodly, 1'b1, 1'b0);
+	`MAKE_DDR(ODDR_dvi_xclk_n, dvi_xclk_n_nodly, 1'b0, 1'b1);
 	`MAKE_DDR(ODDR_dvi_de, dvi_de, ~border, ~border);
 	`MAKE_DDR(ODDR_dvi_vs, dvi_vs, vs, vs);
 	`MAKE_DDR(ODDR_dvi_hs, dvi_hs, hs, hs);
@@ -142,6 +151,28 @@ module Framebuffer(/*AUTOARG*/
 	`MAKE_DDR(ODDR_dvi_d_9, dvi_d[9], green[1], red[5]);
 	`MAKE_DDR(ODDR_dvi_d_10, dvi_d[10], green[2], red[6]);
 	`MAKE_DDR(ODDR_dvi_d_11, dvi_d[11], green[3], red[7]);
+	
+	(* IODELAY_GROUP = "IODELAY_MIG" *)IODELAY delay_p (
+	                 .ODATAIN(dvi_xclk_p_nodly),
+	                 .DATAOUT(dvi_xclk_p),
+	                 .RST(1'b1),
+	                 .T(1'b0),
+	                 .C(1'b0));
+	defparam delay_p.IDELAY_TYPE = "FIXED";
+	defparam delay_p.IDELAY_VALUE = 0;
+	defparam delay_p.ODELAY_VALUE = 8;
+	defparam delay_p.DELAY_SRC = "O";
+	
+	(* IODELAY_GROUP = "IODELAY_MIG" *)IODELAY delay_n (
+	                 .ODATAIN(dvi_xclk_n_nodly),
+	                 .DATAOUT(dvi_xclk_n),
+	                 .T(1'b0),
+	                 .RST(1'b1),
+	                 .C(1'b0));
+	defparam delay_n.IDELAY_TYPE = "FIXED";
+	defparam delay_n.IDELAY_VALUE = 0;
+	defparam delay_n.ODELAY_VALUE = 8;
+	defparam delay_n.DELAY_SRC = "O";
 `endif
 
 	/* SimpleDMAReadController AUTO_TEMPLATE(
