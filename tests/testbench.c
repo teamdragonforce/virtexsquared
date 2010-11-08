@@ -526,7 +526,7 @@ void systemace_boot()
 {
 	unsigned char ptab[512];
 	volatile unsigned int *sace = 0x83000000;
-	void *dest = 0x00200000;
+	void *dest = 0x00400000;
 	unsigned int lbastart = 0;
 	unsigned int lbasize = 0;
 	int part, i;
@@ -585,7 +585,7 @@ void systemace_boot()
 	}
 	
 	puts("[booting]\n");
-	((void (*)())0x00200000)();
+	((void (*)())0x00400000)();
 }
 
 struct tests tlist[] = {
