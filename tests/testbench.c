@@ -401,6 +401,7 @@ void lcd()
 
 #define SACE_STATUSREG_0 (0x2 << 1)
 #define SACE_STATUSREG_0_MPULOCK 0x2
+#define SACE_STATUSREG_0_CFDETECT 0x10
 #define SACE_STATUSREG_0_RDYFORCFCMD 0x100
 #define SACE_STATUSREG_0_DATABUFRDY 0x20
 
@@ -431,7 +432,7 @@ void systemace()
 }
 
 /* CF = ClusterFuck */
-void systemace_getcflock()
+int systemace_getcflock()
 {
 	volatile unsigned int *sace = 0x83000000;
 	int timeout = 10000;
@@ -442,11 +443,13 @@ void systemace_getcflock()
 		if ((timeout--) == 0)
 		{
 			puts("CF lock timed out!\n");
-			return;
+			return -1;
 		}
+	
+	return 0;
 }
 
-void systemace_waitready()
+int systemace_waitready()
 {
 	volatile unsigned int *sace = 0x83000000;
 	int timeout = 10000;
@@ -455,11 +458,13 @@ void systemace_waitready()
 		if ((timeout--) == 0)
 		{
 			puts("CF ready wait timed out!\n");
-			return;
+			return -1;
 		}
+	
+	return 0;
 }
 
-void systemace_waitbufready()
+int systemace_waitbufready()
 {
 	volatile unsigned int *sace = 0x83000000;
 	int timeout = 250000;
@@ -468,27 +473,29 @@ void systemace_waitbufready()
 		if ((timeout--) == 0)
 		{
 			puts("CF buffer ready wait timed out!\n");
-			return;
+			return -1;
 		}
+	
+	return 0;
 }
 
 
-void systemace_cfread()
+int systemace_readsec(unsigned int lbasect, unsigned int *dest)
 {
 	volatile unsigned int *sace = 0x83000000;
-	volatile unsigned int *dest = 0x00200000;	/* +2MB */
 	
 	int i;
 	
-	systemace_getcflock();
-	systemace_waitready();
+	if (systemace_getcflock() < 0)
+		return -1;
+	if (systemace_waitready() < 0)
+		return -1;
 	
-	sace[SACE_MPULBA_0] = 0x0;
-	sace[SACE_MPULBA_1] = 0x0;
+	sace[SACE_MPULBA_0] = lbasect & 0xFFFF;
+	sace[SACE_MPULBA_1] = lbasect >> 16;
 	
 	sace[SACE_SECCNTCMDREG] = SACE_SECCNTCMDREG_READ | SACE_SECCNTCMDREG_SECTORS(1);
 		
-	puts("[read: ");
 	/* XXX they say I must hold the config controller in reset, but
 	 * their source indicates that "This breaks mvl, beware!". ???
 	 */
@@ -497,7 +504,8 @@ void systemace_cfread()
 		int j;
 		
 		/* Every 16 words (32 bytes), we must wait for buffer ready. */
-		systemace_waitbufready();
+		if (systemace_waitbufready() < 0)
+			return -1;
 		
 		for (j = 0; j < 32; j += 4)
 		{
@@ -507,18 +515,77 @@ void systemace_cfread()
 			
 			dest[(i+j) >> 2] = word;
 		}
-		puts("B");
 	}
-	puts("] [first word: ");
-	
-	puthex(dest[0]);
-	puts("]");
 	
 	sace[SACE_CONTROLREG_0] = 0;
 	
-	puts("[jump: ");
-	puthex(((int (*)())dest)());
-	puts("]\n");
+	return 0;
+}
+
+void systemace_boot()
+{
+	unsigned char ptab[512];
+	volatile unsigned int *sace = 0x83000000;
+	void *dest = 0x00200000;
+	unsigned int lbastart = 0;
+	unsigned int lbasize = 0;
+	int part, i;
+
+	if (!(sace[SACE_STATUSREG_0] & SACE_STATUSREG_0_CFDETECT))
+	{
+		puts("no CompactFlash card; aborting boot\n");
+		return;
+	}
+	
+	if (systemace_readsec(0, (unsigned char *)ptab) < 0)
+	{
+		puts("partition table read failed; aborting boot\n");
+		return;
+	}
+	
+	for (part = 0; part < 4; part++)
+	{
+		if (ptab[446 + 16 * part] & 0x80)
+		{
+			/* Found bootable partition. */
+			
+			lbastart = ptab[446 + 16*part + 8] |
+			           ptab[446 + 16*part + 9] << 8 |
+			           ptab[446 + 16*part + 10] << 16 |
+			           ptab[446 + 16*part + 11] << 24;
+			lbasize = ptab[446 + 16*part + 12] |
+			          ptab[446 + 16*part + 13] << 8 |
+			          ptab[446 + 16*part + 14] << 16 |
+			          ptab[446 + 16*part + 15] << 24;
+			
+			break;
+		}
+	}
+	
+	if (part == 4)
+	{
+		puts("no bootable partition found; aborting boot\n");
+		return;
+	}
+	
+	puts("[bootable partition start: ");
+	puthex(lbastart);
+	puts(", size: ");
+	puthex(lbasize);
+	puts("]");
+	
+	for (i = 0; i < lbasize; i++)
+	{
+		if (systemace_readsec(lbastart + i, dest) < 0)
+		{
+			puts("sector read failed; aborting boot\n");
+			return;
+		}
+		dest += 512;
+	}
+	
+	puts("[booting]\n");
+	((void (*)())0x00200000)();
 }
 
 struct tests tlist[] = {
@@ -534,7 +601,7 @@ struct tests tlist[] = {
 	{"miniblarg", testmain},
 	{"corecurse", corecurse},*/
 	{"SystemACE", systemace},
-	{"systemace_cfread", systemace_cfread},
+	{"SystemACE boot", systemace_boot},
 	{0, 0}};
 
 int main()
