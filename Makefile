@@ -140,7 +140,7 @@ $(RUNDIR)/stamps/fpga: $(RUNDIR)/stamps/fpga-xflow
 
 
 auto: .DUMMY
-	emacs -l ~/elisp/verilog-mode.el --batch `find rtl -iname '*.v'` -f verilog-batch-auto
+	emacs -l utils/nogit.el -l ~/elisp/verilog-mode.el --batch `find rtl -iname '*.v'` -f verilog-batch-auto
 
 tests: .DUMMY
 	make -C tests
