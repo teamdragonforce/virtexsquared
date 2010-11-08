@@ -83,6 +83,7 @@ module CSRAsyncRead #(
 		 */
 		rd_wait_cclk = rd_strobe_cclk || (rd_current_cclk != rd_current_tclk_1a_cclk);
 		rd_done_strobe_cclk = !rd_wait_cclk && rd_wait_cclk_1a;
+		rd_data_cclk = rd_data_l_tclk_cclk;
 	end
 	
 	always @(posedge tclk)
