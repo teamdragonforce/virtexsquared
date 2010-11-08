@@ -325,7 +325,7 @@ module SimpleDMAReadController(/*AUTOARG*/
 
 	
 	wire wr_done_strobe_NEXT_START_REG;
-	CSRASyncWrite #(.WIDTH       (FSAB_ADDR_HI+1),
+	CSRAsyncWrite #(.WIDTH       (FSAB_ADDR_HI+1),
 	               .RESET_VALUE (DEFAULT_ADDR))
 		CSR_NEXT_START_REG (/* NOT AUTOINST */
 		                    // Outputs
@@ -342,7 +342,7 @@ module SimpleDMAReadController(/*AUTOARG*/
 		                    .wr_data_cclk       (spamo_data[FSAB_ADDR_HI:0]));
 
 	wire wr_done_strobe_NEXT_LEN_REG;
-	CSRASyncWrite #(.WIDTH       (FSAB_ADDR_HI+1),
+	CSRAsyncWrite #(.WIDTH       (FSAB_ADDR_HI+1),
 	               .RESET_VALUE (DEFAULT_LEN))
 		CSR_NEXT_LEN_REG (/* NOT AUTOINST */
 		                  // Outputs
@@ -359,7 +359,7 @@ module SimpleDMAReadController(/*AUTOARG*/
 		                  .wr_data_cclk       (spamo_data[FSAB_ADDR_HI:0]));
 	
 	wire wr_done_strobe_COMMAND_REG;
-	CSRASyncWrite #(.WIDTH       (COMMAND_REGISTER_HI+1),
+	CSRAsyncWrite #(.WIDTH       (COMMAND_REGISTER_HI+1),
 	               .RESET_VALUE (DMA_STOP))
 		CSR_COMMAND_REG (/* NOT AUTOINST */
 		                 // Outputs

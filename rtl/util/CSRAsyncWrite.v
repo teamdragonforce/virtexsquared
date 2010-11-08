@@ -1,4 +1,4 @@
-/* CSRASyncWrite synchronizes a write-only configuration space register from
+/* CSRAsyncWrite synchronizes a write-only configuration space register from
  * one clock domain that will be doing the write (typically the SPAM clock
  * domain) -- referred to within as cclk -- into a different clock domain
  * that some module is running on -- referred to within as tclk ("target
@@ -11,7 +11,7 @@
  * timing relationship in the xcf.
  */
 
-module CSRASyncWrite #(
+module CSRAsyncWrite #(
 	parameter WIDTH = 32,
 	parameter RESET_VALUE = {WIDTH{1'b0}}
 ) (/*AUTOARG*/
