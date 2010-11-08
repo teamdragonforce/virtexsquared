@@ -508,7 +508,7 @@ module System(/*AUTOARG*/
 		       .spamo_did	(spamo_did[SPAM_DID_HI:0]),
 		       .spamo_addr	(spamo_addr[SPAM_ADDR_HI:0]),
 		       .spamo_data	(spamo_data[SPAM_DATA_HI:0]));
-	defparam fb.DEBUG = "TRUE";
+	defparam fb.DEBUG = "FALSE";
 endmodule
 
 module DCM(input fclk, output cclk, input rst, output ready);
