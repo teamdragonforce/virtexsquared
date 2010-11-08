@@ -107,6 +107,9 @@ module SimpleDMAReadController(/*AUTOARG*/
         /* Config */ 
         wire [FSAB_ADDR_HI:0] next_start_addr;
         wire [FSAB_ADDR_HI:0] next_len;
+
+	/* Bytes Read */
+	reg [FSAB_ADDR_HI:0] fifo_bytes_read = 0;
         
         /* This is sort of gross, but oh well. */
 	reg [COMMAND_REGISTER_HI:0] command_register = DMA_STOP;
@@ -205,6 +208,7 @@ module SimpleDMAReadController(/*AUTOARG*/
 			triggered <= 0;
 			command_register <= DMA_STOP;
 			end_addr <= DEFAULT_ADDR+DEFAULT_LEN;
+			fifo_bytes_read <= 0;
 		end else begin
 			completed_read_s1 <= completed_read_fclk;
 			completed_read <= completed_read_s1;
@@ -218,12 +222,12 @@ module SimpleDMAReadController(/*AUTOARG*/
 					DMA_TRIGGER_ONCE: begin
 						triggered <= 1;
 						next_fsab_addr <= next_start_addr;
-						end_addr <= next_start_addr+next_len;	
+						end_addr <= next_start_addr+next_len;
 					end
 					DMA_AUTOTRIGGER: begin
 						triggered <= 1;
 						next_fsab_addr <= next_start_addr;
-						end_addr <= next_start_addr+next_len;	
+						end_addr <= next_start_addr+next_len;
 					end
 					DMA_STOP: begin
 					end
@@ -239,6 +243,7 @@ module SimpleDMAReadController(/*AUTOARG*/
 					current_read <= ~current_read;
 				end else if ((completed_read == current_read) && read_pending) begin
 					read_pending <= 0;
+					fifo_bytes_read <= fifo_bytes_read + 64;
 					if (end_addr == next_fsab_addr + 64) begin
 						triggered <= 0;
 					end
@@ -320,7 +325,7 @@ module SimpleDMAReadController(/*AUTOARG*/
 
 	
 	wire wr_done_strobe_NEXT_START_REG;
-	CSRSyncWrite #(.WIDTH       (FSAB_ADDR_HI+1),
+	CSRASyncWrite #(.WIDTH       (FSAB_ADDR_HI+1),
 	               .RESET_VALUE (DEFAULT_ADDR))
 		CSR_NEXT_START_REG (/* NOT AUTOINST */
 		                    // Outputs
@@ -337,7 +342,7 @@ module SimpleDMAReadController(/*AUTOARG*/
 		                    .wr_data_cclk       (spamo_data[FSAB_ADDR_HI:0]));
 
 	wire wr_done_strobe_NEXT_LEN_REG;
-	CSRSyncWrite #(.WIDTH       (FSAB_ADDR_HI+1),
+	CSRASyncWrite #(.WIDTH       (FSAB_ADDR_HI+1),
 	               .RESET_VALUE (DEFAULT_LEN))
 		CSR_NEXT_LEN_REG (/* NOT AUTOINST */
 		                  // Outputs
@@ -354,7 +359,7 @@ module SimpleDMAReadController(/*AUTOARG*/
 		                  .wr_data_cclk       (spamo_data[FSAB_ADDR_HI:0]));
 	
 	wire wr_done_strobe_COMMAND_REG;
-	CSRSyncWrite #(.WIDTH       (COMMAND_REGISTER_HI+1),
+	CSRASyncWrite #(.WIDTH       (COMMAND_REGISTER_HI+1),
 	               .RESET_VALUE (DMA_STOP))
 		CSR_COMMAND_REG (/* NOT AUTOINST */
 		                 // Outputs
