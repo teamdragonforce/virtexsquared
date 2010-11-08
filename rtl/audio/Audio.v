@@ -4,6 +4,8 @@ module Audio(/*AUTOARG*/
    audio__fsabo_mode, audio__fsabo_did, audio__fsabo_subdid,
    audio__fsabo_addr, audio__fsabo_len, audio__fsabo_data,
    audio__fsabo_mask, audio__spami_busy_b, audio__spami_data,
+   // Inouts
+   control_vio,
    // Inputs
    ac97_bitclk, ac97_sdata_in, fsabi_clk, fsabi_rst_b, fsabi_valid,
    fsabi_did, fsabi_subdid, fsabi_data, audio__fsabo_credit, cclk,
@@ -48,6 +50,8 @@ module Audio(/*AUTOARG*/
 	output audio__spami_busy_b;
 	output [SPAM_DATA_HI:0] audio__spami_data;
 
+	inout [35:0] control_vio;
+
 	wire        ac97_out_slot5_valid = 0;
 	wire [19:0] ac97_out_slot5 = 'h0;
 	wire        ac97_out_slot6_valid = 0;
@@ -80,10 +84,10 @@ module Audio(/*AUTOARG*/
 	reg         ac97_out_slot3_valid = 0;
 	reg         ac97_out_slot4_valid = 0;
 	reg         secondhalf = 1;
-	wire        request = secondhalf && !fifo_empty;
+	wire        request = secondhalf && !fifo_empty && ac97_strobe;
 
-	wire [19:0] ac97_out_slot3 = {secondhalf ? data[47:32] : data[15:0], 0};
-	wire [19:0] ac97_out_slot4 = {secondhalf ? data[63:48] : data[31:16], 0};
+	wire [19:0] ac97_out_slot3 = {secondhalf ? data[47:32] : data[15:0], 4'b0};
+	wire [19:0] ac97_out_slot4 = {secondhalf ? data[63:48] : data[31:16], 4'b0};
 
 	always @(posedge ac97_bitclk or negedge ac97_reset_b) begin
 		if (!ac97_reset_b) begin
@@ -210,6 +214,44 @@ module Audio(/*AUTOARG*/
 		      // Inputs
 		      .ac97_bitclk	(ac97_bitclk),
 		      .ac97_strobe	(ac97_strobe));
+
+	parameter DEBUG = "FALSE";
+
+	generate
+	if (DEBUG == "TRUE") begin: debug
+		wire [35:0] control0, control1, control2;
+		chipscope_icon icon (
+			.CONTROL0(control0), 
+			.CONTROL1(control1),
+			.CONTROL2(control2),
+			.CONTROL3(control_vio)
+		);
+
+		chipscope_ila ila0 (
+			.CONTROL(control0),	
+			.CLK(ac97_bitclk), // IN
+			.TRIG0({0, ac97_sdata_out, ac97_sync, ac97_reset_b, ac97_strobe, ac97_sdata_in,
+			        ac97_out_slot1[19:0], ac97_out_slot1_valid, ac97_out_slot2[19:0], ac97_out_slot2_valid,
+			        ac97_out_slot3[19:0], ac97_out_slot3_valid, ac97_out_slot4[19:0], ac97_out_slot4_valid,
+			        secondhalf, request, data[63:0], data_ready, fifo_empty})
+		);
+
+		chipscope_ila ila1 (
+			.CONTROL(control1),	
+			.CLK(cclk), // IN
+			.TRIG0(256'b0)
+		);
+
+		chipscope_ila ila2 (
+			.CONTROL(control2),	
+			.CLK(fbclk), // IN
+			.TRIG0(256'b0)
+		);
+
+	end else begin: debug_tieoff
+		assign control_vio = {36{1'bz}};
+	end
+	endgenerate
 endmodule
 //
 // Local Variables:

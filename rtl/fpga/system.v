@@ -349,7 +349,7 @@ module System(/*AUTOARG*/
 			   .spamo_addr		(spamo_addr[SPAM_ADDR_HI:0]),
 			   .spamo_data		(spamo_data[SPAM_DATA_HI:0]),
 			   .sace_clk		(sace_clk));
-	defparam sysace.DEBUG = "TRUE";
+	defparam sysace.DEBUG = "FALSE";
 
 	
 	/* FSABArbiter AUTO_TEMPLATE (
@@ -552,6 +552,8 @@ module System(/*AUTOARG*/
 		     .audio__fsabo_mask	(audio__fsabo_mask[FSAB_MASK_HI:0]),
 		     .audio__spami_busy_b(audio__spami_busy_b),
 		     .audio__spami_data	(audio__spami_data[SPAM_DATA_HI:0]),
+		     // Inouts
+		     .control_vio	(control_vio[35:0]),
 		     // Inputs
 		     .ac97_bitclk	(aclk),			 // Templated
 		     .ac97_sdata_in	(ac97_sdata_in),
@@ -569,6 +571,7 @@ module System(/*AUTOARG*/
 		     .spamo_did		(spamo_did[SPAM_DID_HI:0]),
 		     .spamo_addr	(spamo_addr[SPAM_ADDR_HI:0]),
 		     .spamo_data	(spamo_data[SPAM_DATA_HI:0]));
+	defparam audio.DEBUG = "TRUE";
 endmodule
 
 module DCM(input fclk, output cclk, input rst, output ready);
