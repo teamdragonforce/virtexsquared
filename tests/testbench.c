@@ -396,21 +396,129 @@ void lcd()
 	puts("\n");
 }
 
+#define SACE_CONTROLREG_0 (0xC << 1)
+#define SACE_CONTROLREG_0_LOCKREQ 0x2
+
+#define SACE_STATUSREG_0 (0x2 << 1)
+#define SACE_STATUSREG_0_MPULOCK 0x2
+#define SACE_STATUSREG_0_RDYFORCFCMD 0x100
+#define SACE_STATUSREG_0_DATABUFRDY 0x20
+
+#define SACE_MPULBA_0 (0x8 << 1)
+#define SACE_MPULBA_1 (0x9 << 1)
+
+#define SACE_SECCNTCMDREG (0xA << 1)
+#define SACE_SECCNTCMDREG_READ (0x3 << 8)
+#define SACE_SECCNTCMDREG_SECTORS(x) ((x) & 0xFF)
+
+#define SACE_DATABUFREG (0x20 << 1)
+
 void systemace()
 {
 	unsigned int *sace = 0x83000000;
 
+	sace[0x0] = 0x1;	/* Put the SystemACE in word-wide mode */
+
 	puts("[status: ");
-	puthex(sace[0x4]);
+	puthex(sace[0x2 << 1]);
 	puts("] [error: ");
-	puthex(sace[0x8]);
+	puthex(sace[0x4 << 1]);
 	puts("] [version: ");
-	puthex(sace[0x16]);
-	puthex(sace[0x17]);
+	puthex(sace[0xB << 1]);
 	puts("] [fatstat: ");
-	puthex(sace[0x1C]);
+	puthex(sace[0xE << 1]);
 	puts("]\n");
+}
+
+/* CF = ClusterFuck */
+void systemace_getcflock()
+{
+	volatile unsigned int *sace = 0x83000000;
+	int timeout = 10000;
 	
+	sace[SACE_CONTROLREG_0] = SACE_CONTROLREG_0_LOCKREQ;
+	
+	while (!(sace[SACE_STATUSREG_0] & SACE_STATUSREG_0_MPULOCK))
+		if ((timeout--) == 0)
+		{
+			puts("CF lock timed out!\n");
+			return;
+		}
+}
+
+void systemace_waitready()
+{
+	volatile unsigned int *sace = 0x83000000;
+	int timeout = 10000;
+	
+	while (!(sace[SACE_STATUSREG_0] & SACE_STATUSREG_0_RDYFORCFCMD))
+		if ((timeout--) == 0)
+		{
+			puts("CF ready wait timed out!\n");
+			return;
+		}
+}
+
+void systemace_waitbufready()
+{
+	volatile unsigned int *sace = 0x83000000;
+	int timeout = 250000;
+	
+	while (!(sace[SACE_STATUSREG_0] & SACE_STATUSREG_0_DATABUFRDY))
+		if ((timeout--) == 0)
+		{
+			puts("CF buffer ready wait timed out!\n");
+			return;
+		}
+}
+
+
+void systemace_cfread()
+{
+	volatile unsigned int *sace = 0x83000000;
+	volatile unsigned int *dest = 0x00200000;	/* +2MB */
+	
+	int i;
+	
+	systemace_getcflock();
+	systemace_waitready();
+	
+	sace[SACE_MPULBA_0] = 0x0;
+	sace[SACE_MPULBA_1] = 0x0;
+	
+	sace[SACE_SECCNTCMDREG] = SACE_SECCNTCMDREG_READ | SACE_SECCNTCMDREG_SECTORS(1);
+		
+	puts("[read: ");
+	/* XXX they say I must hold the config controller in reset, but
+	 * their source indicates that "This breaks mvl, beware!". ???
+	 */
+	for(i = 0; i < 512; i += 32)
+	{
+		int j;
+		
+		/* Every 16 words (32 bytes), we must wait for buffer ready. */
+		systemace_waitbufready();
+		
+		for (j = 0; j < 32; j += 4)
+		{
+			unsigned int word;
+			word = sace[SACE_DATABUFREG] & 0xFFFF;
+			word |= sace[SACE_DATABUFREG] << 16;
+			
+			dest[(i+j) >> 2] = word;
+		}
+		puts("B");
+	}
+	puts("] [first word: ");
+	
+	puthex(dest[0]);
+	puts("]");
+	
+	sace[SACE_CONTROLREG_0] = 0;
+	
+	puts("[jump: ");
+	puthex(((int (*)())dest)());
+	puts("]\n");
 }
 
 struct tests tlist[] = {
@@ -426,6 +534,7 @@ struct tests tlist[] = {
 	{"miniblarg", testmain},
 	{"corecurse", corecurse},*/
 	{"SystemACE", systemace},
+	{"systemace_cfread", systemace_cfread},
 	{0, 0}};
 
 int main()
