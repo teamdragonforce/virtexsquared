@@ -44,7 +44,9 @@ int find_fat16()
 	return -1;
 }
 
-#define LEN 85258656
+//#define LEN 85258656
+//#define LEN 85258624
+#define LEN    1000032
 
 void startplayback()
 {
@@ -55,6 +57,7 @@ void startplayback()
 
 	*dma_start = 0x00800000;
 	*dma_length = LEN & ~0xFF;
+	puthex(LEN & ~0xFF);
 	*dma_cmd = 2;
 }
 

@@ -3,7 +3,6 @@ module ACLink(
 	input        ac97_sdata_in,
 	output wire  ac97_sdata_out,
 	output wire  ac97_sync,
-	output wire  ac97_reset_b,
 	
 	output wire  ac97_strobe,
 	
@@ -32,8 +31,6 @@ module ACLink(
 	input [19:0] ac97_out_slot12,
 	input        ac97_out_slot12_valid
 	);
-	
-	assign ac97_reset_b = 1;
 	
 	// We may want to make this into a state machine eventually.
 	reg [7:0] curbit = 8'h0;	// Contains the bit currently on the bus.
