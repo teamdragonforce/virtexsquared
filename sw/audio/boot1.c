@@ -45,8 +45,8 @@ int find_fat16()
 }
 
 //#define LEN 85258656
-//#define LEN 85258624
-#define LEN    1000032
+#define LEN 85258624
+//#define LEN    1000032
 
 void startplayback()
 {
@@ -92,9 +92,11 @@ void loadaudio()
 
 void main()
 {
-	short *mem = (short*) (6 * (1<<20));
-
 	loadaudio();
+
+	volatile short *master_vol = (int*) 0x84000100;
+	*master_vol = 0x0808;
+	puts("quieter!\r\n");
 
 	return 0;
 }
