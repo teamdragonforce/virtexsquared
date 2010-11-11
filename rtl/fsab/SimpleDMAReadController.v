@@ -80,7 +80,7 @@ module SimpleDMAReadController(/*AUTOARG*/
 	
 	parameter SPAM_DID = 4'hx;
 	parameter SPAM_ADDRPFX = 24'h000000;
-	parameter SPAM_ADDRMASK = 24'h000000;
+	parameter SPAM_ADDRMASK = 24'hFFFFF0;
 
 	parameter DEFAULT_ADDR = 31'h00000000;
 	parameter DEFAULT_LEN = 31'h00000000;
