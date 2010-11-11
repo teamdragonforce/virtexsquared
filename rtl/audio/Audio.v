@@ -219,6 +219,10 @@ module Audio(/*AUTOARG*/
 		    .ac97_out_slot12	(ac97_out_slot12[19:0]),
 		    .ac97_out_slot12_valid(ac97_out_slot12_valid));
 
+	/* AC97Conf AUTO_TEMPLATE(
+	                  .rst_b(cclk_rst_b),
+	                  );
+	*/
 	AC97Conf conf(/*AUTOINST*/
 		      // Outputs
 		      .ac97_out_slot1	(ac97_out_slot1[19:0]),
@@ -227,7 +231,7 @@ module Audio(/*AUTOARG*/
 		      .ac97_out_slot2_valid(ac97_out_slot2_valid),
 		      // Inputs
 		      .ac97_bitclk	(ac97_bitclk),
-		      .rst_b		(rst_b),
+		      .rst_b		(cclk_rst_b),		 // Templated
 		      .ac97_strobe	(ac97_strobe),
 		      .actrl_master_volume(actrl_master_volume[15:0]),
 		      .actrl_mic_volume	(actrl_mic_volume[15:0]),
