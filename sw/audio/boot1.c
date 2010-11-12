@@ -97,6 +97,19 @@ void main()
 	volatile short *master_vol = (int*) 0x84000100;
 	*master_vol = 0x0808;
 	puts("quieter!\r\n");
+	short *mem = (short*) (6 * (1<<20));
+	volatile unsigned int *scancodeaddr = 0x85000000;
+	unsigned int scancode;
+
+	loadaudio();
+
+	while(1) {
+		scancode = *scancodeaddr;
+		if (scancode == 0xdeadbeef)
+			continue;
+		puthex(scancode);
+		puts("\r\n");
+	}
 
 	return 0;
 }
