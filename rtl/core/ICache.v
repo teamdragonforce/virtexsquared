@@ -13,6 +13,9 @@ module ICache(/*AUTOARG*/
    fsabi_rst_b
    );
 	`include "fsab_defines.vh"
+	
+	parameter NWAYS = 2;
+	parameter NWAYS_HI = 0;
 
 	input clk;
 	input rst_b;
@@ -71,16 +74,18 @@ module ICache(/*AUTOARG*/
 	 * so the tag is 22 bits long. c.c
 	 */
 	
-	reg cache_valid [15:0];
-	reg [21:0] cache_tags [15:0];
-	reg [63:0] cache_data [127:0 /* {line,word} */];	//synthesis attribute ram_style of cache_data is block
+	reg [NWAYS-1:0] cache_valid [15:0];
+	reg [NWAYS_HI:0] cache_evict_next [15:0];
+	reg [(NWAYS*22)-1:0] cache_tags [15:0];
+	reg [(NWAYS*64)-1:0] cache_data [127:0 /* {line,word} */];	//synthesis attribute ram_style of cache_data is block
 	
 	integer i;
 	initial
 		for (i = 0; i < 16; i = i + 1)
 		begin
-			cache_valid[i[3:0]] = 0;
-			cache_tags[i[3:0]] = 0;
+			cache_valid[i[3:0]] = {NWAYS{1'b0}};
+			cache_tags[i[3:0]] = {NWAYS{22'b0}};
+			cache_evict_next[i[3:0]] = {(NWAYS_HI+1){1'b0}};
 		end
 	
 	wire  [5:0] rd_didx_0a      = ic__rd_addr_0a[5:0];
@@ -89,20 +94,50 @@ module ICache(/*AUTOARG*/
 	wire [21:0] rd_tag_0a       = ic__rd_addr_0a[31:10];
 	
 	reg  [31:0] rd_addr_1a = 32'hFFFFFFFF;
+
+	reg cache_hit_0a;
+	reg [NWAYS_HI:0] cache_hit_way_0a;
+
+	reg cache_hit_1a = 1'b0;
+	reg [NWAYS_HI:0] cache_hit_way_1a = {(NWAYS_HI+1){1'bx}};
+	always @(*) begin
+		cache_hit_0a = 0;
+		cache_hit_way_0a = {(NWAYS_HI+1){1'bx}};
+		for (i = 0; i < NWAYS; i = i + 1) begin
+			if (cache_valid[rd_idx_0a][i] && (cache_tags[rd_idx_0a][(22*(i+1))-1-:22] == rd_tag_0a)) begin
+				cache_hit_0a = 1;
+				cache_hit_way_0a = i[NWAYS_HI:0];
+			end
+		end
+	end
 	
-	wire cache_hit_0a = cache_valid[rd_idx_0a] && (cache_tags[rd_idx_0a] == rd_tag_0a);
+	always @(posedge clk or negedge rst_b) begin
+		if (!rst_b) begin
+			cache_hit_1a <= 1'b0;
+			cache_hit_way_1a <= {(NWAYS_HI+1){1'bx}};
+		end else begin
+			cache_hit_1a <= cache_hit_0a;
+			cache_hit_way_1a <= cache_hit_way_0a;
+		end
+	end
 
 	/*** Processor control bus logic ***/
 	reg [31:0] ic__rd_addr_1a = 0;
-	reg [63:0] curdata_1a = 0;
+	reg [(NWAYS*64)-1:0] curdata_1a = 0;
+	reg [63:0] curdata_curway_1a = 0;
 	
 	always @(*) begin
+		/* verilator lint_off WIDTH */
+		curdata_curway_1a = curdata_1a[(cache_hit_way_1a+1)*64-1-:64];
+		/* verilator lint_on WIDTH */
+		/* and can suck my dick, that is totally fine */
+		
 		ic__rd_wait_0a = ic__rd_req_0a && !cache_hit_0a;
-		ic__rd_data_1a = ic__rd_addr_1a[2] ? curdata_1a[63:32] : curdata_1a[31:0];
+		ic__rd_data_1a = ic__rd_addr_1a[2] ? curdata_curway_1a[63:32] : curdata_curway_1a[31:0];
 	end
 	always @(posedge clk or negedge rst_b) begin
 		if (!rst_b) begin
-			curdata_1a <= {64{1'b0}};
+			curdata_1a <= {(64*NWAYS){1'b0}};
 			ic__rd_addr_1a <= 0;
 		end else begin
 			// Do the actual read.
@@ -145,6 +180,7 @@ module ICache(/*AUTOARG*/
 	reg [31:0] fill_addr = 0;
 	wire [21:0] fill_tag = fill_addr[31:10];
 	wire [3:0] fill_idx = fill_addr[9:6];
+	wire [NWAYS_HI:0] fill_evict = cache_evict_next[fill_idx];
 
 	/* For signaling between the clock domains, there exists a 'current
 	 * read' signal that flops back and forth.  Since the FSABI clock
@@ -164,7 +200,7 @@ module ICache(/*AUTOARG*/
 	always @(posedge clk or negedge rst_b) begin
 		if (!rst_b) begin
 			for (i = 0; i < 16; i = i + 1)
-				cache_valid[i] <= 1'b0;
+				cache_valid[i] <= {NWAYS{1'b0}};
 			read_pending <= 0;
 			fill_addr <= 0;
 			completed_read <= 0;
@@ -178,10 +214,13 @@ module ICache(/*AUTOARG*/
 				read_pending <= 1;
 				current_read <= ~current_read;
 				fill_addr <= {ic__rd_addr_0a[31:6], 6'b0};
-				cache_valid[fill_idx] <= 0;
+				cache_valid[fill_idx][fill_evict] <= 1'b0;
 			end else if ((completed_read == current_read) && read_pending) begin
-				cache_tags[fill_idx] <= fill_tag;
-				cache_valid[fill_idx] <= 1;
+				/* verilator lint_off WIDTH */
+				cache_tags[fill_idx][(fill_evict+1)*22-1-:22] <= fill_tag;
+				cache_valid[fill_idx][fill_evict] <= 1'b1;
+				cache_evict_next[fill_idx] <= (fill_evict == (NWAYS - 1)) ? 0 : fill_evict + 1;
+				/* verilator lint_on WIDTH */
 				read_pending <= 0;
 			end
 		end
@@ -191,7 +230,8 @@ module ICache(/*AUTOARG*/
 	 * read_complete is asserted.  By the time read_pending is
 	 * synchronized into the fsabi domain (and hence any logic in fsabi
 	 * can see it), fill_addr will have been stable for a long time, so
-	 * we do not need to synchronize it in.
+	 * we do not need to synchronize it in.  (This is also the case for
+	 * cache_evict_next.)
 	 *
 	 * This does mean that read_pending must get synchronized in before
 	 * the FSAB begins returning data.  Luckily, there will be at least
@@ -224,7 +264,9 @@ module ICache(/*AUTOARG*/
 				
 				if (cache_fill_pos_fclk == 7)	/* Done? */
 					completed_read_fclk <= current_read_fclk;
-				cache_data[{fill_idx,cache_fill_pos_fclk}] <= fsabi_data[63:0];
+				/* verilator lint_off WIDTH */
+				cache_data[{fill_idx,cache_fill_pos_fclk}][(fill_evict+1)*64-1-:64] <= fsabi_data[63:0];
+				/* verilator lint_on WIDTH */
 				cache_fill_pos_fclk <= cache_fill_pos_fclk + 1;
 			end
 		end
