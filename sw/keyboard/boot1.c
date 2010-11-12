@@ -1,5 +1,6 @@
 #include "serial.h"
 #include "sysace.h"
+#include "keyhelp.h"
 
 #define SAMPLE_RATE 48000
 #define F 1000
@@ -64,7 +65,7 @@ void startplayback()
 void loadaudio()
 {
 	int location = find_fat16();
-	unsigned int *base = 0x00800000;
+	unsigned int *base = (int*) 0x00800000;
 	int i;
 
 	if (location < 0)
@@ -101,6 +102,8 @@ void main()
 	volatile unsigned int *scancodeaddr = 0x85000000;
 	unsigned int scancode;
 
+	kh_type k;
+
 	loadaudio();
 
 	while(1) {
@@ -108,6 +111,9 @@ void main()
 		if (scancode == 0xdeadbeef)
 			continue;
 		puthex(scancode);
+		k = process_scancode(scancode);
+		putchar(' ');
+		putchar(KH_GETCHAR(k));
 		puts("\r\n");
 	}
 

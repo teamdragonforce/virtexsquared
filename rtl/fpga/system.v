@@ -10,7 +10,7 @@ module System(/*AUTOARG*/
    ddr2_dq, ddr2_dqs, ddr2_dqs_n, dvi_sda, dvi_scl, sace_mpd,
    // Inputs
    clk200_n, clk200_p, sys_clk_n, sys_clk_p, sys_rst_n, corerst_btn,
-   sace_clk, ac97_bitclk, ac97_sdata_in
+   ps2clk, ps2data, sace_clk, ac97_bitclk, ac97_sdata_in
    );
 
 	`include "memory_defines.vh"
@@ -23,6 +23,10 @@ module System(/*AUTOARG*/
 	input		sys_clk_p;		// To mem of FSABMemory.v
 	input		sys_rst_n;		// To mem of FSABMemory.v
 	input           corerst_btn;
+
+
+	input           ps2clk;                 // To PS2 of PS2.v
+	input           ps2data;                // To PS2 of PS2.v
 
 	output [ROW_WIDTH-1:0] ddr2_a;		// From mem of FSABMemory.v
 	output [BANK_WIDTH-1:0] ddr2_ba;	// From mem of FSABMemory.v
@@ -149,6 +153,8 @@ module System(/*AUTOARG*/
 	wire [FSAB_REQ_HI:0] pre__fsabo_mode;	// From preload of FSABPreload.v
 	wire [FSAB_DID_HI:0] pre__fsabo_subdid;	// From preload of FSABPreload.v
 	wire		pre__fsabo_valid;	// From preload of FSABPreload.v
+	wire		ps2__spami_busy_b;	// From ps2 of PS2.v
+	wire [SPAM_DATA_HI:0] ps2__spami_data;	// From ps2 of PS2.v
 	wire		sace__spami_busy_b;	// From sysace of SPAM_SysACE.v
 	wire [SPAM_DATA_HI:0] sace__spami_data;	// From sysace of SPAM_SysACE.v
 	wire [SPAM_ADDR_HI:0] spamo_addr;	// From core of Core.v
@@ -215,8 +221,8 @@ module System(/*AUTOARG*/
 	
 	/*** Rest of the system (c.c) ***/
 	
-	wire spami_busy_b = cio__spami_busy_b | lcd__spami_busy_b | fb__spami_busy_b | sace__spami_busy_b | audio__spami_busy_b;
-	wire [SPAM_DATA_HI:0] spami_data = cio__spami_data[SPAM_DATA_HI:0] | lcd__spami_data[SPAM_DATA_HI:0] | fb__spami_data[SPAM_DATA_HI:0] | sace__spami_data[SPAM_DATA_HI:0] | audio__spami_data[SPAM_DATA_HI:0];
+	wire spami_busy_b = cio__spami_busy_b | lcd__spami_busy_b | fb__spami_busy_b | sace__spami_busy_b | audio__spami_busy_b | ps2__spami_busy_b;
+	wire [SPAM_DATA_HI:0] spami_data = cio__spami_data[SPAM_DATA_HI:0] | lcd__spami_data[SPAM_DATA_HI:0] | fb__spami_data[SPAM_DATA_HI:0] | sace__spami_data[SPAM_DATA_HI:0] | audio__spami_data[SPAM_DATA_HI:0] | ps2__spami_data[SPAM_DATA_HI:0];
 
 	parameter FSAB_DEVICES = 5;
 	wire [FSAB_DEVICES-1:0] fsabo_clks = {cclk, cclk, cclk, fbclk, aclk};
@@ -581,7 +587,28 @@ module System(/*AUTOARG*/
 		     .spamo_did		(spamo_did[SPAM_DID_HI:0]),
 		     .spamo_addr	(spamo_addr[SPAM_ADDR_HI:0]),
 		     .spamo_data	(spamo_data[SPAM_DATA_HI:0]));
-	defparam audio.DEBUG = "TRUE";
+	defparam audio.DEBUG = "FALSE";
+
+
+	PS2 ps2(/*AUTOINST*/
+		// Outputs
+		.ps2__spami_busy_b	(ps2__spami_busy_b),
+		.ps2__spami_data	(ps2__spami_data[SPAM_DATA_HI:0]),
+		// Inouts
+		.control_vio		(control_vio[35:0]),
+		// Inputs
+		.ps2clk			(ps2clk),
+		.cclk			(cclk),
+		.cclk_rst_b		(cclk_rst_b),
+		.ps2data		(ps2data),
+		.spamo_valid		(spamo_valid),
+		.spamo_r_nw		(spamo_r_nw),
+		.spamo_did		(spamo_did[SPAM_DID_HI:0]),
+		.spamo_addr		(spamo_addr[SPAM_ADDR_HI:0]),
+		.spamo_data		(spamo_data[SPAM_DATA_HI:0]));
+	defparam ps2.DEBUG = "TRUE";
+
+
 endmodule
 
 module DCM(input fclk, output cclk, input rst, output ready);
@@ -657,6 +684,6 @@ eval:
       "{"
       (concat-with "," (prefixer list-of-prefixes suffix))
       "}"))
-verilog-library-directories:("." "../console" "../core" "../fsab" "../spam" "../util/" "../fsab/sim" "../audio")
+verilog-library-directories:("." "../console" "../core" "../fsab" "../spam" "../util/" "../fsab/sim" "../audio" "../ps2")
 End:
 */
