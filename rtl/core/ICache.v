@@ -73,8 +73,7 @@ module ICache(/*AUTOARG*/
 	
 	reg cache_valid [15:0];
 	reg [21:0] cache_tags [15:0];
-	reg [31:0] cache_data_hi [127:0 /* {line,word} */];	//synthesis attribute ram_style of cache_data_hi is block
-	reg [31:0] cache_data_lo [127:0 /* {line,word} */];	//synthesis attribute ram_style of cache_data_lo is block
+	reg [63:0] cache_data [127:0 /* {line,word} */];	//synthesis attribute ram_style of cache_data is block
 	
 	integer i;
 	initial
@@ -92,26 +91,22 @@ module ICache(/*AUTOARG*/
 	reg  [31:0] rd_addr_1a = 32'hFFFFFFFF;
 	
 	wire cache_hit_0a = cache_valid[rd_idx_0a] && (cache_tags[rd_idx_0a] == rd_tag_0a);
-	
 
 	/*** Processor control bus logic ***/
 	reg [31:0] ic__rd_addr_1a = 0;
-	reg [31:0] curdata_hi_1a = 0;
-	reg [31:0] curdata_lo_1a = 0;
+	reg [63:0] curdata_1a = 0;
 	
 	always @(*) begin
 		ic__rd_wait_0a = ic__rd_req_0a && !cache_hit_0a;
-		ic__rd_data_1a = ic__rd_addr_1a[2] ? curdata_hi_1a : curdata_lo_1a;
+		ic__rd_data_1a = ic__rd_addr_1a[2] ? curdata_1a[63:32] : curdata_1a[31:0];
 	end
 	always @(posedge clk or negedge rst_b) begin
 		if (!rst_b) begin
-			curdata_hi_1a <= 0;
-			curdata_lo_1a <= 0;
+			curdata_1a <= {64{1'b0}};
 			ic__rd_addr_1a <= 0;
 		end else begin
 			// Do the actual read.
-			curdata_hi_1a <= cache_data_hi[{rd_idx_0a,rd_didx_word_0a}];
-			curdata_lo_1a <= cache_data_lo[{rd_idx_0a,rd_didx_word_0a}];
+			curdata_1a <= cache_data[{rd_idx_0a,rd_didx_word_0a}];
 			ic__rd_addr_1a <= ic__rd_addr_0a;
 		end
 	end
@@ -229,8 +224,7 @@ module ICache(/*AUTOARG*/
 				
 				if (cache_fill_pos_fclk == 7)	/* Done? */
 					completed_read_fclk <= current_read_fclk;
-				cache_data_hi[{fill_idx,cache_fill_pos_fclk}] <= fsabi_data[63:32];
-				cache_data_lo[{fill_idx,cache_fill_pos_fclk}] <= fsabi_data[31:0];
+				cache_data[{fill_idx,cache_fill_pos_fclk}] <= fsabi_data[63:0];
 				cache_fill_pos_fclk <= cache_fill_pos_fclk + 1;
 			end
 		end
