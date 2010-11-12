@@ -9,3 +9,4 @@ parameter SPAM_DID_LCD = 1;
 parameter SPAM_DID_FRAMEBUFFER = 2;
 parameter SPAM_DID_SACE = 3;
 parameter SPAM_DID_AUDIO = 4;
+parameter SPAM_DID_KEYBOARD = 5;
