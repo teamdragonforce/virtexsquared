@@ -99,9 +99,6 @@ module ICache(/*AUTOARG*/
 	reg [31:0] curdata_hi_1a = 0;
 	reg [31:0] curdata_lo_1a = 0;
 	
-	wire [31:0] curdata_hi_0a = cache_data_hi[{rd_idx_0a,rd_didx_word_0a}];
-	wire [31:0] curdata_lo_0a = cache_data_lo[{rd_idx_0a,rd_didx_word_0a}];
-	
 	always @(*) begin
 		ic__rd_wait_0a = ic__rd_req_0a && !cache_hit_0a;
 		ic__rd_data_1a = ic__rd_addr_1a[2] ? curdata_hi_1a : curdata_lo_1a;
