@@ -587,13 +587,15 @@ module System(/*AUTOARG*/
 		     .spamo_did		(spamo_did[SPAM_DID_HI:0]),
 		     .spamo_addr	(spamo_addr[SPAM_ADDR_HI:0]),
 		     .spamo_data	(spamo_data[SPAM_DATA_HI:0]));
-	defparam audio.DEBUG = "TRUE";
+	defparam audio.DEBUG = "FALSE";
 
 
 	PS2 ps2(/*AUTOINST*/
 		// Outputs
 		.ps2__spami_busy_b	(ps2__spami_busy_b),
 		.ps2__spami_data	(ps2__spami_data[SPAM_DATA_HI:0]),
+		// Inouts
+		.control_vio		(control_vio[35:0]),
 		// Inputs
 		.ps2clk			(ps2clk),
 		.cclk			(cclk),
@@ -604,6 +606,7 @@ module System(/*AUTOARG*/
 		.spamo_did		(spamo_did[SPAM_DID_HI:0]),
 		.spamo_addr		(spamo_addr[SPAM_ADDR_HI:0]),
 		.spamo_data		(spamo_data[SPAM_DATA_HI:0]));
+	defparam ps2.DEBUG = "TRUE";
 
 
 endmodule
