@@ -46,7 +46,6 @@ module PS2(/*AUTOARG*/
 	reg fifo_wr_en;
 
 	reg ps2clk_cclk_negedge = 0;
-	reg [11:0] resetcountdown = 0;
 
 	reg ps2clk_cclk_s = 0;
 	reg ps2clk_cclk = 0;
@@ -67,14 +66,11 @@ module PS2(/*AUTOARG*/
 			bitcount <= 0;
 			ps2clk_cclk_negedge <= 0;
 			ps2clk_cclk_1a <= 0;
-			resetcountdown <= 0;
 		end else begin
 			ps2clk_cclk_negedge <= 0;
 			if (ps2clk_cclk_1a == 1 && ps2clk_cclk == 0) begin
 				ps2clk_cclk_negedge <= 1;
-				if (resetcountdown == 0) begin
-					bitcount <= 0;
-				end else if (bitcount == 10) begin
+				if (bitcount == 10) begin
 					bitcount <= 0;
 				end else begin
 					bitcount <= bitcount + 1;
@@ -91,7 +87,6 @@ module PS2(/*AUTOARG*/
 					9: parity <= ps2data;
 				endcase
 			end
-			resetcountdown <= resetcountdown - 1;
 			ps2clk_cclk_1a <= ps2clk_cclk;
 		end
 	end
