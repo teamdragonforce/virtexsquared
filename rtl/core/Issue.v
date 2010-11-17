@@ -142,7 +142,7 @@ module Issue(
 			use_cpsr = `COND_MATTERS(cond);
 			use_regs = idxbit(rm);
 			def_cpsr = 0;	// don't care, we'll never get there
-			def_regs = 0;
+			def_regs = insn_1a[5] /* L */ ? (16'b1 << 14) : 0;
 		end
 		`DECODE_ALU_HDATA_REG:	/* Halfword transfer - register offset */
 		begin

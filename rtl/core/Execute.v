@@ -173,8 +173,16 @@ module Execute(
 			end
 			next_cpsrup_3a = 1;
 		end
-		`DECODE_ALU_SWP,	/* Atomic swap */
-		`DECODE_ALU_BX,		/* Branch */
+		`DECODE_ALU_SWP:	/* Atomic swap */
+		begin end
+		`DECODE_ALU_BX:		/* Branch */
+		begin
+			if(insn_2a[5] /* L */) begin
+				next_write_reg_3a = 1;
+				next_write_num_3a = 4'hE; /* link register */
+				next_write_data_3a = pc_2a + 32'h4;
+			end
+		end
 		`DECODE_ALU_HDATA_REG,	/* Halfword transfer - register offset */
 		`DECODE_ALU_HDATA_IMM:	/* Halfword transfer - immediate offset */
 		begin end
@@ -243,8 +251,15 @@ module Execute(
 		`DECODE_ALU_MRS,	/* MRS (Transfer PSR to register) */
 		`DECODE_ALU_MSR,	/* MSR (Transfer register to PSR) */
 		`DECODE_ALU_MSR_FLAGS,	/* MSR (Transfer register or immediate to PSR, flag bits only) */
-		`DECODE_ALU_SWP,	/* Atomic swap */
-		`DECODE_ALU_BX,		/* Branch */
+		`DECODE_ALU_SWP:	/* Atomic swap */
+		begin end
+		`DECODE_ALU_BX:		/* Branch */
+		begin
+			if(!bubble_2a && !flush_2a && !delayedflush_2a && !outstall_2a /* Let someone else take precedence. */) begin
+				jmppc_2a = op0_2a;
+				jmp_2a = 1'b1;
+			end
+		end
 		`DECODE_ALU_HDATA_REG,	/* Halfword transfer - register offset */
 		`DECODE_ALU_HDATA_IMM,	/* Halfword transfer - immediate offset */
 		`DECODE_ALU,		/* ALU */
