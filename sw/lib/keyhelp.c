@@ -1,5 +1,6 @@
 
 #include "keyhelp.h"
+#include "minilib.h"
 
 
 #define KHS_SHIFT(c, s, u) \
@@ -16,6 +17,9 @@ kh_type process_scancode(int scancode) {
 
 	char key;
 	kh_type result;
+
+	printf("Key_internal_state: %x\r\n\n", key_internal_state);
+	printf("Key_state: %x\r\n\n", key_state);
 
 	switch(scancode & 0xFF) 
 	{
@@ -140,12 +144,17 @@ kh_type process_scancode(int scancode) {
 		case 0x12:
 		case 0x59:
 			if (key_state & KH_RELEASING) 
+			{ 
 				key_internal_state &= ~KH_SHIFT;
-			else
+				key_state &= ~KH_RELEASING;
+			}
+			else 
+			{
 				key_internal_state |= KH_SHIFT;
+			}
 			return 0;
 		default:
-			return 0;
+			return '}';
 	}
 	result = (key_state << KH_STATE_SHIFT) | key;
 	key_state &= ~KH_RELEASING;
