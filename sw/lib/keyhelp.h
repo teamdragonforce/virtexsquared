@@ -6,6 +6,10 @@ typedef int kh_type;
 #define KH_STATE_SHIFT 16
 #define KH_STATE_SMASK 0xF
 
+#define KH_HAS_CHAR(k) k
+#define KH_IS_RELEASING(k) (k & 0x10000)
+#define KH_GET_CHAR(k) (k & 0xFF)
+
 enum kh_extended_e {
 
 	KHE_ARROW_UP = 0x81,

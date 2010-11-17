@@ -1,31 +1,60 @@
 
 #include "keyhelp.h"
-#include "minilib.h"
 
 
 #define KHS_SHIFT(c, s, u) \
 	{ c = (key_internal_state & KH_SHIFT) ? s : u; }
 
-
+/* I wish these could be shorts (instead of ints) and be initialized to zero */
+#define KH_EXTENDED     0x0002
 #define KH_SHIFT	0x0001
-static short key_internal_state = 0;
+static int key_internal_state = -1;
 
 #define KH_RELEASING	0x0001
-static short key_state = 0;
+static int key_state = -1;
 
 kh_type process_scancode(int scancode) {
 
 	char key;
 	kh_type result;
 
-	printf("Key_internal_state: %x\r\n\n", key_internal_state);
-	printf("Key_state: %x\r\n\n", key_state);
+	if (key_internal_state == -1)
+		key_internal_state = 0;
+	if (key_state == -1)
+		key_state = 0;
 
 	switch(scancode & 0xFF) 
 	{
+		case 0xE0:
+			key_internal_state |= KH_EXTENDED;
+			return 0;
 		case 0xF0:
 			/* Release signal */
 			key_state |= KH_RELEASING;
+			return 0;
+		case 0x74:
+			if (key_internal_state & KH_EXTENDED) {
+				key = KHE_ARROW_RIGHT;
+				break; 
+			}
+			return 0;
+		case 0x6B:
+			if (key_internal_state & KH_EXTENDED) {
+				key = KHE_ARROW_LEFT;
+				break; 
+			}
+			return 0;
+		case 0x72:
+			if (key_internal_state & KH_EXTENDED) {
+				key = KHE_ARROW_DOWN;
+				break; 
+			}
+			return 0;
+		case 0x75:
+			if (key_internal_state & KH_EXTENDED) {
+				key = KHE_ARROW_UP;
+				break; 
+			}
 			return 0;
 		case 0x1C:
 			KHS_SHIFT(key, 'A', 'a');
@@ -135,12 +164,54 @@ kh_type process_scancode(int scancode) {
 		case 0x45:
 			KHS_SHIFT(key, ')', '0');
 			break;
+		case 0x4E:
+			KHS_SHIFT(key, '_', '-');
+			break;
+		case 0x55:
+			KHS_SHIFT(key, '+', '=');
+			break;
+		case 0x54:
+			KHS_SHIFT(key, '{', '[');
+			break;
+		case 0x5B:
+			KHS_SHIFT(key, '}', ']');
+			break;
+		case 0x5D:
+			KHS_SHIFT(key, '|', '\\');
+			break;
+		case 0x4C:
+			KHS_SHIFT(key, ':', ';');
+			break;
+		case 0x52:
+			KHS_SHIFT(key, '\'', '"');
+			break;
+		case 0x0E:
+			KHS_SHIFT(key, '~', '`');
+			break;
+		case 0x41:
+			KHS_SHIFT(key, '<', ',');
+			break;
+		case 0x49:
+			KHS_SHIFT(key, '>', '.');
+			break;
+		case 0x4A:
+			KHS_SHIFT(key, '?', '/');
+			break;
 		case 0x5A:
 			key = '\n';
 			break;
 		case 0x29:
 			key = ' ';
 			break;
+		case 0x76:
+			key = '\b';
+			break;
+		case 0x0D:
+			key = '\t';
+			break;
+		/* Left shift, Right Shift. 
+		   Treating them the same causes a bug when you hold both shifts and let go of one of them
+		   but that isn't really normal typing... So... */
 		case 0x12:
 		case 0x59:
 			if (key_state & KH_RELEASING) 
@@ -154,9 +225,12 @@ kh_type process_scancode(int scancode) {
 			}
 			return 0;
 		default:
-			return '}';
+			key_internal_state &= ~KH_EXTENDED; 
+			key_state &= ~KH_RELEASING;	
+			return 0;
 	}
 	result = (key_state << KH_STATE_SHIFT) | key;
+	key_internal_state &= ~KH_EXTENDED; 
 	key_state &= ~KH_RELEASING;
 	return result;	
 }
