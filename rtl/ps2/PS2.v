@@ -107,7 +107,7 @@ module PS2(/*AUTOARG*/
 				ps2__spami_data = {24'h0, rd_data};
 			end
 			else begin
-				ps2__spami_data = 32'hdeadbeef;
+				ps2__spami_data = 32'hffffffff;
 			end
 		end 
 	end
