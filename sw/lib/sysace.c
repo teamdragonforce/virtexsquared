@@ -18,7 +18,7 @@ int sysace_getcflock()
 	while (!(sace[SYSACE_STATUSREG_0] & SYSACE_STATUSREG_0_MPULOCK))
 		if ((timeout--) == 0)
 		{
-			puts("CF lock timed out!\n");
+			puts("CF lock timed out!");
 			return -1;
 		}
 	
@@ -33,7 +33,7 @@ int sysace_waitready()
 	while (!(sace[SYSACE_STATUSREG_0] & SYSACE_STATUSREG_0_RDYFORCFCMD))
 		if ((timeout--) == 0)
 		{
-			puts("CF ready wait timed out!\n");
+			puts("CF ready wait timed out!");
 			return -1;
 		}
 	
@@ -48,7 +48,7 @@ int sysace_waitbufready()
 	while (!(sace[SYSACE_STATUSREG_0] & SYSACE_STATUSREG_0_DATABUFRDY))
 		if ((timeout--) == 0)
 		{
-			puts("CF buffer ready wait timed out!\n");
+			puts("CF buffer ready wait timed out!");
 			return -1;
 		}
 	

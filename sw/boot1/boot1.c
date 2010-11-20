@@ -19,7 +19,7 @@ int find_fat16()
 	
 	if (sysace_readsec(0, (unsigned int *)buf) < 0)
 	{
-		puts("failed to read sector 0!\r\n");
+		puts("failed to read sector 0!");
 		return -1;
 	}
 	
@@ -131,30 +131,28 @@ void main()
 	static unsigned char buf[512];
 	struct fat16_dirent *de = (struct fat16_dirent *)buf;
 
-	puts("\r\n\r\nboot1 running\r\n\r\n");
+	puts("\r\n\r\nboot1 running\r\n");
 	
 	sysace_init();
 	
-	puts("Reading partition table... ");
+	printf("Reading partition table... ");
 	fat16_start = find_fat16();
 	if (fat16_start < 0)
 	{
-		puts("no FAT16 partition found!\r\n");
+		puts("no FAT16 partition found!");
 		return;
 	}
-	puts("found starting at sector ");
-	puthex(fat16_start);
-	puts(".\r\n");
+	printf("found starting at sector %d.\r\n", fat16_start);
 	
-	puts("Opening FAT16 partition... ");
+	printf("Opening FAT16 partition... ");
 	if (fat16_open(&h, fat16_start) < 0)
 	{
-		puts("FAT16 boot sector read failed!\r\n");
+		puts("FAT16 boot sector read failed!");
 		return;
 	}
-	puts("OK\r\n");
+	puts("OK");
 	
-	puts("Listing all files in root directory...\r\n");
+	puts("Listing all files in root directory...");
 	for (i = 0; i < h.max_root_dirents; i++)
 	{
         	if (((i * 32) & 511) == 0) 
@@ -181,7 +179,7 @@ void main()
         	j++;
 	}
 	
-	puts("boot1 exiting\r\n\r\n");
+	puts("boot1 exiting\r\n");
 	
 	return;
 }

@@ -59,21 +59,23 @@ void _memcpy(void *dest, const void *src, int bytes)
 	}
 }
 
-void memcpy(void *dest, const void *src, int bytes)
+void *memcpy(void *dest, const void *src, int bytes)
 {
 	_memcpy(dest, src, bytes);
+	return dest;
 }
 
-void memset(void *dest, int data, int bytes)
+void *memset(void *dest, int data, int bytes)
 {
 	unsigned char *cdest = dest;
 	while (bytes--)
 		*(cdest++) = (unsigned char)data;
+	return dest;
 }
 
-void *memchr(const void *buf, char c, int maxlen)
+void *memchr(const void *buf, int c, int maxlen)
 {
-	const char * cbuf = buf;
+	const unsigned char * cbuf = buf;
 	while (maxlen--)
 	{
 		if (*cbuf == c) return (void *)cbuf;
@@ -82,10 +84,10 @@ void *memchr(const void *buf, char c, int maxlen)
 	return 0;
 }
 
-void memmove(void *dest, void *src, int bytes)
+void *memmove(void *dest, const void *src, int bytes)
 {
-	char * cdest = dest;
-	char * csrc = src;
+	char *cdest = dest;
+	const char *csrc = src;
 	if ((cdest > csrc) && (cdest <= (csrc + bytes)))
 	{
 		/* do it backwards! */
@@ -95,6 +97,8 @@ void memmove(void *dest, void *src, int bytes)
 			*(--cdest) = *(--csrc);
 	} else
 		memcpy(dest, src, bytes);
+	
+	return dest;
 }
 
 int memcmp (const char *a2, const char *a1, int bytes) {
@@ -133,20 +137,28 @@ int strlen(const char *c)
 	return l;
 }
 
-void strcpy(char *a2, const char *a1)
+void *strcpy(char *a2, const char *a1)
 {
+	char *origa2 = a2;
+	
 	do {
 		*(a2++) = *a1;
 	} while (*(a1++));
+	
+	return origa2;
 }
 
-void strcat(char *dest, char *src)
+void *strcat(char *dest, const char *src)
 {
+	char *origdest = dest;
+	
 	while (*dest)
 		dest++;
 	while (*src)
 		*(dest++) = *(src++);
 	*(dest++) = *(src++);
+	
+	return origdest;
 }
 static char hexarr[] = "0123456789ABCDEF";
 void tohex(char *s, unsigned long l)

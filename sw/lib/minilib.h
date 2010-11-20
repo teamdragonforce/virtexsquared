@@ -13,16 +13,16 @@
 
 #include <stdarg.h>
 
-extern void memcpy(void *dest, const void *src, int bytes);
-extern void memset(void *dest, int data, int bytes);
-extern void *memchr(const void *buf, char c, int maxlen);
-extern void memmove(void *dest, void *src, int bytes);
+extern void *memcpy(void *dest, const void *src, int bytes);
+extern void *memset(void *dest, int data, int bytes);
+extern void *memchr(const void *buf, int c, int maxlen);
+extern void *memmove(void *dest, const void *src, int bytes);
 extern int memcmp(const char *a2, const char *a1, int bytes);
 extern int strcmp(const char *a2, const char *a1);
 extern int strncmp(const char *a2, const char *a1, int n);
 extern int strlen(const char *c);
-extern void strcat(char *dest, char *src);
-extern void strcpy(char *a2, const char *a1);
+extern void *strcat(char *dest, const char *src);
+extern void *strcpy(char *a2, const char *a1);
 extern void tohex(char *s, unsigned long l);
 extern void btohex(char *s, unsigned char c);
 extern int vsprintf(char *s, const char *fmt, va_list args);

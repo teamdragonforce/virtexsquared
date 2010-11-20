@@ -25,6 +25,8 @@ int puts(const unsigned char *s)
 		putchar(*(s++));
 		l++;
 	}
+	putchar('\r');
+	putchar('\n');
 	
 	return l;
 }

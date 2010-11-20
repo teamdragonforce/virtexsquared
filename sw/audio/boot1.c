@@ -22,7 +22,7 @@ int find_fat16()
 	
 	if (sysace_readsec(0, (unsigned int *)buf) < 0)
 	{
-		puts("failed to read sector 0!\r\n");
+		puts("failed to read sector 0!");
 		return -1;
 	}
 	
@@ -69,12 +69,10 @@ void loadaudio()
 
 	if (location < 0)
 	{
-		puts("no FAT16-now-audio partition?\r\n");
+		puts("no FAT16-now-audio partition?");
 		return;
 	}
-	puts("Loading audio into memory (");
-	puthex(LEN/512);
-	puts(" sectors)... ");
+	printf("Loading audio into memory (%d sectors)...", LEN/512);
 	for (i = 0; i < (LEN / 512); i++)
 	{
 		sysace_readsec(location + i, base);
@@ -85,7 +83,7 @@ void loadaudio()
 			if (i == 0x20)	/* OK, we've loaded enough. */
 				startplayback();
 		}
-		puts(".");
+		putchar('.');
 	}
 	puts("\r\n");
 }
@@ -96,7 +94,7 @@ void main()
 
 	volatile short *master_vol = (int*) 0x84000100;
 	*master_vol = 0x0808;
-	puts("quieter!\r\n");
+	puts("quieter!");
 	short *mem = (short*) (6 * (1<<20));
 	volatile unsigned int *scancodeaddr = 0x85000000;
 	unsigned int scancode;
@@ -108,7 +106,7 @@ void main()
 		if (scancode == 0xdeadbeef)
 			continue;
 		puthex(scancode);
-		puts("\r\n");
+		puts("");
 	}
 
 	return 0;
