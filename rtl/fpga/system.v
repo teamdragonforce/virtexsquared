@@ -4,8 +4,8 @@ module System(/*AUTOARG*/
    ddr2_cs_n, ddr2_dm, ddr2_odt, ddr2_ras_n, ddr2_we_n, leds, lcd_db,
    lcd_e, lcd_rnw, lcd_rs, dvi_vs, dvi_hs, dvi_d, dvi_xclk_p,
    dvi_xclk_n, dvi_de, dvi_reset_b, sace_mpa, sace_mpce_n,
-   sace_mpoe_n, sace_mpwe_n, usb_cs_n, serial_tx, ac97_sdata_out, ac97_sync,
-   ac97_reset_b,
+   sace_mpoe_n, sace_mpwe_n, usb_cs_n, serial_tx, ac97_sdata_out,
+   ac97_sync, ac97_reset_b,
    // Inouts
    ddr2_dq, ddr2_dqs, ddr2_dqs_n, dvi_sda, dvi_scl, sace_mpd,
    // Inputs
@@ -162,6 +162,8 @@ module System(/*AUTOARG*/
 	wire [SPAM_DID_HI:0] spamo_did;		// From core of Core.v
 	wire		spamo_r_nw;		// From core of Core.v
 	wire		spamo_valid;		// From core of Core.v
+	wire		timer__spami_busy_b;	// From timer of SPAM_Timer.v
+	wire [SPAM_DATA_HI:0] timer__spami_data;// From timer of SPAM_Timer.v
 	// End of automatics
 
 	wire [35:0] control_vio;
@@ -221,8 +223,8 @@ module System(/*AUTOARG*/
 	
 	/*** Rest of the system (c.c) ***/
 	
-	wire spami_busy_b = cio__spami_busy_b | lcd__spami_busy_b | fb__spami_busy_b | sace__spami_busy_b | audio__spami_busy_b | ps2__spami_busy_b;
-	wire [SPAM_DATA_HI:0] spami_data = cio__spami_data[SPAM_DATA_HI:0] | lcd__spami_data[SPAM_DATA_HI:0] | fb__spami_data[SPAM_DATA_HI:0] | sace__spami_data[SPAM_DATA_HI:0] | audio__spami_data[SPAM_DATA_HI:0] | ps2__spami_data[SPAM_DATA_HI:0];
+	wire spami_busy_b = cio__spami_busy_b | lcd__spami_busy_b | fb__spami_busy_b | sace__spami_busy_b | audio__spami_busy_b | ps2__spami_busy_b | timer__spami_busy_b;
+	wire [SPAM_DATA_HI:0] spami_data = cio__spami_data[SPAM_DATA_HI:0] | lcd__spami_data[SPAM_DATA_HI:0] | fb__spami_data[SPAM_DATA_HI:0] | sace__spami_data[SPAM_DATA_HI:0] | audio__spami_data[SPAM_DATA_HI:0] | ps2__spami_data[SPAM_DATA_HI:0] | timer__spami_data[SPAM_DATA_HI:0];
 
 	parameter FSAB_DEVICES = 5;
 	wire [FSAB_DEVICES-1:0] fsabo_clks = {cclk, cclk, cclk, fbclk, aclk};
@@ -608,6 +610,19 @@ module System(/*AUTOARG*/
 		.spamo_data		(spamo_data[SPAM_DATA_HI:0]));
 	defparam ps2.DEBUG = "TRUE";
 
+
+	SPAM_Timer timer(/*AUTOINST*/
+			 // Outputs
+			 .timer__spami_busy_b	(timer__spami_busy_b),
+			 .timer__spami_data	(timer__spami_data[SPAM_DATA_HI:0]),
+			 // Inputs
+			 .cclk			(cclk),
+			 .cclk_rst_b		(cclk_rst_b),
+			 .spamo_valid		(spamo_valid),
+			 .spamo_r_nw		(spamo_r_nw),
+			 .spamo_did		(spamo_did[SPAM_DID_HI:0]),
+			 .spamo_addr		(spamo_addr[SPAM_ADDR_HI:0]),
+			 .spamo_data		(spamo_data[SPAM_DATA_HI:0]));
 
 endmodule
 
