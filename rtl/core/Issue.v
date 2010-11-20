@@ -182,7 +182,7 @@ module Issue(
 			use_cpsr = `COND_MATTERS(cond);
 			use_regs = idxbit(rn) | (insn_1a[25] /* I */ ? idxbit(rm) : 0) | (insn_1a[20] /* L */ ? 0 : idxbit(rd));
 			def_cpsr = 0;
-			def_regs = (insn_1a[20] /* L */ ? idxbit(rd) : 0) | (insn_1a[21] /* W */ ? idxbit(rn) : 0);
+			def_regs = (insn_1a[20] /* L */ ? idxbit(rd) : 0) | ((insn_1a[21] /* W */ | ~insn_1a[24] /* P */) ? idxbit(rn) : 0);
 		end
 		`DECODE_LDMSTM:		/* Block data transfer */
 		begin
