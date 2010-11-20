@@ -80,7 +80,6 @@ module System(/*AUTOARG*/
 `include "fsab_defines.vh"
 `include "spam_defines.vh"
 
-	/*AUTO_LISP(defvar list-of-prefixes '("pre" "fb" "audio" "ic" "dc" ))*/
 
 	/*AUTOWIRE*/
 	// Beginning of automatic wires (for undeclared instantiated-module outputs)
@@ -227,8 +226,9 @@ module System(/*AUTOARG*/
 	wire [SPAM_DATA_HI:0] spami_data = cio__spami_data[SPAM_DATA_HI:0] | lcd__spami_data[SPAM_DATA_HI:0] | fb__spami_data[SPAM_DATA_HI:0] | sace__spami_data[SPAM_DATA_HI:0] | audio__spami_data[SPAM_DATA_HI:0] | ps2__spami_data[SPAM_DATA_HI:0] | timer__spami_data[SPAM_DATA_HI:0];
 
 	parameter FSAB_DEVICES = 5;
-	wire [FSAB_DEVICES-1:0] fsabo_clks = {cclk, cclk, cclk, fbclk, aclk};
-	wire [FSAB_DEVICES-1:0] fsabo_rst_bs = {cclk_rst_b, cclk_rst_b, cclk_rst_b, fbclk_rst_b, ac97_reset_b};
+	/*AUTO_LISP(defvar list-of-prefixes '("pre" "fb" "audio" "ic" "dc" ))*/
+	wire [FSAB_DEVICES-1:0] fsabo_clks = {cclk, fbclk, aclk, cclk, cclk};
+	wire [FSAB_DEVICES-1:0] fsabo_rst_bs = {cclk_rst_b, fbclk_rst_b, ac97_reset_b, cclk_rst_b, cclk_rst_b};
 	
 
 	/* XXX: fsabi_rst_b synch? */
