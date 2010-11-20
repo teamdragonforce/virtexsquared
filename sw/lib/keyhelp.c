@@ -203,7 +203,7 @@ kh_type process_scancode(int scancode) {
 		case 0x29:
 			key = ' ';
 			break;
-		case 0x76:
+		case 0x66:
 			key = '\b';
 			break;
 		case 0x0D:
