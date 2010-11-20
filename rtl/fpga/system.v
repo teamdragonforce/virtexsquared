@@ -80,7 +80,7 @@ module System(/*AUTOARG*/
 `include "fsab_defines.vh"
 `include "spam_defines.vh"
 
-	/*AUTO_LISP(defvar list-of-prefixes '("pre" "ic" "dc" "fb" "audio"))*/
+	/*AUTO_LISP(defvar list-of-prefixes '("pre" "fb" "audio" "ic" "dc" ))*/
 
 	/*AUTOWIRE*/
 	// Beginning of automatic wires (for undeclared instantiated-module outputs)
@@ -386,7 +386,7 @@ module System(/*AUTOARG*/
 	FSABArbiter fsabarbiter(
 		/*AUTOINST*/
 				// Outputs
-				.fsabo_credits	({pre__fsabo_credit,ic__fsabo_credit,dc__fsabo_credit,fb__fsabo_credit,audio__fsabo_credit}), // Templated
+				.fsabo_credits	({pre__fsabo_credit,fb__fsabo_credit,audio__fsabo_credit,ic__fsabo_credit,dc__fsabo_credit}), // Templated
 				.fsabo_valid	(fsabo_valid),
 				.fsabo_mode	(fsabo_mode[FSAB_REQ_HI:0]),
 				.fsabo_did	(fsabo_did[FSAB_DID_HI:0]),
@@ -398,14 +398,14 @@ module System(/*AUTOARG*/
 				// Inputs
 				.clk		(fclk),		 // Templated
 				.rst_b		(fclk_rst_b),	 // Templated
-				.fsabo_valids	({pre__fsabo_valid,ic__fsabo_valid,dc__fsabo_valid,fb__fsabo_valid,audio__fsabo_valid}), // Templated
-				.fsabo_modes	({pre__fsabo_mode[FSAB_REQ_HI:0],ic__fsabo_mode[FSAB_REQ_HI:0],dc__fsabo_mode[FSAB_REQ_HI:0],fb__fsabo_mode[FSAB_REQ_HI:0],audio__fsabo_mode[FSAB_REQ_HI:0]}), // Templated
-				.fsabo_dids	({pre__fsabo_did[FSAB_DID_HI:0],ic__fsabo_did[FSAB_DID_HI:0],dc__fsabo_did[FSAB_DID_HI:0],fb__fsabo_did[FSAB_DID_HI:0],audio__fsabo_did[FSAB_DID_HI:0]}), // Templated
-				.fsabo_subdids	({pre__fsabo_subdid[FSAB_DID_HI:0],ic__fsabo_subdid[FSAB_DID_HI:0],dc__fsabo_subdid[FSAB_DID_HI:0],fb__fsabo_subdid[FSAB_DID_HI:0],audio__fsabo_subdid[FSAB_DID_HI:0]}), // Templated
-				.fsabo_addrs	({pre__fsabo_addr[FSAB_ADDR_HI:0],ic__fsabo_addr[FSAB_ADDR_HI:0],dc__fsabo_addr[FSAB_ADDR_HI:0],fb__fsabo_addr[FSAB_ADDR_HI:0],audio__fsabo_addr[FSAB_ADDR_HI:0]}), // Templated
-				.fsabo_lens	({pre__fsabo_len[FSAB_LEN_HI:0],ic__fsabo_len[FSAB_LEN_HI:0],dc__fsabo_len[FSAB_LEN_HI:0],fb__fsabo_len[FSAB_LEN_HI:0],audio__fsabo_len[FSAB_LEN_HI:0]}), // Templated
-				.fsabo_datas	({pre__fsabo_data[FSAB_DATA_HI:0],ic__fsabo_data[FSAB_DATA_HI:0],dc__fsabo_data[FSAB_DATA_HI:0],fb__fsabo_data[FSAB_DATA_HI:0],audio__fsabo_data[FSAB_DATA_HI:0]}), // Templated
-				.fsabo_masks	({pre__fsabo_mask[FSAB_MASK_HI:0],ic__fsabo_mask[FSAB_MASK_HI:0],dc__fsabo_mask[FSAB_MASK_HI:0],fb__fsabo_mask[FSAB_MASK_HI:0],audio__fsabo_mask[FSAB_MASK_HI:0]}), // Templated
+				.fsabo_valids	({pre__fsabo_valid,fb__fsabo_valid,audio__fsabo_valid,ic__fsabo_valid,dc__fsabo_valid}), // Templated
+				.fsabo_modes	({pre__fsabo_mode[FSAB_REQ_HI:0],fb__fsabo_mode[FSAB_REQ_HI:0],audio__fsabo_mode[FSAB_REQ_HI:0],ic__fsabo_mode[FSAB_REQ_HI:0],dc__fsabo_mode[FSAB_REQ_HI:0]}), // Templated
+				.fsabo_dids	({pre__fsabo_did[FSAB_DID_HI:0],fb__fsabo_did[FSAB_DID_HI:0],audio__fsabo_did[FSAB_DID_HI:0],ic__fsabo_did[FSAB_DID_HI:0],dc__fsabo_did[FSAB_DID_HI:0]}), // Templated
+				.fsabo_subdids	({pre__fsabo_subdid[FSAB_DID_HI:0],fb__fsabo_subdid[FSAB_DID_HI:0],audio__fsabo_subdid[FSAB_DID_HI:0],ic__fsabo_subdid[FSAB_DID_HI:0],dc__fsabo_subdid[FSAB_DID_HI:0]}), // Templated
+				.fsabo_addrs	({pre__fsabo_addr[FSAB_ADDR_HI:0],fb__fsabo_addr[FSAB_ADDR_HI:0],audio__fsabo_addr[FSAB_ADDR_HI:0],ic__fsabo_addr[FSAB_ADDR_HI:0],dc__fsabo_addr[FSAB_ADDR_HI:0]}), // Templated
+				.fsabo_lens	({pre__fsabo_len[FSAB_LEN_HI:0],fb__fsabo_len[FSAB_LEN_HI:0],audio__fsabo_len[FSAB_LEN_HI:0],ic__fsabo_len[FSAB_LEN_HI:0],dc__fsabo_len[FSAB_LEN_HI:0]}), // Templated
+				.fsabo_datas	({pre__fsabo_data[FSAB_DATA_HI:0],fb__fsabo_data[FSAB_DATA_HI:0],audio__fsabo_data[FSAB_DATA_HI:0],ic__fsabo_data[FSAB_DATA_HI:0],dc__fsabo_data[FSAB_DATA_HI:0]}), // Templated
+				.fsabo_masks	({pre__fsabo_mask[FSAB_MASK_HI:0],fb__fsabo_mask[FSAB_MASK_HI:0],audio__fsabo_mask[FSAB_MASK_HI:0],ic__fsabo_mask[FSAB_MASK_HI:0],dc__fsabo_mask[FSAB_MASK_HI:0]}), // Templated
 				.fsabo_clks	(fsabo_clks[FSAB_DEVICES-1:0]),
 				.fsabo_rst_bs	(fsabo_rst_bs[FSAB_DEVICES-1:0]),
 				.fsabo_credit	(fsabo_credit));
