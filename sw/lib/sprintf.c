@@ -27,6 +27,7 @@
 #include <stdarg.h>
 #include "doprnt.h"
 #include "serial.h"
+#include "console.h"
 
 #define SPRINTF_UNLIMITED -1
 struct sprintf_state {
@@ -101,7 +102,7 @@ int snprintf(char *s, int size, const char *fmt, ...)
 	return err;
 }
 
-static void writechar(char *arg, int c)
+static void writechar_ser(char *arg, int c)
 {
 	int *i = (int *) arg;
 	*i++;
@@ -113,7 +114,7 @@ int vprintf(const char *fmt, va_list args)
 {
 	int len = 0;
 	
-	_doprnt(fmt, args, 0, (void (*)()) writechar, (char *)&len);
+	_doprnt(fmt, args, 0, (void (*)()) writechar_ser, (char *)&len);
 	
 	return len;
 }
@@ -125,6 +126,35 @@ int printf(const char *fmt, ...)
 
 	va_start(args, fmt);
 	err = vprintf(fmt, args);
+	va_end(args);
+
+	return err;
+}
+
+static void writechar_cons(char *arg, int c)
+{
+	int *i = (int *) arg;
+	*i++;
+	
+	cons_putchar(c);
+}
+
+int cons_vprintf(const char *fmt, va_list args)
+{
+	int len = 0;
+	
+	_doprnt(fmt, args, 0, (void (*)()) writechar_cons, (char *)&len);
+	
+	return len;
+}
+
+int cons_printf(const char *fmt, ...)
+{
+	va_list	args;
+	int err;
+
+	va_start(args, fmt);
+	err = cons_vprintf(fmt, args);
 	va_end(args);
 
 	return err;
