@@ -35,4 +35,8 @@ extern int printf(const char *fmt, ...);
 extern unsigned short htons(unsigned short in);
 extern unsigned int htonl(unsigned int in);
 
+#ifndef NULL
+#  define NULL ((void *)0)
+#endif
+
 #endif
