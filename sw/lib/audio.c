@@ -14,7 +14,7 @@ static volatile short *pcm_vol    = (short*) 0x84000110;
 static volatile short *rec_select = (short*) 0x84000114;
 static volatile short *rec_gain   = (short*) 0x84000118;
 
-void set_master_vol(char mute, char left, char right)
+void audio_master_volume_set(char mute, char left, char right)
 {
 	short val = 0;
 	val |= mute ? 0x8000 : 0x0000;
@@ -23,7 +23,7 @@ void set_master_vol(char mute, char left, char right)
 	*master_vol = val;
 }
 
-void set_mic_vol(char mute, char volume, char boost)
+void audio_mic_volume_set(char mute, char volume, char boost)
 {
 	short val = 0;
 	val |= mute ? 0x8000 : 0x0000;
@@ -32,7 +32,7 @@ void set_mic_vol(char mute, char volume, char boost)
 	*mic_vol = val;
 }
 
-void set_line_in_vol(char mute, char left, char right)
+void audio_linein_volume_set(char mute, char left, char right)
 {
 	short val = 0;
 	val |= mute ? 0x8000 : 0x0000;
@@ -41,7 +41,7 @@ void set_line_in_vol(char mute, char left, char right)
 	*line_vol = val;
 }
 
-void set_cd_vol(char mute, char left, char right)
+void audio_cd_volume_set(char mute, char left, char right)
 {
 	short val = 0;
 	val |= mute ? 0x8000 : 0x0000;
@@ -50,7 +50,7 @@ void set_cd_vol(char mute, char left, char right)
 	*cd_vol = val;
 }
 
-void set_pcm_vol(char mute, char left, char right)
+void audio_pcm_volume_set(char mute, char left, char right)
 {
 	short val = 0;
 	val |= mute ? 0x8000 : 0x0000;
@@ -59,12 +59,12 @@ void set_pcm_vol(char mute, char left, char right)
 	*pcm_vol = val;
 }
 
-void set_record_select(char leftdevice, char rightdevice)
+void audio_rec_select_set(char leftdevice, char rightdevice)
 {
 	*rec_select = (leftdevice << 8) | rightdevice;
 }
 
-void set_record_gain(char mute, char left, char right)
+void audio_rec_gain_set(char mute, char left, char right)
 {
 	short val = 0;
 	val |= mute ? 0x8000 : 0x0000;
@@ -73,7 +73,7 @@ void set_record_gain(char mute, char left, char right)
 	*rec_gain = val;
 }
 
-void start_playback(void *location, int length, int mode)
+void audio_play(void *location, int length, int mode)
 {
 	/* must align, or else dma falls over */
 	*dma_length = length & ~0xFF;
@@ -81,13 +81,13 @@ void start_playback(void *location, int length, int mode)
 	*dma_cmd = mode;
 }
 
-void stop_playback()
+void audio_stop()
 {
 	/* STOP command */
 	*dma_cmd = 0;
 }
 
-int get_samples_played()
+int audio_samples_played()
 {
 	return *dma_nread;
 }

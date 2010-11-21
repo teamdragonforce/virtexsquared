@@ -70,7 +70,7 @@ void loadaudio()
 		{
 			puthex(i);
 			if (i == 0x20)	/* OK, we've loaded enough. */
-				start_playback((void*) 0x00800000, LEN, AUDIO_MODE_LOOP);
+				audio_play((void*) 0x00800000, LEN, AUDIO_MODE_LOOP);
 		}
 		putchar('.');
 	}
@@ -100,7 +100,7 @@ int main()
 			if (ch == 'a' && volume > 0) volume--;
 			if (ch == 'm' && volume > 0) mute = !mute;
 			printf("%c %d %d\r\n", ch, mute, volume);
-			set_master_vol(mute, volume, volume);
+			audio_master_volume_set(mute, volume, volume);
 		}
 	}
 

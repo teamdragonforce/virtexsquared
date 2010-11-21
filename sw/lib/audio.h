@@ -7,6 +7,9 @@
  * Mute: 1 to mute, 0 to unmute.
  */
 
+#ifndef AUDIO_H
+#define AUDIO_H
+
 /* options for record select */
 
 #define AUDIO_MODE_ONCE 1
@@ -21,14 +24,16 @@
 #define REC_SEL_MONO   6
 #define REC_SEL_PHONE  7
 
-void set_master_vol(char mute, char left, char right);
+void audio_master_volume_set(char mute, char left, char right);
 /* Note that the arguments to set_mic_vol are different. */
-void set_mic_vol(char mute, char volume, char boost);
-void set_line_in_vol(char mute, char left, char right);
-void set_cd_vol(char mute, char left, char right);
-void set_pcm_vol(char mute, char left, char right);
-void set_record_select(char leftdevice, char rightdevice);
-void set_record_gain(char mute, char left, char right);
-void start_playback(void *location, int length, int mode);
-void stop_playback();
-int get_samples_played();
+void audio_mic_volume_set(char mute, char volume, char boost);
+void audio_linein_volume_set(char mute, char left, char right);
+void audio_cd_volume_set(char mute, char left, char right);
+void audio_pcm_volume_set(char mute, char left, char right);
+void audio_rec_select_set(char leftdevice, char rightdevice);
+void audio_rec_gain_set(char mute, char left, char right);
+void audio_play(void *location, int length, int mode);
+void audio_stop();
+int audio_samples_played();
+
+#endif
