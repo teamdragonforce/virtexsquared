@@ -1,5 +1,7 @@
 #include "serial.h"
 #include "sysace.h"
+#include "audio.h"
+#include "keyhelp.h"
 
 #define SAMPLE_RATE 48000
 #define F 1000
@@ -45,26 +47,13 @@ int find_fat16()
 }
 
 //#define LEN 85258656
-#define LEN 85258624
-//#define LEN    1000032
-
-void startplayback()
-{
-	volatile int *dma_start  = (int*) 0x84000000;
-	volatile int *dma_length = (int*) 0x84000004;
-	volatile int *dma_cmd    = (int*) 0x84000008;
-	volatile int *dma_nread  = (int*) 0x8400000c;
-
-	*dma_start = 0x00800000;
-	*dma_length = LEN & ~0xFF;
-	puthex(LEN & ~0xFF);
-	*dma_cmd = 2;
-}
+//#define LEN 85258624
+#define LEN    1000032
 
 void loadaudio()
 {
 	int location = find_fat16();
-	unsigned int *base = 0x00800000;
+	unsigned int *base = (int*) 0x00800000;
 	int i;
 
 	if (location < 0)
@@ -81,32 +70,38 @@ void loadaudio()
 		{
 			puthex(i);
 			if (i == 0x20)	/* OK, we've loaded enough. */
-				startplayback();
+				start_playback((void*) 0x00800000, LEN, AUDIO_MODE_LOOP);
 		}
 		putchar('.');
 	}
 	puts("\r\n");
 }
 
-void main()
+int main()
 {
 	loadaudio();
 
-	volatile short *master_vol = (int*) 0x84000100;
-	*master_vol = 0x0808;
-	puts("quieter!");
-	short *mem = (short*) (6 * (1<<20));
-	volatile unsigned int *scancodeaddr = 0x85000000;
+	char ch;
+	volatile unsigned int *scancode_addr = (unsigned int *) 0x85000000;
 	unsigned int scancode;
+	kh_type k;
 
-	loadaudio();
+	int volume = 255;
+	int mute = 0;
 
-	while(1) {
-		scancode = *scancodeaddr;
-		if (scancode == 0xdeadbeef)
+	while (1) {
+		scancode = *scancode_addr;
+		if (scancode == 0xffffffff)
 			continue;
-		puthex(scancode);
-		puts("");
+		k = process_scancode(scancode);
+		if (KH_HAS_CHAR(k) && !KH_IS_RELEASING(k)) {
+			ch = KH_GET_CHAR(k);
+			if (ch == 'q' && volume < 255) volume++;
+			if (ch == 'a' && volume > 0) volume--;
+			if (ch == 'm' && volume > 0) mute = !mute;
+			printf("%c %d %d\r\n", ch, mute, volume);
+			set_master_vol(mute, volume, volume);
+		}
 	}
 
 	return 0;
