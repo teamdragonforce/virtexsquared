@@ -568,20 +568,9 @@ module Memory(
 		`DECODE_ALU_HDATA_REG,
 		`DECODE_ALU_HDATA_IMM: if(!bubble_3a) begin
 			addr = insn_3a[23] ? op0_3a + op1_3a : op0_3a - op1_3a; /* up/down select */
-			raddr = insn_3a[24] ? op0_3a : addr; /* pre/post increment */
+			raddr = insn_3a[24] ? addr : op0_3a; /* pre/post increment */
 			dc__addr_3a = raddr;
-			/* rotate to correct position */
-			case(insn_3a[6:5])
-			2'b01: /* unsigned half */
-				dc__data_size_3a = 3'b010;
-			2'b10: /* signed byte */
-				dc__data_size_3a = 3'b001;
-			2'b11: /* signed half */
-				dc__data_size_3a = 3'b010;
-			default: begin
-				dc__data_size_3a = 3'bxxx;
-			end
-			endcase
+			dc__data_size_3a = insn_3a[5] /* H */ ? 3'b010 : 3'b001;
 			
 			case(lsrh_state)
 			`LSRH_MEMIO: begin
