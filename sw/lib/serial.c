@@ -1,8 +1,19 @@
 #include "serial.h"
 
+#define TIME ((62500000 / 57600) * 9)
+
+static void delay()
+{
+	volatile unsigned int *num_clock_cycles = 0x86000000;
+	unsigned int ncc = *num_clock_cycles + TIME;
+	while (*num_clock_cycles < ncc)
+		;
+}
+
 int putchar(int c)
 {
 	*(volatile unsigned int*)SERIAL_BASE = c;
+	delay();
 	
 	return c;
 }
