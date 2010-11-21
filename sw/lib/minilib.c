@@ -14,7 +14,7 @@
  * For small things, gcc inlines its memcpy, but for large things, we call out
  * to this memcpy.
  */
-void _memcpy(void *dest, const void *src, int bytes)
+void _memcpy_fast(void *dest, const void *src, int bytes)
 {
 	/* I hate everyone */
 	/* Since we otherwise compile with -O0, we might as well manually speed this up a bit. */
@@ -59,9 +59,21 @@ void _memcpy(void *dest, const void *src, int bytes)
 	}
 }
 
+void _memcpy_slow(void *dest, const void *src, int bytes)
+{
+	unsigned char *cdest = dest;
+	const unsigned char *csrc = src;
+	
+	while (bytes--)
+		*(cdest++) = *(csrc++);
+}
+
 void *memcpy(void *dest, const void *src, int bytes)
 {
-	_memcpy(dest, src, bytes);
+	if (((unsigned int)dest & 3) == ((unsigned int)src & 3))
+		_memcpy_fast(dest, src, bytes);
+	else
+		_memcpy_slow(dest, src, bytes);
 	return dest;
 }
 
