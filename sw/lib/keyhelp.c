@@ -183,7 +183,7 @@ kh_type process_scancode(int scancode) {
 			KHS_SHIFT(key, ':', ';');
 			break;
 		case 0x52:
-			KHS_SHIFT(key, '\'', '"');
+			KHS_SHIFT(key, '"', '\'');
 			break;
 		case 0x0E:
 			KHS_SHIFT(key, '~', '`');
