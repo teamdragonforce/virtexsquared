@@ -3,6 +3,36 @@
 #include "minilib.h"
 #include "audio.h"
 #include "fat16.h"
+#include "elfload.h"
+
+void boot(struct fat16_handle *h, char *name)
+{
+	int rv;
+	struct fat16_file fd;
+	static int buf[512*1024];
+	void (*game)();
+	
+	printf("Attempting to boot %s... ", name);
+	if (fat16_open_by_name(h, &fd, name) == -1)
+	{
+		printf("not found?\r\n");
+		return;
+	} 
+	
+	rv = fat16_read(&fd, (void *)buf, 512*1024);
+	printf("found it! (%d bytes)\r\n", rv);
+
+	game = elf_load((char *)buf, rv);
+	if (!game)
+	{
+		printf("ELF loading failed\r\n");
+		return;
+	}
+	
+	printf("Jumping to game entry point.\r\n");
+	
+	game();
+}
 
 void ls_callback(struct fat16_handle *h, struct fat16_dirent *de, void *priv)
 {
@@ -49,6 +79,8 @@ void main()
 	puts("Listing all files in root directory...");
 	fat16_ls_root(&h, ls_callback, NULL);
 	
+	boot(&h, "GAME    ELF");
+
 	puts("boot1 exiting\r\n");
 	
 	return;
