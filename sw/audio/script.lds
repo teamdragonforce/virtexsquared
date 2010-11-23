@@ -8,7 +8,7 @@ ENTRY(_start)
 SECTIONS
 {
   /* Read-only sections, merged into text segment: */
-  PROVIDE (__executable_start = 0x400000); . = 0x400000;
+  PROVIDE (__executable_start = 0x500000); . = 0x500000;
 
   .init : { crt0.o }
 
