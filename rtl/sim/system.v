@@ -276,6 +276,7 @@ module System(/*AUTOARG*/
 				.fsabo_rst_bs	({rst_b,rst_b,rst_b,rst_b}), // Templated
 				.fsabo_credit	(fsabo_credit));
 	defparam fsabarbiter.FSAB_DEVICES = 4;
+	defparam fsabarbiter.FSAB_DEVICES_HI = 1;
 
 	/* FSABSimMemory AUTO_TEMPLATE (
 		.clk(fsabi_clk),

@@ -418,6 +418,14 @@ module Memory(
 		next_cpsrup_3a = cpsrup_3a;
 		
 		casez(insn_3a)
+		`DECODE_ALU_MULT: begin
+			next_write_reg_3a = write_reg_3a;	/* XXX workaround for ISE 10.1 bug */
+			next_write_num_3a = write_num_3a;
+			next_write_data_3a = write_data_3a;
+			next_write_data_mode_3a = `WRD_ACTUAL;
+			next_cpsr_3a = lsm_state == 4'b0010 ? cpsr_4a : cpsr_3a;
+			next_cpsrup_3a = cpsrup_3a;
+		end
 		`DECODE_ALU_SWP: if (!bubble_3a) begin
 			next_write_reg_3a = 1'bx;
 			next_write_num_3a = 4'bxxxx;
@@ -432,13 +440,6 @@ module Memory(
 			end
 			default: begin end
 			endcase
-		end
-		`DECODE_ALU_MULT: begin
-			next_write_reg_3a = write_reg_3a;	/* XXX workaround for ISE 10.1 bug */
-			next_write_num_3a = write_num_3a;
-			next_write_data_3a = write_data_3a;
-			next_cpsr_3a = lsm_state == 4'b0010 ? cpsr_4a : cpsr_3a;
-			next_cpsrup_3a = cpsrup_3a;
 		end
 		`DECODE_ALU_HDATA_REG,
 		`DECODE_ALU_HDATA_IMM: if(!bubble_3a) begin
@@ -549,7 +550,7 @@ module Memory(
 		
 		casez(insn_3a)
 		`DECODE_ALU_SWP: if(!bubble_3a) begin
-			dc__addr_3a = {op0_3a[31:2], 2'b0};
+			dc__addr_3a = {op1_3a[31:2], 2'b0};
 			dc__data_size_3a = insn_3a[22] ? 3'b001 : 3'b100;
 			case(swp_state)
 			`SWP_READING:
@@ -640,7 +641,7 @@ module Memory(
 		casez(insn_3a)
 		`DECODE_ALU_SWP: if(!bubble_3a)
 			if (swp_state == `SWP_WRITING)
-				dc__wr_data_3a = insn_3a[22] ? {4{op1_3a[7:0]}} : op1_3a;
+				dc__wr_data_3a = insn_3a[22] ? {4{op0_3a[7:0]}} : op0_3a;
 		`DECODE_ALU_MULT: begin end
 		`DECODE_ALU_HDATA_REG,
 		`DECODE_ALU_HDATA_IMM: if(!bubble_3a)
