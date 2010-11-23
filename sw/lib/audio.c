@@ -89,6 +89,6 @@ void audio_stop()
 
 int audio_samples_played()
 {
-	return *dma_nread;
+	return *dma_nread/AUDIO_BYTES_PER_SAMP;
 }
 
