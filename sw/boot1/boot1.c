@@ -4,24 +4,6 @@
 #include "audio.h"
 #include "fat16.h"
 
-void play_shit(struct fat16_handle *h)
-{
-	int rv;
-	struct fat16_file fd;
-	
-	printf("Opening AUDIO.RAW... ");
-	if (fat16_open_by_name(h, &fd, "AUDIO   RAW") == -1)
-	{
-		printf("not found?\r\n");
-		return;
-	} 
-	
-	rv = fat16_read(&fd, (void *)0x800000, 1048576);
-	printf("found it! (%d bytes)\r\n", rv);
-
-	audio_play((void *)0x800000, rv, AUDIO_MODE_ONCE);
-}
-
 void ls_callback(struct fat16_handle *h, struct fat16_dirent *de, void *priv)
 {
        	if (de->name[0] == 0x00 || de->name[0] == 0x05 || de->name[0] == 0xE5 || (de->attrib & 0x48))
@@ -66,8 +48,6 @@ void main()
 	
 	puts("Listing all files in root directory...");
 	fat16_ls_root(&h, ls_callback, NULL);
-	
-	play_shit(&h);
 	
 	puts("boot1 exiting\r\n");
 	
