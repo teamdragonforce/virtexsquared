@@ -83,9 +83,9 @@ module Decode(
 		casez (insn_1a)
 		`DECODE_ALU_MULT:	/* Multiply -- must come before ALU, because it pattern matches a specific case of ALU */
 		begin
-			rf__read_0_1a = insn_1a[15:12]; /* Rn */
-			rf__read_1_1a = insn_1a[3:0];   /* Rm */
-			rf__read_2_1a = insn_1a[11:8];  /* Rs */
+			rf__read_0_1a = insn_1a[3:0];   /* Rm */
+			rf__read_1_1a = insn_1a[11:8];  /* Rs */
+			rf__read_2_1a = insn_1a[15:12]; /* Rn */
 		end
 		`DECODE_ALU_MRS:	/* MRS (Transfer PSR to register) */
 		begin end
@@ -95,8 +95,8 @@ module Decode(
 			rf__read_0_1a = insn_1a[3:0];	/* Rm */
 		`DECODE_ALU_SWP:	/* Atomic swap */
 		begin
-			rf__read_0_1a = insn_1a[19:16]; /* Rn */
-			rf__read_1_1a = insn_1a[3:0];   /* Rm */
+			rf__read_0_1a = insn_1a[3:0];   /* Rm */
+			rf__read_1_1a = insn_1a[19:16]; /* Rn */
 		end
 		`DECODE_ALU_BX:		/* Branch and exchange */
 			rf__read_0_1a = insn_1a[3:0];   /* Rn */
@@ -109,7 +109,7 @@ module Decode(
 		`DECODE_ALU_HDATA_IMM:	/* Halfword transfer - immediate offset */
 		begin
 			rf__read_0_1a = insn_1a[19:16];
-			rf__read_1_1a = insn_1a[15:12];
+			rf__read_2_1a = insn_1a[15:12];
 		end
 		`DECODE_ALU:		/* ALU */
 		begin
@@ -182,7 +182,7 @@ module Decode(
 		begin
 			op0_1a = regs0;
 			op1_1a = {24'b0, insn_1a[11:8], insn_1a[3:0]};
-			op2_1a = regs1;
+			op2_1a = regs2;
 		end
 		`DECODE_ALU:		/* ALU */
 		begin

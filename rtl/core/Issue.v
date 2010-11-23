@@ -248,7 +248,7 @@ module Issue(
 		`COND_VS:	condition_met_1a = cpsr_1a[`CPSR_V];
 		`COND_VC:	condition_met_1a = !cpsr_1a[`CPSR_V];
 		`COND_HI:	condition_met_1a = cpsr_1a[`CPSR_C] && !cpsr_1a[`CPSR_Z];
-		`COND_LS:	condition_met_1a = !cpsr_1a[`CPSR_C] || cpsr_1a[`CPSR_Z];
+		`COND_LS:	condition_met_1a = (!cpsr_1a[`CPSR_C]) || cpsr_1a[`CPSR_Z];
 		`COND_GE:	condition_met_1a = cpsr_1a[`CPSR_N] == cpsr_1a[`CPSR_V];
 		`COND_LT:	condition_met_1a = cpsr_1a[`CPSR_N] != cpsr_1a[`CPSR_V];
 		`COND_GT:	condition_met_1a = !cpsr_1a[`CPSR_Z] && (cpsr_1a[`CPSR_N] == cpsr_1a[`CPSR_V]);

@@ -277,7 +277,7 @@ module System(/*AUTOARG*/
 		  .fsabi_rst_b		(fclk_rst_b),		 // Templated
 		  .spami_busy_b		(spami_busy_b),
 		  .spami_data		(spami_data[SPAM_DATA_HI:0]));
-	defparam core.DEBUG = "FALSE";
+	defparam core.DEBUG = "TRUE";
 	
 	wire [8:0] sys_odata;
 	wire sys_tookdata;
@@ -608,7 +608,7 @@ module System(/*AUTOARG*/
 		.spamo_did		(spamo_did[SPAM_DID_HI:0]),
 		.spamo_addr		(spamo_addr[SPAM_ADDR_HI:0]),
 		.spamo_data		(spamo_data[SPAM_DATA_HI:0]));
-	defparam ps2.DEBUG = "TRUE";
+	defparam ps2.DEBUG = "FALSE";
 
 
 	SPAM_Timer timer(/*AUTOINST*/

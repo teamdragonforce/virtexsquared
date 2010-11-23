@@ -228,9 +228,9 @@ module Execute(
 			if (!outstall_3a /* i.e., this is a new one */ && !bubble_2a /* i.e., this is a real one */)
 			begin
 				mult_start = 1;
-				mult_acc0 = insn_2a[21] /* A */ ? op0_2a /* Rn */ : 32'h0;
-				mult_in0 = op1_2a /* Rm */;
-				mult_in1 = op2_2a /* Rs */;
+				mult_acc0 = insn_2a[21] /* A */ ? op2_2a /* Rn */ : 32'h0;
+				mult_in0 = op0_2a /* Rm */;
+				mult_in1 = op1_2a /* Rs */;
 				$display("New MUL instruction");
 			end
 		end
