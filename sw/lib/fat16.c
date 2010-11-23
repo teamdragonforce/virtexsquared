@@ -2,6 +2,10 @@
 #include "minilib.h"
 #include "fat16.h"
 
+#ifdef DEBUG
+#include "console.h"
+#endif
+
 #define FAT16_FAT0_SECTOR(h) ((h)->start + (h)->reserved_sector_count)
 #define FAT16_FAT1_SECTOR(h) ((h)->start + (h)->reserved_sector_count + (h)->sectors_per_fat)
 #define FAT16_ROOT_SECTOR(h) ((h)->start + (h)->reserved_sector_count + (h)->sectors_per_fat * (h)->num_fats)
@@ -155,7 +159,16 @@ int fat16_read(struct fat16_file *fd, unsigned char *buf, int len)
 {
 	int retlen = 0;
 	
+
+#ifdef DEBUG
+	printf("FAT16: called with len: %d\r\n", len);
+#endif
+
 	len = (len > (fd->len - fd->pos)) ? (fd->len - fd->pos) : len;
+
+#ifdef DEBUG
+	printf("FAT16: Length to read: %d\r\n", len);
+#endif
 	
 	while (len && !FAT16_CLUSTER_IS_EOF(fd->cluster))
 	{
@@ -171,12 +184,19 @@ int fat16_read(struct fat16_file *fd, unsigned char *buf, int len)
 			seclen = (seclen > cluslen) ? cluslen : seclen;
 			
 			int secnum = FAT16_CLUSTER(fd->h, fd->cluster) + (fd->pos / 512) % fd->h->sectors_per_cluster;
+#ifdef DEBUG
+			printf("FAT16: reading from sector: %d\r\n", secnum);
+#endif
 			
 			if (sysace_readsec(secnum, (unsigned int *)secbuf))
 			{
 				puts("failed to read sector!");
 				return retlen ? retlen : -1;
 			}
+
+#ifdef DEBUG
+			printf("FAT16: copying from buffer: %d\r\n", seclen);
+#endif
 			
 			memcpy(buf, secbuf + fd->pos % 512, seclen);
 			

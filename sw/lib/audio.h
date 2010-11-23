@@ -10,10 +10,12 @@
 #ifndef AUDIO_H
 #define AUDIO_H
 
-/* options for record select */
+#define AUDIO_BYTES_PER_SAMP 4
 
 #define AUDIO_MODE_ONCE 1
 #define AUDIO_MODE_LOOP 2
+
+/* options for record select */
 
 #define REC_SEL_MIC    0
 #define REC_SEL_CD     1
