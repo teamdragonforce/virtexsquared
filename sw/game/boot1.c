@@ -67,9 +67,32 @@ int load_audio(struct fat16_handle * h, unsigned int * mem_location)
 
 void draw_blah(unsigned int *buf, unsigned int x0, unsigned int y0, unsigned int color) {
 	int x, y;
-	for (x = x0; x < x0 + 100; x++) {
-		for (y = y0; y < y0 + 100; y++) {
-			buf[640*y+x] = color;
+	for (y = y0; y < y0 + 5; y++) {
+		for (x = x0; x < x0 + 100; x+=10) {
+			buf[640*y+x+0] = color;
+			buf[640*y+x+1] = color;
+			buf[640*y+x+2] = color;
+			buf[640*y+x+3] = color;
+			buf[640*y+x+4] = color;
+			buf[640*y+x+5] = color;
+			buf[640*y+x+6] = color;
+			buf[640*y+x+7] = color;
+			buf[640*y+x+8] = color;
+			buf[640*y+x+9] = color;
+		}
+	}
+	for (y = y0 + 5; y < y0 + 15; y++) {
+		for (x = x0; x < x0 + 100; x+=10) {
+			buf[640*y+x+0] = 0x00000000;
+			buf[640*y+x+1] = 0x00000000;
+			buf[640*y+x+2] = 0x00000000;
+			buf[640*y+x+3] = 0x00000000;
+			buf[640*y+x+4] = 0x00000000;
+			buf[640*y+x+5] = 0x00000000;
+			buf[640*y+x+6] = 0x00000000;
+			buf[640*y+x+7] = 0x00000000;
+			buf[640*y+x+8] = 0x00000000;
+			buf[640*y+x+9] = 0x00000000;
 		}
 	}
 }
@@ -80,7 +103,6 @@ void main()
 {
 	int i, j;
 	unsigned int *start_d = 0x00100000;
-	unsigned int *d;
 	unsigned int *num_clock_cycles = 0x86000000;
 	int length;
 	int rv;
@@ -92,8 +114,6 @@ void main()
 	int fat16_start;
 	struct fat16_handle h;
 
-	printf("BLAH BLAH BLAH POOP POOP BLAH\r\n");
-	
 	printf("Reading partition table... ");
 	fat16_start = fat16_find_partition();
 	if (fat16_start < 0)
@@ -127,73 +147,122 @@ void main()
 
 	audio_play(audio_mem_base, length, AUDIO_MODE_ONCE);
 
+	volatile unsigned int * scancodeaddr = 0x85000000;
+	unsigned int scancode;
+	kh_type k;
+	char new_char;
+
+	int l, u, d, r;
+	l = 0;
+	u = 0;
+	d = 0;
+	r = 0;
+
+	int hit_l, hit_u, hit_d, hit_r;
+	hit_l = -1;
+	hit_u = -1;
+	hit_d = -1;
+	hit_r = -1;
+
+	int hits = 0;
+	signed int qbeat_last;
+
 	while (1) {
-		signed int qbeat;
+		signed int qbeat, rem, qbeat_round;
 		char datum;
+		int i;
+		int lnow = l;
+		int unow = u;
+		int dnow = d;
+		int rnow = r;
+		while ((scancode = *scancodeaddr) != 0xffffffff) {
+			k = process_scancode(scancode);
+			if (KH_HAS_CHAR(k)) {
+				new_char = KH_GET_CHAR(k);
+				switch (new_char) {
+					case 'j': lnow = !KH_IS_RELEASING(k); break;
+					case 'i': unow = !KH_IS_RELEASING(k); break;
+					case 'k': dnow = !KH_IS_RELEASING(k); break;
+					case 'l': rnow = !KH_IS_RELEASING(k); break;
+				}
+			}
+		}
 
 		qbeat = (audio_samples_played()-song.delay_samps-1600)/song.samps_per_qbeat;
+		rem = (audio_samples_played()-song.delay_samps-1600)%song.samps_per_qbeat;
+		qbeat_round = (audio_samples_played()-song.delay_samps-1600+song.samps_per_qbeat/2)/song.samps_per_qbeat;
+
 		if (qbeat < 0)
 			continue;
 
-		datum = song.qsteps[qbeat];
-		draw_blah(start_d, 50, 50, (datum >> 3) & 1 ? 0xffffffff : 0x00000000);
-		draw_blah(start_d, 200, 50, (datum >> 2) & 1 ? 0xffffffff : 0x00000000);
-		draw_blah(start_d, 350, 50, (datum >> 1) & 1 ? 0xffffffff : 0x00000000);
-		draw_blah(start_d, 500, 50, (datum >> 0) & 1 ? 0xffffffff : 0x00000000);
-		/*
-		printf("qbeat: %4d steps: %d%d%d%d\r\n", qbeat, (datum >> 3) & 1, (datum >> 2) & 1, (datum >> 1) & 1, datum & 1);
-		*/
-	}
-
-#if 0
-	printf("kicked off play\r\n");
-
-	while (1) {};
-
-	/*
-	while(1) {
-		for (y = 0; y < 300; y++) {
-			index = 0;
-			d = start_d + y*640+x;
-			for (i = 0; i < gimp_image.height; i++){
-				for (j = 0; j < gimp_image.width; j+=4) {
-					pixel_data = ((int*)gimp_image.pixel_data)[index];
-					if ((gimp_image.pixel_data[index*4+3]) == 0xFF)
-						*(d) = pixel_data; 
-					d++;
-					index++;
-					pixel_data = ((int*)gimp_image.pixel_data)[index];
-					if ((gimp_image.pixel_data[index*4+3]) == 0xFF)
-						*(d) = pixel_data; 
-					d++;
-					index++;
-					pixel_data = ((int*)gimp_image.pixel_data)[index];
-					if ((gimp_image.pixel_data[index*4+3]) == 0xFF)
-						*(d) = pixel_data; 
-					d++;
-					index++;
-					pixel_data = ((int*)gimp_image.pixel_data)[index];
-					if ((gimp_image.pixel_data[index*4+3]) == 0xFF)
-						*(d) = pixel_data; 
-					d++;
-					index++;
-				}
-				d += (640-gimp_image.width);
-			}
-			d = start_d + y*640+x;
-			for (i = 0; i < gimp_image.height; i++){
-				for (j = 0; j < gimp_image.width; j+=4) {
-					*(d++) = 0x00000000; 
-					*(d++) = 0x00000000; 
-					*(d++) = 0x00000000; 
-					*(d++) = 0x00000000; 
-				}
-				d += (640-gimp_image.width);
-			}
+		if (lnow && !l) {
+			if ((song.qsteps[qbeat_round] >> 3) & 1) hits++;
+			hit_l = qbeat_round;
 		}
-		printf("Number of clock cycles: %x\r\n", *num_clock_cycles);
+		if (unow && !u) {
+			if ((song.qsteps[qbeat_round] >> 2) & 1) hits++;
+			hit_u = qbeat_round;
+		}
+		if (dnow && !d) {
+			if ((song.qsteps[qbeat_round] >> 1) & 1) hits++;
+			hit_d = qbeat_round;
+		}
+		if (rnow && !r) {
+			if ((song.qsteps[qbeat_round] >> 0) & 1) hits++;
+			hit_r = qbeat_round;
+		}
+
+		if (qbeat_last != qbeat) {
+			printf("%d\r\n", hits);
+			qbeat_last = qbeat;
+		}
+
+		l = lnow;
+		u = unow;
+		d = dnow;
+		r = rnow;
+
+		for (i = 7; i > 0; i--) {
+			int y = 50 + 50 * i + 50 * (song.samps_per_qbeat - rem) / song.samps_per_qbeat;
+			datum = song.qsteps[qbeat+i];
+			if ((datum >> 3) & 1)
+				draw_blah(start_d, 50, y, 0xffffffff);
+			if ((datum >> 2) & 1)
+				draw_blah(start_d, 200, y, 0xffffffff);
+			if ((datum >> 1) & 1)
+				draw_blah(start_d, 350, y, 0xffffffff);
+			if ((datum >> 0) & 1)
+				draw_blah(start_d, 500, y, 0xffffffff);
+		}
+		int y = 50 + 50 * (song.samps_per_qbeat - rem) / song.samps_per_qbeat;
+		if ((datum >> 3) & 1) {
+			int color = 0xffffffff;
+			if (hit_l == qbeat_round) {
+				color = 0xff0000ff;
+			}
+			draw_blah(start_d, 50, y, color);
+		}
+		if ((datum >> 2) & 1) {
+			int color = 0xffffffff;
+			if (hit_u == qbeat_round) {
+				color = 0xff0000ff;
+			}
+			draw_blah(start_d, 200, y, color);
+		}
+		if ((datum >> 1) & 1) {
+			int color = 0xffffffff;
+			if (hit_d == qbeat_round) {
+				color = 0xff0000ff;
+			}
+			draw_blah(start_d, 350, y, color);
+		}
+		if ((datum >> 0) & 1) {
+			int color = 0xffffffff;
+			if (hit_r == qbeat_round) {
+				color = 0xff0000ff;
+			}
+			draw_blah(start_d, 500, y, color);
+		}
 	}
-	*/
-#endif
 }
 
