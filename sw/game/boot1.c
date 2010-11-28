@@ -4,6 +4,8 @@
 #include "minilib.h"
 
 #define MAX_QBEATS 50000
+#define SCREEN_WIDTH 640
+#define SCREEN_HEIGHT 480
 
 struct stepfile {
 	unsigned int len_qbeats;
@@ -65,36 +67,80 @@ int load_audio(struct fat16_handle * h, unsigned int * mem_location)
 	return rv;
 }
 
-void draw_blah(unsigned int *buf, unsigned int x0, unsigned int y0, unsigned int color) {
+void draw_blah(unsigned int *buf0, unsigned int *buf1, unsigned int x0, unsigned int y0, unsigned int color, unsigned int* reading_from) {
 	int x, y;
+	unsigned int *reading_buf;
+	unsigned int *other_buf;
+	unsigned int *frame_start = 0x82000000;
+	if (reading_from == 0)
+	{
+		reading_buf = buf0;
+		other_buf = buf1;
+		
+	}
+	else
+	{
+		other_buf = buf0;
+		reading_buf = buf1;
+	}
 	for (y = y0; y < y0 + 5; y++) {
 		for (x = x0; x < x0 + 100; x+=10) {
-			buf[640*y+x+0] = color;
-			buf[640*y+x+1] = color;
-			buf[640*y+x+2] = color;
-			buf[640*y+x+3] = color;
-			buf[640*y+x+4] = color;
-			buf[640*y+x+5] = color;
-			buf[640*y+x+6] = color;
-			buf[640*y+x+7] = color;
-			buf[640*y+x+8] = color;
-			buf[640*y+x+9] = color;
+			other_buf[640*y+x+0] = color;
+			other_buf[640*y+x+1] = color;
+			other_buf[640*y+x+2] = color;
+			other_buf[640*y+x+3] = color;
+			other_buf[640*y+x+4] = color;
+			other_buf[640*y+x+5] = color;
+			other_buf[640*y+x+6] = color;
+			other_buf[640*y+x+7] = color;
+			other_buf[640*y+x+8] = color;
+			other_buf[640*y+x+9] = color;
 		}
 	}
 	for (y = y0 + 5; y < y0 + 15; y++) {
 		for (x = x0; x < x0 + 100; x+=10) {
-			buf[640*y+x+0] = 0x00000000;
-			buf[640*y+x+1] = 0x00000000;
-			buf[640*y+x+2] = 0x00000000;
-			buf[640*y+x+3] = 0x00000000;
-			buf[640*y+x+4] = 0x00000000;
-			buf[640*y+x+5] = 0x00000000;
-			buf[640*y+x+6] = 0x00000000;
-			buf[640*y+x+7] = 0x00000000;
-			buf[640*y+x+8] = 0x00000000;
-			buf[640*y+x+9] = 0x00000000;
+			other_buf[640*y+x+0] = 0x00000000;
+			other_buf[640*y+x+1] = 0x00000000;
+			other_buf[640*y+x+2] = 0x00000000;
+			other_buf[640*y+x+3] = 0x00000000;
+			other_buf[640*y+x+4] = 0x00000000;
+			other_buf[640*y+x+5] = 0x00000000;
+			other_buf[640*y+x+6] = 0x00000000;
+			other_buf[640*y+x+7] = 0x00000000;
+			other_buf[640*y+x+8] = 0x00000000;
+			other_buf[640*y+x+9] = 0x00000000;
 		}
 	}
+	*frame_start = (int)other_buf;
+	for (y = y0; y < y0 + 5; y++) {
+		for (x = x0; x < x0 + 100; x+=10) {
+			reading_buf[640*y+x+0] = color;
+			reading_buf[640*y+x+1] = color;
+			reading_buf[640*y+x+2] = color;
+			reading_buf[640*y+x+3] = color;
+			reading_buf[640*y+x+4] = color;
+			reading_buf[640*y+x+5] = color;
+			reading_buf[640*y+x+6] = color;
+			reading_buf[640*y+x+7] = color;
+			reading_buf[640*y+x+8] = color;
+			reading_buf[640*y+x+9] = color;
+		}
+	}
+	for (y = y0 + 5; y < y0 + 15; y++) {
+		for (x = x0; x < x0 + 100; x+=10) {
+			reading_buf[640*y+x+0] = 0x00000000;
+			reading_buf[640*y+x+1] = 0x00000000;
+			reading_buf[640*y+x+2] = 0x00000000;
+			reading_buf[640*y+x+3] = 0x00000000;
+			reading_buf[640*y+x+4] = 0x00000000;
+			reading_buf[640*y+x+5] = 0x00000000;
+			reading_buf[640*y+x+6] = 0x00000000;
+			reading_buf[640*y+x+7] = 0x00000000;
+			reading_buf[640*y+x+8] = 0x00000000;
+			reading_buf[640*y+x+9] = 0x00000000;
+		}
+	}
+	*reading_from = !(*reading_from);	
 }
 
 static struct stepfile song;
@@ -102,8 +148,39 @@ static struct stepfile song;
 void main()
 {
 	int i, j;
-	unsigned int *start_d = 0x00100000;
+	unsigned int *start_d0 = 0x02300000;
+	unsigned int *start_d1 = 0x02500000; /* two buffers needed for double buffering */
+	for (i = 0; i < SCREEN_HEIGHT; i++) {
+		for (j = 0; j < SCREEN_WIDTH; j+=10) {
+			start_d0[i*SCREEN_WIDTH+j+0] = 0x0000ffff;
+			start_d0[i*SCREEN_WIDTH+j+1] = 0x0000ffff;
+			start_d0[i*SCREEN_WIDTH+j+2] = 0x0000ffff;
+			start_d0[i*SCREEN_WIDTH+j+3] = 0x0000ffff;
+			start_d0[i*SCREEN_WIDTH+j+4] = 0x0000ffff;
+			start_d0[i*SCREEN_WIDTH+j+5] = 0x0000ffff;
+			start_d0[i*SCREEN_WIDTH+j+6] = 0x0000ffff;
+			start_d0[i*SCREEN_WIDTH+j+7] = 0x0000ffff;
+			start_d0[i*SCREEN_WIDTH+j+8] = 0x0000ffff;
+			start_d0[i*SCREEN_WIDTH+j+9] = 0x0000ffff;
+		}
+	}
+	for (i = 0; i < SCREEN_HEIGHT; i++) {
+		for (j = 0; j < SCREEN_WIDTH; j+=10) {
+			start_d1[i*SCREEN_WIDTH+j+0] = 0x0000ffff;
+			start_d1[i*SCREEN_WIDTH+j+1] = 0x0000ffff;
+			start_d1[i*SCREEN_WIDTH+j+2] = 0x0000ffff;
+			start_d1[i*SCREEN_WIDTH+j+3] = 0x0000ffff;
+			start_d1[i*SCREEN_WIDTH+j+4] = 0x0000ffff;
+			start_d1[i*SCREEN_WIDTH+j+5] = 0x0000ffff;
+			start_d1[i*SCREEN_WIDTH+j+6] = 0x0000ffff;
+			start_d1[i*SCREEN_WIDTH+j+7] = 0x0000ffff;
+			start_d1[i*SCREEN_WIDTH+j+8] = 0x0000ffff;
+			start_d1[i*SCREEN_WIDTH+j+9] = 0x0000ffff;
+		}
+	}
+	unsigned int *reading_from = 0x01700000;
 	unsigned int *num_clock_cycles = 0x86000000;
+	*reading_from = 0;
 	int length;
 	int rv;
 
@@ -226,13 +303,13 @@ void main()
 			int y = 50 + 50 * i + 50 * (song.samps_per_qbeat - rem) / song.samps_per_qbeat;
 			datum = song.qsteps[qbeat+i];
 			if ((datum >> 3) & 1)
-				draw_blah(start_d, 50, y, 0xffffffff);
+				draw_blah(start_d0, start_d1, 50, y, 0xffffffff, reading_from);
 			if ((datum >> 2) & 1)
-				draw_blah(start_d, 200, y, 0xffffffff);
+				draw_blah(start_d0, start_d1, 200, y, 0xffffffff, reading_from);
 			if ((datum >> 1) & 1)
-				draw_blah(start_d, 350, y, 0xffffffff);
+				draw_blah(start_d0, start_d1, 350, y, 0xffffffff, reading_from);
 			if ((datum >> 0) & 1)
-				draw_blah(start_d, 500, y, 0xffffffff);
+				draw_blah(start_d0, start_d1, 500, y, 0xffffffff, reading_from);
 		}
 		int y = 50 + 50 * (song.samps_per_qbeat - rem) / song.samps_per_qbeat;
 		if ((datum >> 3) & 1) {
@@ -240,28 +317,28 @@ void main()
 			if (hit_l == qbeat_round) {
 				color = 0xff0000ff;
 			}
-			draw_blah(start_d, 50, y, color);
+			draw_blah(start_d0, start_d1, 50, y, color, reading_from);
 		}
 		if ((datum >> 2) & 1) {
 			int color = 0xffffffff;
 			if (hit_u == qbeat_round) {
 				color = 0xff0000ff;
 			}
-			draw_blah(start_d, 200, y, color);
+			draw_blah(start_d0, start_d1, 200, y, color, reading_from);
 		}
 		if ((datum >> 1) & 1) {
 			int color = 0xffffffff;
 			if (hit_d == qbeat_round) {
 				color = 0xff0000ff;
 			}
-			draw_blah(start_d, 350, y, color);
+			draw_blah(start_d0, start_d1, 350, y, color, reading_from);
 		}
 		if ((datum >> 0) & 1) {
 			int color = 0xffffffff;
 			if (hit_r == qbeat_round) {
 				color = 0xff0000ff;
 			}
-			draw_blah(start_d, 500, y, color);
+			draw_blah(start_d0, start_d1, 500, y, color, reading_from);
 		}
 	}
 }
