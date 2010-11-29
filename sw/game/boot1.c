@@ -2,6 +2,24 @@
 #include "audio.h"
 #include "fat16.h"
 #include "minilib.h"
+#include "accel.h"
+
+#include "left_4.c"
+#include "down_4.c"
+#include "up_4.c"
+#include "right_4.c"
+#include "left_8.c"
+#include "down_8.c"
+#include "up_8.c"
+#include "right_8.c"
+#include "left_16.c"
+#include "down_16.c"
+#include "up_16.c"
+#include "right_16.c"
+#include "left_spot.c"
+#include "down_spot.c"
+#include "up_spot.c"
+#include "right_spot.c"
 
 #define MAX_QBEATS 50000
 #define SCREEN_WIDTH 640
@@ -67,80 +85,53 @@ int load_audio(struct fat16_handle * h, unsigned int * mem_location)
 	return rv;
 }
 
-void draw_blah(unsigned int *buf0, unsigned int *buf1, unsigned int x0, unsigned int y0, unsigned int color, unsigned int* reading_from) {
-	int x, y;
-	unsigned int *reading_buf;
-	unsigned int *other_buf;
+/*
+ * Double buffering
+ */
+
+struct dbuf {
+	unsigned int* bufs[2];
+	int which;
+};
+
+unsigned int* dbuf_flip(struct dbuf *dbuf)
+{
 	unsigned int *frame_start = 0x82000000;
-	if (reading_from == 0)
-	{
-		reading_buf = buf0;
-		other_buf = buf1;
-		
-	}
-	else
-	{
-		other_buf = buf0;
-		reading_buf = buf1;
-	}
-	for (y = y0; y < y0 + 5; y++) {
-		for (x = x0; x < x0 + 100; x+=10) {
-			other_buf[640*y+x+0] = color;
-			other_buf[640*y+x+1] = color;
-			other_buf[640*y+x+2] = color;
-			other_buf[640*y+x+3] = color;
-			other_buf[640*y+x+4] = color;
-			other_buf[640*y+x+5] = color;
-			other_buf[640*y+x+6] = color;
-			other_buf[640*y+x+7] = color;
-			other_buf[640*y+x+8] = color;
-			other_buf[640*y+x+9] = color;
+	unsigned int *frame_nread = 0x8200000c;
+	*frame_start = dbuf->bufs[dbuf->which];
+	unsigned int read_last = *frame_nread;
+	unsigned int read;
+	while ((read = *frame_nread) >= read_last) read_last = read;
+	dbuf->which = !dbuf->which;
+	return dbuf->bufs[dbuf->which];
+}
+
+unsigned int* dbuf_init(struct dbuf *dbuf, unsigned int *buf0, unsigned int *buf1)
+{
+	dbuf->bufs[0] = buf0;
+	dbuf->bufs[1] = buf1;
+	dbuf->which = 0;
+	return dbuf_flip(dbuf);
+}
+
+#define SPRITE_DIM 64
+#define OTHER_ENDIANNESS(x) (((x>>24) & 0xff) | ((x >> 8) & 0xff00) | ((x << 8) & 0xff0000) | ((x << 24) & 0xff000000))
+#define DRAW_PIX(buf, img, x0, y0, y, x) if ((img)[SPRITE_DIM*(y)+(x)]&0xff000000) (buf)[SCREEN_WIDTH*(y0+y)+(x0+x)] = OTHER_ENDIANNESS((img)[SPRITE_DIM*(y)+(x)]);
+
+void draw_note(unsigned int *buf, unsigned int x0, unsigned int y0, unsigned int *image) {
+	int x, y;
+	for (y = 0; y < SPRITE_DIM; y++) {
+		for (x = 0; x < SPRITE_DIM; x+=8) {
+			DRAW_PIX(buf, image, x0, y0, y, x+0);
+			DRAW_PIX(buf, image, x0, y0, y, x+1);
+			DRAW_PIX(buf, image, x0, y0, y, x+2);
+			DRAW_PIX(buf, image, x0, y0, y, x+3);
+			DRAW_PIX(buf, image, x0, y0, y, x+4);
+			DRAW_PIX(buf, image, x0, y0, y, x+5);
+			DRAW_PIX(buf, image, x0, y0, y, x+6);
+			DRAW_PIX(buf, image, x0, y0, y, x+7);
 		}
 	}
-	for (y = y0 + 5; y < y0 + 15; y++) {
-		for (x = x0; x < x0 + 100; x+=10) {
-			other_buf[640*y+x+0] = 0x00000000;
-			other_buf[640*y+x+1] = 0x00000000;
-			other_buf[640*y+x+2] = 0x00000000;
-			other_buf[640*y+x+3] = 0x00000000;
-			other_buf[640*y+x+4] = 0x00000000;
-			other_buf[640*y+x+5] = 0x00000000;
-			other_buf[640*y+x+6] = 0x00000000;
-			other_buf[640*y+x+7] = 0x00000000;
-			other_buf[640*y+x+8] = 0x00000000;
-			other_buf[640*y+x+9] = 0x00000000;
-		}
-	}
-	*frame_start = (int)other_buf;
-	for (y = y0; y < y0 + 5; y++) {
-		for (x = x0; x < x0 + 100; x+=10) {
-			reading_buf[640*y+x+0] = color;
-			reading_buf[640*y+x+1] = color;
-			reading_buf[640*y+x+2] = color;
-			reading_buf[640*y+x+3] = color;
-			reading_buf[640*y+x+4] = color;
-			reading_buf[640*y+x+5] = color;
-			reading_buf[640*y+x+6] = color;
-			reading_buf[640*y+x+7] = color;
-			reading_buf[640*y+x+8] = color;
-			reading_buf[640*y+x+9] = color;
-		}
-	}
-	for (y = y0 + 5; y < y0 + 15; y++) {
-		for (x = x0; x < x0 + 100; x+=10) {
-			reading_buf[640*y+x+0] = 0x00000000;
-			reading_buf[640*y+x+1] = 0x00000000;
-			reading_buf[640*y+x+2] = 0x00000000;
-			reading_buf[640*y+x+3] = 0x00000000;
-			reading_buf[640*y+x+4] = 0x00000000;
-			reading_buf[640*y+x+5] = 0x00000000;
-			reading_buf[640*y+x+6] = 0x00000000;
-			reading_buf[640*y+x+7] = 0x00000000;
-			reading_buf[640*y+x+8] = 0x00000000;
-			reading_buf[640*y+x+9] = 0x00000000;
-		}
-	}
-	*reading_from = !(*reading_from);	
 }
 
 static struct stepfile song;
@@ -148,45 +139,12 @@ static struct stepfile song;
 void main()
 {
 	int i, j;
-	unsigned int *start_d0 = 0x02300000;
-	unsigned int *start_d1 = 0x02500000; /* two buffers needed for double buffering */
-	for (i = 0; i < SCREEN_HEIGHT; i++) {
-		for (j = 0; j < SCREEN_WIDTH; j+=10) {
-			start_d0[i*SCREEN_WIDTH+j+0] = 0x0000ffff;
-			start_d0[i*SCREEN_WIDTH+j+1] = 0x0000ffff;
-			start_d0[i*SCREEN_WIDTH+j+2] = 0x0000ffff;
-			start_d0[i*SCREEN_WIDTH+j+3] = 0x0000ffff;
-			start_d0[i*SCREEN_WIDTH+j+4] = 0x0000ffff;
-			start_d0[i*SCREEN_WIDTH+j+5] = 0x0000ffff;
-			start_d0[i*SCREEN_WIDTH+j+6] = 0x0000ffff;
-			start_d0[i*SCREEN_WIDTH+j+7] = 0x0000ffff;
-			start_d0[i*SCREEN_WIDTH+j+8] = 0x0000ffff;
-			start_d0[i*SCREEN_WIDTH+j+9] = 0x0000ffff;
-		}
-	}
-	for (i = 0; i < SCREEN_HEIGHT; i++) {
-		for (j = 0; j < SCREEN_WIDTH; j+=10) {
-			start_d1[i*SCREEN_WIDTH+j+0] = 0x0000ffff;
-			start_d1[i*SCREEN_WIDTH+j+1] = 0x0000ffff;
-			start_d1[i*SCREEN_WIDTH+j+2] = 0x0000ffff;
-			start_d1[i*SCREEN_WIDTH+j+3] = 0x0000ffff;
-			start_d1[i*SCREEN_WIDTH+j+4] = 0x0000ffff;
-			start_d1[i*SCREEN_WIDTH+j+5] = 0x0000ffff;
-			start_d1[i*SCREEN_WIDTH+j+6] = 0x0000ffff;
-			start_d1[i*SCREEN_WIDTH+j+7] = 0x0000ffff;
-			start_d1[i*SCREEN_WIDTH+j+8] = 0x0000ffff;
-			start_d1[i*SCREEN_WIDTH+j+9] = 0x0000ffff;
-		}
-	}
-	unsigned int *reading_from = 0x01700000;
-	unsigned int *num_clock_cycles = 0x86000000;
-	*reading_from = 0;
+	unsigned int *start_d0 = 0x08000000;
+	unsigned int *start_d1 = 0x08000000; /* two buffers needed for double buffering */
 	int length;
 	int rv;
 
 	unsigned int *audio_mem_base = 0x00800000;
-
-	int audio_len;
 
 	int fat16_start;
 	struct fat16_handle h;
@@ -224,6 +182,9 @@ void main()
 
 	audio_play(audio_mem_base, length, AUDIO_MODE_ONCE);
 
+	struct dbuf double_buffer;
+	unsigned int *buf;
+
 	volatile unsigned int * scancodeaddr = 0x85000000;
 	unsigned int scancode;
 	kh_type k;
@@ -244,8 +205,15 @@ void main()
 	int hits = 0;
 	signed int qbeat_last;
 
+	buf = dbuf_init(&double_buffer, start_d0, start_d1);
+
+	int * left_arrows[4]  = {&(left_4_img.pixel_data), &(left_16_img.pixel_data), &(left_8_img.pixel_data), &(left_16_img.pixel_data)};
+	int * down_arrows[4]  = {&(down_4_img.pixel_data), &(down_16_img.pixel_data), &(down_8_img.pixel_data), &(down_16_img.pixel_data)};
+	int * up_arrows[4]  = {&(up_4_img.pixel_data), &(up_16_img.pixel_data), &(up_8_img.pixel_data), &(up_16_img.pixel_data)};
+	int * right_arrows[4]  = {&(right_4_img.pixel_data), &(right_16_img.pixel_data), &(right_8_img.pixel_data), &(right_16_img.pixel_data)};
+
 	while (1) {
-		signed int qbeat, rem, qbeat_round;
+		signed int qbeat, rem, qbeat_round, meas_qbeat;
 		char datum;
 		int i;
 		int lnow = l;
@@ -274,23 +242,27 @@ void main()
 
 		if (lnow && !l) {
 			if ((song.qsteps[qbeat_round] >> 3) & 1) hits++;
+			printf("%d %d %d %d\r\n", rem, song.samps_per_qbeat - rem, *((unsigned int*)0x8400000c), *((unsigned int*)0x84000010));
 			hit_l = qbeat_round;
 		}
 		if (unow && !u) {
 			if ((song.qsteps[qbeat_round] >> 2) & 1) hits++;
+			printf("%d %d %d %d\r\n", rem, song.samps_per_qbeat - rem, *((unsigned int*)0x8400000c), *((unsigned int*)0x84000010));
 			hit_u = qbeat_round;
 		}
 		if (dnow && !d) {
 			if ((song.qsteps[qbeat_round] >> 1) & 1) hits++;
+			printf("%d %d %d %d\r\n", rem, song.samps_per_qbeat - rem, *((unsigned int*)0x8400000c), *((unsigned int*)0x84000010));
 			hit_d = qbeat_round;
 		}
 		if (rnow && !r) {
 			if ((song.qsteps[qbeat_round] >> 0) & 1) hits++;
+			printf("%d %d %d %d\r\n", rem, song.samps_per_qbeat - rem, *((unsigned int*)0x8400000c), *((unsigned int*)0x84000010));
 			hit_r = qbeat_round;
 		}
 
 		if (qbeat_last != qbeat) {
-			printf("%d\r\n", hits);
+			//printf("%d\r\n", hits);
 			qbeat_last = qbeat;
 		}
 
@@ -299,47 +271,27 @@ void main()
 		d = dnow;
 		r = rnow;
 
-		for (i = 7; i > 0; i--) {
+		accel_fill(buf, 0x00000000, SCREEN_WIDTH*SCREEN_HEIGHT);
+
+		draw_note(buf,  25, 50, &(left_spot_img.pixel_data));
+		draw_note(buf, 100, 50, &(down_spot_img.pixel_data));
+		draw_note(buf, 175, 50, &(up_spot_img.pixel_data));
+		draw_note(buf, 250, 50, &(right_spot_img.pixel_data));
+		for (i = 7; i >= -1; i--) {
 			int y = 50 + 50 * i + 50 * (song.samps_per_qbeat - rem) / song.samps_per_qbeat;
+			int spot_in_beat = (qbeat + i) % 4;
 			datum = song.qsteps[qbeat+i];
 			if ((datum >> 3) & 1)
-				draw_blah(start_d0, start_d1, 50, y, 0xffffffff, reading_from);
+				draw_note(buf, 25, y, left_arrows[spot_in_beat]);
 			if ((datum >> 2) & 1)
-				draw_blah(start_d0, start_d1, 200, y, 0xffffffff, reading_from);
+				draw_note(buf, 100, y, down_arrows[spot_in_beat]);
 			if ((datum >> 1) & 1)
-				draw_blah(start_d0, start_d1, 350, y, 0xffffffff, reading_from);
+				draw_note(buf, 175, y, up_arrows[spot_in_beat]);
 			if ((datum >> 0) & 1)
-				draw_blah(start_d0, start_d1, 500, y, 0xffffffff, reading_from);
+				draw_note(buf, 250, y, right_arrows[spot_in_beat]);
 		}
-		int y = 50 + 50 * (song.samps_per_qbeat - rem) / song.samps_per_qbeat;
-		if ((datum >> 3) & 1) {
-			int color = 0xffffffff;
-			if (hit_l == qbeat_round) {
-				color = 0xff0000ff;
-			}
-			draw_blah(start_d0, start_d1, 50, y, color, reading_from);
-		}
-		if ((datum >> 2) & 1) {
-			int color = 0xffffffff;
-			if (hit_u == qbeat_round) {
-				color = 0xff0000ff;
-			}
-			draw_blah(start_d0, start_d1, 200, y, color, reading_from);
-		}
-		if ((datum >> 1) & 1) {
-			int color = 0xffffffff;
-			if (hit_d == qbeat_round) {
-				color = 0xff0000ff;
-			}
-			draw_blah(start_d0, start_d1, 350, y, color, reading_from);
-		}
-		if ((datum >> 0) & 1) {
-			int color = 0xffffffff;
-			if (hit_r == qbeat_round) {
-				color = 0xff0000ff;
-			}
-			draw_blah(start_d0, start_d1, 500, y, color, reading_from);
-		}
+
+		buf = dbuf_flip(&double_buffer);
 	}
 }
 
