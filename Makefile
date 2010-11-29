@@ -4,6 +4,7 @@ RUNDIR ?= runs/$(RUN)
 
 default:
 	@echo "targets:"
+	@echo "  sw           builds software (must be run before fpga to build boot0)"
 	@echo "  fpga         runs a complete pass through the tool flow"
 	@echo "  sim          produces a Verilator binary"
 	@echo "  tests        rebuilds tests"
@@ -14,6 +15,9 @@ default:
 	@echo
 	@echo "error: you must specify a valid target"
 	@exit 1
+
+sw: .DUMMY
+	@make -C sw
 
 ###############################################################################
 

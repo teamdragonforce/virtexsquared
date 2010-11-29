@@ -9,7 +9,7 @@ void boot(struct fat16_handle *h, char *name)
 {
 	int rv;
 	struct fat16_file fd;
-	static int buf[512*1024];
+	unsigned char *buf = (unsigned char *)0x01000000; /* +16M */
 	void (*game)();
 	
 	printf("Attempting to boot %s... ", name);
@@ -19,7 +19,7 @@ void boot(struct fat16_handle *h, char *name)
 		return;
 	} 
 	
-	rv = fat16_read(&fd, (void *)buf, 512*1024);
+	rv = fat16_read(&fd, (void *)buf, 8*1024*1024);
 	printf("found it! (%d bytes)\r\n", rv);
 
 	game = elf_load((char *)buf, rv);

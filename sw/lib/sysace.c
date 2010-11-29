@@ -1,11 +1,13 @@
 #include "sysace.h"
 #include "serial.h"
 
-void sysace_init()
+int sysace_init()
 {
 	volatile unsigned int *sace = SYSACE_BASE;
 
 	sace[SYSACE_BUSMODE] = SYSACE_BUSMODE_WORD;	/* Put the SystemACE in word-wide mode */
+	
+	return (sace[SYSACE_STATUSREG_0] & SYSACE_STATUSREG_0_CFDETECT) ? 0 : -1;
 }
 
 int sysace_getcflock()
