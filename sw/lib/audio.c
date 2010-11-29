@@ -4,7 +4,7 @@
 static volatile int *dma_start  = (int*) 0x84000000;
 static volatile int *dma_length = (int*) 0x84000004;
 static volatile int *dma_cmd    = (int*) 0x84000008;
-static volatile int *dma_nread  = (int*) 0x84000010;
+static volatile int *dma_nread  = (int*) 0x8400000c;
 
 static volatile short *master_vol = (short*) 0x84000100;
 static volatile short *mic_vol    = (short*) 0x84000104;
