@@ -167,13 +167,17 @@ int fat16_read(struct fat16_file *fd, unsigned char *buf, int len)
 	len = (len > (fd->len - fd->pos)) ? (fd->len - fd->pos) : len;
 
 #ifdef DEBUG
-	printf("FAT16: Length to read: %d\r\n", len);
+	printf("FAT16: length to read: %d\r\n", len);
 #endif
 	
 	while (len && !FAT16_CLUSTER_IS_EOF(fd->cluster))
 	{
 		int cluslen;
 		int rem = FAT16_BYTES_PER_CLUSTER(fd->h) - fd->pos % FAT16_BYTES_PER_CLUSTER(fd->h);
+#ifdef DEBUG
+		printf("FAT16: bytes remaining: %d\r\n", len);
+		printf("FAT16: reading from cluster %d\r\n", fd->cluster);
+#endif
 		
 		cluslen = (rem > len) ? len : rem;
 		
@@ -185,7 +189,8 @@ int fat16_read(struct fat16_file *fd, unsigned char *buf, int len)
 			
 			int secnum = FAT16_CLUSTER(fd->h, fd->cluster) + (fd->pos / 512) % fd->h->sectors_per_cluster;
 #ifdef DEBUG
-			printf("FAT16: reading from sector: %d\r\n", secnum);
+			printf("FAT16: bytes remaining in cluster: %d\r\n", cluslen);
+			printf("FAT16: reading from sector %d\r\n", secnum);
 #endif
 			
 			if (sysace_readsec(secnum, (unsigned int *)secbuf))
@@ -193,10 +198,6 @@ int fat16_read(struct fat16_file *fd, unsigned char *buf, int len)
 				puts("failed to read sector!");
 				return retlen ? retlen : -1;
 			}
-
-#ifdef DEBUG
-			printf("FAT16: copying from buffer: %d\r\n", seclen);
-#endif
 			
 			memcpy(buf, secbuf + fd->pos % 512, seclen);
 			
@@ -210,6 +211,11 @@ int fat16_read(struct fat16_file *fd, unsigned char *buf, int len)
 		if ((fd->pos % FAT16_BYTES_PER_CLUSTER(fd->h)) == 0)
 			fd->cluster = fat16_get_next_cluster(fd->h, fd->cluster);
 	}
+#ifdef DEBUG
+	printf("FAT16: done! found eof? %d\r\n", FAT16_CLUSTER_IS_EOF(fd->cluster));
+	printf("FAT16: cluster: %x\r\n", fd->cluster);
+	printf("FAT16: final bytes remaining: %d\r\n", len);
+#endif
 	
 	return retlen;
 }
