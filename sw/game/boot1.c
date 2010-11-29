@@ -3,6 +3,7 @@
 #include "fat16.h"
 #include "minilib.h"
 #include "accel.h"
+#include "malloc.h"
 
 #include "left_4.c"
 #include "down_4.c"
@@ -67,37 +68,50 @@ int load_steps(struct fat16_handle * h, struct stepfile * song)
 	return 0;
 }
 
-int load_audio(struct fat16_handle * h, unsigned int * mem_location)
+unsigned int *load_audio(struct fat16_handle * h, int *length)
 {
 	int rv;
 	struct fat16_file fd;
+	unsigned int *p;
 	
 	printf("Opening AUDIO.RAW... ");
 	if (fat16_open_by_name(h, &fd, "AUDIO   RAW") == -1)
 	{
 		printf("not found?\r\n");
-		return -1;
+		return NULL;
 	} 
 	
-	rv = fat16_read(&fd, (void*)mem_location, 100000000);
+	p = malloc(fd.len + 64);
+	if (!p)
+	{
+		printf("malloc(%d) failed!\n", fd.len + 64);
+		return NULL;
+	}
+	
+	p = (unsigned int *)(((unsigned int)p + 64) & ~63);
+	
+	rv = fat16_read(&fd, (void*)p, fd.len);
 	printf("loaded! (%d bytes)\r\n", rv);
 	
-	return rv;
+	if (length)
+		*length = rv;
+	
+	return p;
 }
 
 /*
  * Double buffering
  */
-
 struct dbuf {
-	unsigned int* bufs[2];
+	unsigned int *bufs[2];
+	unsigned int *bufs_orig[2];
 	int which;
 };
 
-unsigned int* dbuf_flip(struct dbuf *dbuf)
+unsigned int *dbuf_flip(struct dbuf *dbuf)
 {
-	unsigned int *frame_start = 0x82000000;
-	unsigned int *frame_nread = 0x8200000c;
+	volatile unsigned int *frame_start = 0x82000000;
+	volatile unsigned int *frame_nread = 0x8200000c;
 	*frame_start = dbuf->bufs[dbuf->which];
 	unsigned int read_last = *frame_nread;
 	unsigned int read;
@@ -106,11 +120,14 @@ unsigned int* dbuf_flip(struct dbuf *dbuf)
 	return dbuf->bufs[dbuf->which];
 }
 
-unsigned int* dbuf_init(struct dbuf *dbuf, unsigned int *buf0, unsigned int *buf1)
+unsigned int *dbuf_init(struct dbuf *dbuf)
 {
-	dbuf->bufs[0] = buf0;
-	dbuf->bufs[1] = buf1;
+	dbuf->bufs_orig[0] = malloc(SCREEN_WIDTH*SCREEN_HEIGHT*4 + 64);
+	dbuf->bufs_orig[1] = malloc(SCREEN_WIDTH*SCREEN_HEIGHT*4 + 64);
+	dbuf->bufs[0] = (unsigned int *) (((unsigned int) dbuf->bufs_orig[0] + 64) & ~63);
+	dbuf->bufs[1] = (unsigned int *) (((unsigned int) dbuf->bufs_orig[1] + 64) & ~63);
 	dbuf->which = 0;
+	
 	return dbuf_flip(dbuf);
 }
 
@@ -139,12 +156,10 @@ static struct stepfile song;
 void main()
 {
 	int i, j;
-	unsigned int *start_d0 = 0x08000000;
-	unsigned int *start_d1 = 0x08000000; /* two buffers needed for double buffering */
 	int length;
 	int rv;
 
-	unsigned int *audio_mem_base = 0x00800000;
+	unsigned int *audio_mem_base;
 
 	int fat16_start;
 	struct fat16_handle h;
@@ -172,8 +187,8 @@ void main()
 		return;
 	}
 
-	length = load_audio(&h, audio_mem_base);
-	if (rv < 0) {
+	audio_mem_base = load_audio(&h, &length);
+	if (!audio_mem_base) {
 		printf("Failure loading audio! (%d)\r\n", rv);
 		return;
 	}
@@ -205,7 +220,7 @@ void main()
 	int hits = 0;
 	signed int qbeat_last;
 
-	buf = dbuf_init(&double_buffer, start_d0, start_d1);
+	buf = dbuf_init(&double_buffer);
 
 	int * left_arrows[4]  = {&(left_4_img.pixel_data), &(left_16_img.pixel_data), &(left_8_img.pixel_data), &(left_16_img.pixel_data)};
 	int * down_arrows[4]  = {&(down_4_img.pixel_data), &(down_16_img.pixel_data), &(down_8_img.pixel_data), &(down_16_img.pixel_data)};
