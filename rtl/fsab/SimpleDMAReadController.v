@@ -80,7 +80,7 @@ module SimpleDMAReadController(/*AUTOARG*/
 	
 	parameter SPAM_DID = 4'hx;
 	parameter SPAM_ADDRPFX = 24'h000000;
-	parameter SPAM_ADDRMASK = 24'hFFFFF0;
+	parameter SPAM_ADDRMASK = 24'h000000;
 
 	parameter DEFAULT_ADDR = 31'h00000000;
 	parameter DEFAULT_LEN = 31'h00000000;
@@ -110,6 +110,10 @@ module SimpleDMAReadController(/*AUTOARG*/
         /* Config */ 
         wire [FSAB_ADDR_HI:0] next_start_addr;
         wire [FSAB_ADDR_HI:0] next_len;
+
+	/* Total Bytes Delivered */
+	reg [FSAB_ADDR_HI:0] total_bytes_delivered_tclk = 0;
+	wire [FSAB_ADDR_HI:0] total_bytes_delivered_cclk;
 
 	/* Bytes Read */
 	reg [FSAB_ADDR_HI:0] fifo_bytes_read_tclk = 0;
@@ -167,14 +171,6 @@ module SimpleDMAReadController(/*AUTOARG*/
 			dmac__fsabo_addr = next_fsab_addr;
 			dmac__fsabo_len = 'h8; 
 		end	
-	end
-
-	always @(posedge target_clk) begin
-		if (start_read && target_rst_b) begin
-			`ifdef verilator
-				$display("DMA_READ from %x", next_fsab_addr);
-			`endif
-		end
 	end
 
 			
@@ -264,11 +260,10 @@ module SimpleDMAReadController(/*AUTOARG*/
 		if (!target_rst_b) begin
 			data_ready <= 0;
 			fifo_rpos <= 0;
+			total_bytes_delivered_tclk <= 0;
 		end else begin
 			if (request && !fifo_empty) begin
-			`ifdef verilator
-				$display("DMAC: Read %x from fifo at %x", fifo[fifo_rpos], fifo_rpos);
-			`endif
+				total_bytes_delivered_tclk <= total_bytes_delivered_tclk + 8;
 				data <= fifo[fifo_rpos];
 				data_ready <= 1;
 				fifo_rpos <= fifo_rpos + 'h1;
@@ -385,39 +380,63 @@ module SimpleDMAReadController(/*AUTOARG*/
 		                 .wr_data_cclk       (spamo_data[COMMAND_REGISTER_HI:0]));
 
 
+	wire rd_done_strobe_FIFO_BYTES_READ;
+	wire rd_done_strobe_TOTAL_BYTES_DELIVERED;
 	CSRAsyncRead #(.WIDTH        (FSAB_ADDR_HI+1))
 		CSR_FIFO_BYTES_READ (/* NOT AUTOINST */
 				     // Outputs
 				     .rd_data_cclk	(fifo_bytes_read_cclk),
 				     .rd_wait_cclk	(),
-				     .rd_done_strobe_cclk(),
+				     .rd_done_strobe_cclk(rd_done_strobe_FIFO_BYTES_READ),
 				     .rd_strobe_tclk	(),
 				     // Inputs
 				     .cclk		(cclk),
 				     .tclk		(target_clk),
 				     .rst_b_cclk	(cclk_rst_b),
 				     .rst_b_tclk	(target_rst_b),
-				     .rd_strobe_cclk	(1'b1),
+				     .rd_strobe_cclk	(rd_decode && (spamo_addr[DMA_SPAM_ADDR_HI:0] == FIFO_BYTES_READ_REG_ADDR)),
 				     .rd_data_tclk	(fifo_bytes_read_tclk));
 
-	reg rd_done_strobe_FIFO_BYTES_READ;
-	always @ (posedge cclk) begin
-		if (rd_decode && (spamo_addr[DMA_SPAM_ADDR_HI:0] == FIFO_BYTES_READ_REG_ADDR)) begin
-			rd_done_strobe_FIFO_BYTES_READ <= 1'b1;
-			dmac__spami_data <= {{(SPAM_DATA_HI-FSAB_ADDR_HI){1'b0}}, fifo_bytes_read_cclk};
+	CSRAsyncRead #(.WIDTH        (FSAB_ADDR_HI+1))
+		CSR_TOTAL_BYTES_DELIVERED (/* NOT AUTOINST */
+				     // Outputs
+				     .rd_data_cclk	(total_bytes_delivered_cclk),
+				     .rd_wait_cclk	(),
+				     .rd_done_strobe_cclk(rd_done_strobe_TOTAL_BYTES_DELIVERED),
+				     .rd_strobe_tclk	(),
+				     // Inputs
+				     .cclk		(cclk),
+				     .tclk		(target_clk),
+				     .rst_b_cclk	(cclk_rst_b),
+				     .rst_b_tclk	(target_rst_b),
+				     .rd_strobe_cclk	(rd_decode && (spamo_addr[DMA_SPAM_ADDR_HI:0] == TOTAL_BYTES_DELIVERED_REG_ADDR)),
+				     .rd_data_tclk	(total_bytes_delivered_tclk));
+
+
+	always @ (*) begin
+		if (rd_done_strobe_FIFO_BYTES_READ) begin
+			dmac__spami_data = {{(SPAM_DATA_HI-FSAB_ADDR_HI){1'b0}}, fifo_bytes_read_cclk};
+		end
+		else if (rd_done_strobe_TOTAL_BYTES_DELIVERED) begin
+			dmac__spami_data = {{(SPAM_DATA_HI-FSAB_ADDR_HI){1'b0}}, total_bytes_delivered_cclk};
 		end
 		else begin
-			rd_done_strobe_FIFO_BYTES_READ <= 1'b0;
-			dmac__spami_data <= 0;
+			dmac__spami_data = 0;
 		end
 	end
 
-	assign dmac__spami_busy_b = wr_done_strobe_COMMAND_REG | wr_done_strobe_NEXT_LEN_REG | wr_done_strobe_NEXT_START_REG | rd_done_strobe_FIFO_BYTES_READ;
+	assign dmac__spami_busy_b = wr_done_strobe_COMMAND_REG | wr_done_strobe_NEXT_LEN_REG | wr_done_strobe_NEXT_START_REG | rd_done_strobe_FIFO_BYTES_READ | rd_done_strobe_TOTAL_BYTES_DELIVERED;
 
 
 	always @(posedge cclk) begin
 		if (rd_done_strobe_FIFO_BYTES_READ) begin
 			$display("DMA: %x bytes read", dmac__spami_data);
+		end
+		if (rd_done_strobe_TOTAL_BYTES_DELIVERED) begin
+			$display("DMA: %x bytes delivered", dmac__spami_data);
+		end
+		if (rd_decode) begin
+			$display("DMA: SPAMO_ADDR: %x", spamo_addr);
 		end
 	end
 
