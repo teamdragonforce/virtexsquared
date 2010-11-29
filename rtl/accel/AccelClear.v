@@ -21,35 +21,35 @@ module AccelClear(/*AUTOARG*/
 	`include "spam_defines.vh"
 	
 	/* FSAB interface */
-	output reg                  accel_clear__fsabo_valid = 0;
-	output reg [FSAB_REQ_HI:0]  accel_clear__fsabo_mode = 0;
-	output reg [FSAB_DID_HI:0]  accel_clear__fsabo_did = 0;
-	output reg [FSAB_DID_HI:0]  accel_clear__fsabo_subdid = 0;
-	output reg [FSAB_ADDR_HI:0] accel_clear__fsabo_addr = 0;
-	output reg [FSAB_LEN_HI:0]  accel_clear__fsabo_len = 0;
-	output reg [FSAB_DATA_HI:0] accel_clear__fsabo_data = 0;
-	output reg [FSAB_MASK_HI:0] accel_clear__fsabo_mask = 0;
-	input                       accel_clear__fsabo_credit;
+	output reg                   accel_clear__fsabo_valid = 0;
+	output reg  [FSAB_REQ_HI:0]  accel_clear__fsabo_mode = 0;
+	output reg  [FSAB_DID_HI:0]  accel_clear__fsabo_did = 0;
+	output reg  [FSAB_DID_HI:0]  accel_clear__fsabo_subdid = 0;
+	output reg  [FSAB_ADDR_HI:0] accel_clear__fsabo_addr = 0;
+	output reg  [FSAB_LEN_HI:0]  accel_clear__fsabo_len = 0;
+	output reg  [FSAB_DATA_HI:0] accel_clear__fsabo_data = 0;
+	output reg  [FSAB_MASK_HI:0] accel_clear__fsabo_mask = 0;
+	input                        accel_clear__fsabo_credit;
 	
-	input                       fsabi_clk;
-	input                       fsabi_rst_b;
-	input                       fsabi_valid;
-	input      [FSAB_DID_HI:0]  fsabi_did;
-	input      [FSAB_DID_HI:0]  fsabi_subdid;
-	input      [FSAB_DATA_HI:0] fsabi_data;
+	input                        fsabi_clk;
+	input                        fsabi_rst_b;
+	input                        fsabi_valid;
+	input       [FSAB_DID_HI:0]  fsabi_did;
+	input       [FSAB_DID_HI:0]  fsabi_subdid;
+	input       [FSAB_DATA_HI:0] fsabi_data;
 	
 	/* SPAM interface */
 	input cclk;
 	input cclk_rst_b;
 	
-	input                       spamo_valid;
-	input                       spamo_r_nw;
-	input      [SPAM_DID_HI:0]  spamo_did;
-	input      [SPAM_ADDR_HI:0] spamo_addr;
-	input      [SPAM_DATA_HI:0] spamo_data;
+	input                        spamo_valid;
+	input                        spamo_r_nw;
+	input       [SPAM_DID_HI:0]  spamo_did;
+	input       [SPAM_ADDR_HI:0] spamo_addr;
+	input       [SPAM_DATA_HI:0] spamo_data;
 
-	output                      accel_clear__spami_busy_b;
-	output reg [SPAM_DATA_HI:0] accel_clear__spami_data;
+	output wire                  accel_clear__spami_busy_b;
+	output wire [SPAM_DATA_HI:0] accel_clear__spami_data;
 	
 	`include "clog2.vh"
 	parameter FSAB_DID = FSAB_DID_ACCEL;
@@ -93,15 +93,17 @@ module AccelClear(/*AUTOARG*/
 	reg [30:0] addr = DEFAULT_ADDR;
 	reg [30:0] lenrem = DEFAULT_LENREM;
 
+	reg trans_start_1a = 0;
 	reg [FSAB_LEN_HI:0] trans_words_rem = 0;
 	wire [FSAB_LEN_HI:0] trans_words = (lenrem > FSAB_LEN_MAX) ? FSAB_LEN_MAX : lenrem[FSAB_LEN_HI:0];
-	assign trans_start = fsab_credit_avail && (trans_words_rem == 0) && (lenrem != 0) && !bus_addr_wr_strobe && !bus_lenrem_wr_strobe;
+	assign trans_start = fsab_credit_avail && (trans_words_rem == 0) && (lenrem != 0) && !bus_addr_wr_strobe && !bus_lenrem_wr_strobe && !trans_start_1a;
 	
 	always @(posedge fsabi_clk or negedge fsabi_rst_b) begin
 		if (!fsabi_rst_b) begin
 			addr <= DEFAULT_ADDR;
 			lenrem <= DEFAULT_LENREM;
 			trans_words_rem <= 0;
+			trans_start_1a <= 0;
 		end else begin
 			if (bus_addr_wr_strobe)
 				addr <= bus_addr;
@@ -117,31 +119,34 @@ module AccelClear(/*AUTOARG*/
 				trans_words_rem <= trans_words - 1;
 			else if (trans_words_rem != 0)
 				trans_words_rem <= trans_words_rem - 1;
+			
+			trans_start_1a <= trans_start;
 		end
 	end
 	
 
-	always @(*)
+	always @(posedge fsabi_clk or negedge fsabi_rst_b)
 	begin
-		accel_clear__fsabo_valid = 0;
-		accel_clear__fsabo_mode = {(FSAB_REQ_HI+1){1'bx}};
-		accel_clear__fsabo_did = {(FSAB_DID_HI+1){1'bx}};
-		accel_clear__fsabo_subdid = {(FSAB_DID_HI+1){1'bx}};
-		accel_clear__fsabo_addr = {(FSAB_ADDR_HI+1){1'bx}};
-		accel_clear__fsabo_len = {{FSAB_LEN_HI+1}{1'bx}};
-		accel_clear__fsabo_data = {{FSAB_DATA_HI+1}{1'bx}};
-		accel_clear__fsabo_mask = {{FSAB_MASK_HI+1}{1'bx}};
-		if ((trans_start || (trans_words_rem != 0)) && fsabi_rst_b)
-		begin
-			accel_clear__fsabo_valid = 1;
-			accel_clear__fsabo_mode = FSAB_WRITE;
-			accel_clear__fsabo_did = FSAB_DID;
-			accel_clear__fsabo_subdid = FSAB_SUBDID;
-			accel_clear__fsabo_addr = addr;
-			accel_clear__fsabo_len = trans_words;
-			accel_clear__fsabo_data = {bus_value, bus_value};
-			accel_clear__fsabo_mask = 8'hFF;
-		end	
+		if (!fsabi_rst_b) begin
+			accel_clear__fsabo_valid <= 0;
+			accel_clear__fsabo_mode <= {(FSAB_REQ_HI+1){1'bx}};
+			accel_clear__fsabo_did <= {(FSAB_DID_HI+1){1'bx}};
+			accel_clear__fsabo_subdid <= {(FSAB_DID_HI+1){1'bx}};
+			accel_clear__fsabo_addr <= {(FSAB_ADDR_HI+1){1'bx}};
+			accel_clear__fsabo_len <= {{FSAB_LEN_HI+1}{1'bx}};
+			accel_clear__fsabo_data <= {{FSAB_DATA_HI+1}{1'bx}};
+			accel_clear__fsabo_mask <= {{FSAB_MASK_HI+1}{1'bx}};
+		end else if ((trans_start || (trans_words_rem != 0)) && fsabi_rst_b) begin
+			accel_clear__fsabo_valid <= 1;
+			accel_clear__fsabo_mode <= FSAB_WRITE;
+			accel_clear__fsabo_did <= FSAB_DID;
+			accel_clear__fsabo_subdid <= FSAB_SUBDID;
+			accel_clear__fsabo_addr <= addr;
+			accel_clear__fsabo_len <= trans_words;
+			accel_clear__fsabo_data <= {bus_value, bus_value};
+			accel_clear__fsabo_mask <= 8'hFF;
+		end else
+			accel_clear__fsabo_valid <= 0;
 	end
 
 	/* Config */

@@ -245,7 +245,7 @@ module System(/*AUTOARG*/
 			  .spamo_addr		(spamo_addr[SPAM_ADDR_HI:0]),
 			  .spamo_data		(spamo_data[SPAM_DATA_HI:0]));
 
-	/*AUTO_LISP(defvar list-of-prefixes '("pre" "fb" "ic" "dc" "accel_clear" ))*/
+	/*AUTO_LISP(setq list-of-prefixes '("pre" "fb" "ic" "dc" "accel_clear" ))*/
 	parameter FSAB_DEVICES = 5;
 	wire [FSAB_DEVICES-1:0] fsabo_clks = {clk, clk, clk, clk, fsabi_clk};
 	wire [FSAB_DEVICES-1:0] fsabo_rst_bs = {rst_b, rst_b, rst_b, rst_b, fsabi_rst_b};
