@@ -11,3 +11,4 @@ parameter SPAM_DID_SACE = 3;
 parameter SPAM_DID_AUDIO = 4;
 parameter SPAM_DID_KEYBOARD = 5;
 parameter SPAM_DID_TIMER = 6;
+parameter SPAM_DID_ACCEL = 7;
