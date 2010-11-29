@@ -1,5 +1,6 @@
 CFLAGS=-mno-thumb-interwork -march=armv4 -O3 -g -I../lib
-OBJS=boot1.o ../lib/sysace.o ../lib/serial.o ../lib/doprnt.o ../lib/minilib.o \
+OBJS=boot1.o gencol.o\
+	../lib/sysace.o ../lib/serial.o ../lib/doprnt.o ../lib/minilib.o \
 	../lib/sprintf.o ../lib/keyhelp.o ../lib/console.o ../lib/fat16.o \
 	../lib/audio.o ../lib/accel.o ../lib/qalloc.o ../lib/malloc.o
 

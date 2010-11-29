@@ -56,36 +56,6 @@ int load_steps(struct fat16_handle * h, struct stepfile * song)
 	return 0;
 }
 
-unsigned int *load_audio(struct fat16_handle * h, int *length)
-{
-	int rv;
-	struct fat16_file fd;
-	unsigned int *p;
-	
-	printf("Opening AUDIO.RAW... ");
-	if (fat16_open_by_name(h, &fd, "AUDIO   RAW") == -1)
-	{
-		printf("not found?\r\n");
-		return NULL;
-	} 
-	
-	p = malloc(fd.len + 64);
-	if (!p)
-	{
-		printf("malloc(%d) failed!\n", fd.len + 64);
-		return NULL;
-	}
-	
-	p = (unsigned int *)(((unsigned int)p + 64) & ~63);
-	
-	rv = fat16_read(&fd, (void*)p, fd.len);
-	printf("loaded! (%d bytes)\r\n", rv);
-	
-	if (length)
-		*length = rv;
-	
-	return p;
-}
 
 /*
  * Double buffering
@@ -165,9 +135,15 @@ struct img_resource *img_load(struct fat16_handle *h, char *name)
 	return r;
 }
 
-void draw_note(unsigned int *fb, unsigned int x0, unsigned int y0, struct img_resource *r) {
+void bitblt(unsigned int *fb, unsigned int x0, unsigned int y0, struct img_resource *r) {
 	int x, y;
 	unsigned int *buf;
+	
+	if (((x0 + r->w) > 640) || ((y0 + r->h) > 480))
+	{
+		printf("BOUNDS CHECK!\r\n");
+		return;
+	}
 	
 	buf = r->pixels;
 	for (y = 0; y < r->h; y++) {
@@ -220,6 +196,98 @@ void cons_drawchar_with_scale(unsigned int *buf, int c, int x, int y, int fg, in
 					buf[(yy*scale+j) * SCREEN_WIDTH + (7 - (xx*scale+i))] = ((chars[c*8 + yy] >> xx) & 1) ? fg : bg; 
 }
 
+struct img_resource *left_arrows[4];
+struct img_resource *down_arrows[4];
+struct img_resource *up_arrows[4];
+struct img_resource *right_arrows[4];
+
+struct dbuf *dbuf;
+
+void splat_loading()
+{
+	int i;
+	static unsigned int *buf = NULL;
+	static int c = 0;
+	
+	if (!buf)
+	{
+		buf = dbuf_flip(dbuf);
+		accel_fill(buf, 0x00000000, SCREEN_WIDTH*SCREEN_HEIGHT);
+		buf = dbuf_flip(dbuf);
+		accel_fill(buf, 0x00000000, SCREEN_WIDTH*SCREEN_HEIGHT);
+	}
+	
+	printf(".");
+	
+//	for (i = 0; i < 4; i++)
+//	{
+//		bitblt(buf,  25, 50+50*i, left_arrows[i]);
+//		bitblt(buf, 100, 50+50*i, down_arrows[i]);
+//		bitblt(buf, 175, 50+50*i, up_arrows[i]);
+//		bitblt(buf, 250, 50+50*i, right_arrows[i]);
+//	}
+
+	cons_drawchar_with_scale(buf, (int)'L', 200+24*0, 300, gencol(c+10), 0x000000, 3);
+	cons_drawchar_with_scale(buf, (int)'o', 200+24*1, 300, gencol(c+20), 0x000000, 3);
+	cons_drawchar_with_scale(buf, (int)'a', 200+24*2, 300, gencol(c+30), 0x000000, 3);
+	cons_drawchar_with_scale(buf, (int)'d', 200+24*3, 300, gencol(c+40), 0x000000, 3);
+	cons_drawchar_with_scale(buf, (int)'i', 200+24*4, 300, gencol(c+50), 0x000000, 3);
+	cons_drawchar_with_scale(buf, (int)'n', 200+24*5, 300, gencol(c+60), 0x000000, 3);
+	cons_drawchar_with_scale(buf, (int)'g', 200+24*6, 300, gencol(c+70), 0x000000, 3);
+	cons_drawchar_with_scale(buf, (int)'.', 200+24*7, 300, gencol(c+80), 0x000000, 3);
+	c += 10;
+
+	buf = dbuf_flip(dbuf);
+
+}
+
+unsigned int *load_audio(struct fat16_handle *h, int *length)
+{
+	int rv;
+	int len, tlen;
+	struct fat16_file fd;
+	unsigned int *p;
+	
+	printf("Opening AUDIO.RAW... ");
+	if (fat16_open_by_name(h, &fd, "AUDIO   RAW") == -1)
+	{
+		printf("not found?\r\n");
+		return NULL;
+	} 
+	
+	p = malloc(fd.len + 64);
+	if (!p)
+	{
+		printf("malloc(%d) failed!\n", fd.len + 64);
+		return NULL;
+	}
+	
+	p = (unsigned int *)(((unsigned int)p + 64) & ~63);
+	
+	len = fd.len;
+	tlen = 0;
+	while (len)
+	{
+		int thislen = (len > 16384) ? 16384 : len;
+		rv = fat16_read(&fd, ((void*)p) + tlen, thislen);
+		if (rv != thislen)
+		{
+			printf("short read?\r\n");
+			return NULL;
+		}
+		splat_loading();
+		tlen += rv;
+		len -= rv;
+	}
+	printf("loaded! (%d bytes)\r\n", tlen);
+	
+	if (length)
+		*length = tlen;
+	
+	return p;
+}
+
+
 static struct stepfile song;
 
 void main()
@@ -249,52 +317,12 @@ void main()
 		return;
 	}
 	puts("OK");
-
-	rv = load_steps(&h, &song);
-	if (rv < 0) {
-		printf("Failure loading steps! (%d)\r\n", rv);
-		return;
-	}
-
-	audio_mem_base = load_audio(&h, &length);
-	if (!audio_mem_base) {
-		printf("Failure loading audio! (%d)\r\n", rv);
-		return;
-	}
-
-	printf("qbeats: %d; samps_per_qbeat: %d; playing...\r\n", song.len_qbeats, song.samps_per_qbeat);
-
-	audio_play(audio_mem_base, length, AUDIO_MODE_ONCE);
-
+	
+	/* Set up graphics. */
 	struct dbuf double_buffer;
 	unsigned int *buf;
 
-	volatile unsigned int * scancodeaddr = 0x85000000;
-	unsigned int scancode;
-	kh_type k;
-	char new_char;
-
-	int l, u, d, r;
-	l = 0;
-	u = 0;
-	d = 0;
-	r = 0;
-
-	int hit_l, hit_u, hit_d, hit_r;
-	hit_l = -1;
-	hit_u = -1;
-	hit_d = -1;
-	hit_r = -1;
-
-	int hits = 0;
-	signed int qbeat_last;
-
 	buf = dbuf_init(&double_buffer);
-
-	struct img_resource *left_arrows[4];
-	struct img_resource *down_arrows[4];
-	struct img_resource *up_arrows[4];
-	struct img_resource *right_arrows[4];
 	
 	left_arrows[0] = img_load(&h, "LEFT_4  RES");
 	left_arrows[1] = img_load(&h, "LEFT_16 RES");
@@ -320,6 +348,48 @@ void main()
 	struct img_resource *right_spot = img_load(&h, "RIGHSPOTRES");
 	struct img_resource *up_spot = img_load(&h, "UP_SPOT RES");
 	struct img_resource *down_spot = img_load(&h, "DOWNSPOTRES");
+	
+	/* Load music. */
+	
+	dbuf = &double_buffer;
+	splat_loading();
+
+	rv = load_steps(&h, &song);
+	if (rv < 0) {
+		printf("Failure loading steps! (%d)\r\n", rv);
+		return;
+	}
+
+	audio_mem_base = load_audio(&h, &length);
+	if (!audio_mem_base) {
+		printf("Failure loading audio! (%d)\r\n", rv);
+		return;
+	}
+
+	printf("qbeats: %d; samps_per_qbeat: %d; playing...\r\n", song.len_qbeats, song.samps_per_qbeat);
+
+	audio_play(audio_mem_base, length, AUDIO_MODE_ONCE);
+
+	volatile unsigned int * scancodeaddr = 0x85000000;
+	unsigned int scancode;
+	kh_type k;
+	char new_char;
+
+	int l, u, d, r;
+	l = 0;
+	u = 0;
+	d = 0;
+	r = 0;
+
+	int hit_l, hit_u, hit_d, hit_r;
+	hit_l = -1;
+	hit_u = -1;
+	hit_d = -1;
+	hit_r = -1;
+
+	int hits = 0;
+	signed int qbeat_last;
+
 
 	while (1) {
 		signed int qbeat, rem, qbeat_round, meas_qbeat;
@@ -379,29 +449,24 @@ void main()
 
 		accel_fill(buf, 0x00000000, SCREEN_WIDTH*SCREEN_HEIGHT);
 
-		draw_note(buf,  25, 50, left_spot);
-		draw_note(buf, 100, 50, down_spot);
-		draw_note(buf, 175, 50, up_spot);
-		draw_note(buf, 250, 50, right_spot);
+		bitblt(buf,  25, 50, left_spot);
+		bitblt(buf, 100, 50, down_spot);
+		bitblt(buf, 175, 50, up_spot);
+		bitblt(buf, 250, 50, right_spot);
 		for (i = 7; i >= -1; i--) {
 			int y = 50 + 50 * i + 50 * (song.samps_per_qbeat - rem) / song.samps_per_qbeat;
 			int spot_in_beat = (qbeat + i) % 4;
 			datum = song.qsteps[qbeat+i];
 			if ((datum >> 3) & 1)
-				draw_note(buf, 25, y, left_arrows[spot_in_beat]);
+				bitblt(buf, 25, y, left_arrows[spot_in_beat]);
 			if ((datum >> 2) & 1)
-				draw_note(buf, 100, y, down_arrows[spot_in_beat]);
+				bitblt(buf, 100, y, down_arrows[spot_in_beat]);
 			if ((datum >> 1) & 1)
-				draw_note(buf, 175, y, up_arrows[spot_in_beat]);
+				bitblt(buf, 175, y, up_arrows[spot_in_beat]);
 			if ((datum >> 0) & 1)
-				draw_note(buf, 250, y, right_arrows[spot_in_beat]);
+				bitblt(buf, 250, y, right_arrows[spot_in_beat]);
 		}
-		cons_drawchar_with_scale(buf, (int)'G', 400, 300, 0xffffffff, 0x000000, 3);
-		cons_drawchar_with_scale(buf, (int)'R', 424, 300, 0xffffffff, 0x000000, 3);
-		cons_drawchar_with_scale(buf, (int)'E', 448, 300, 0xffffffff, 0x000000, 3);
-		cons_drawchar_with_scale(buf, (int)'A', 472, 300, 0xffffffff, 0x000000, 3);
-		cons_drawchar_with_scale(buf, (int)'T', 496, 300, 0xffffffff, 0x000000, 3);
-
+		
 		buf = dbuf_flip(&double_buffer);
 	}
 }
