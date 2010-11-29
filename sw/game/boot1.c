@@ -9,12 +9,17 @@
 #define SCREEN_WIDTH 640
 #define SCREEN_HEIGHT 480
 
+static unsigned char chars[] = {
+#include "chars.inc"
+};
+
 struct stepfile {
 	unsigned int len_qbeats;
 	signed int samps_per_qbeat;
 	signed int delay_samps;
 	unsigned char qsteps[MAX_QBEATS];
 };
+
 
 int load_steps(struct fat16_handle * h, struct stepfile * song)
 {
@@ -202,6 +207,19 @@ void draw_note(unsigned int *fb, unsigned int x0, unsigned int y0, struct img_re
 	}
 }
 
+void cons_drawchar_with_scale(unsigned int *buf, int c, int x, int y, int fg, int bg, int scale)
+{
+	int xx, yy;
+	int i, j;
+	buf = buf + (y*SCREEN_WIDTH+x);
+	
+	for (yy = 0; yy < 8; yy++)
+		for (xx = 0; xx < 8; xx++)
+			for (i = 0; i < scale; i++)
+				for (j = 0; j < scale; j++)
+					buf[(yy*scale+j) * SCREEN_WIDTH + (7 - (xx*scale+i))] = ((chars[c*8 + yy] >> xx) & 1) ? fg : bg; 
+}
+
 static struct stepfile song;
 
 void main()
@@ -311,6 +329,7 @@ void main()
 		int unow = u;
 		int dnow = d;
 		int rnow = r;
+		int samples_played;
 		while ((scancode = *scancodeaddr) != 0xffffffff) {
 			k = process_scancode(scancode);
 			if (KH_HAS_CHAR(k)) {
@@ -323,37 +342,33 @@ void main()
 				}
 			}
 		}
-
-		qbeat = (audio_samples_played()-song.delay_samps-1600)/song.samps_per_qbeat;
-		rem = (audio_samples_played()-song.delay_samps-1600)%song.samps_per_qbeat;
-		qbeat_round = (audio_samples_played()-song.delay_samps-1600+song.samps_per_qbeat/2)/song.samps_per_qbeat;
+		
+		samples_played = audio_samples_played();
+		qbeat = (samples_played-song.delay_samps-1600)/song.samps_per_qbeat;
+		rem = (samples_played-song.delay_samps-1600)%song.samps_per_qbeat;
+		qbeat_round = (samples_played-song.delay_samps-1600+song.samps_per_qbeat/2)/song.samps_per_qbeat;
 
 		if (qbeat < 0)
 			continue;
 
 		if (lnow && !l) {
 			if ((song.qsteps[qbeat_round] >> 3) & 1) hits++;
-			printf("%d %d %d %d\r\n", rem, song.samps_per_qbeat - rem, *((unsigned int*)0x8400000c), *((unsigned int*)0x84000010));
 			hit_l = qbeat_round;
 		}
 		if (unow && !u) {
 			if ((song.qsteps[qbeat_round] >> 2) & 1) hits++;
-			printf("%d %d %d %d\r\n", rem, song.samps_per_qbeat - rem, *((unsigned int*)0x8400000c), *((unsigned int*)0x84000010));
 			hit_u = qbeat_round;
 		}
 		if (dnow && !d) {
 			if ((song.qsteps[qbeat_round] >> 1) & 1) hits++;
-			printf("%d %d %d %d\r\n", rem, song.samps_per_qbeat - rem, *((unsigned int*)0x8400000c), *((unsigned int*)0x84000010));
 			hit_d = qbeat_round;
 		}
 		if (rnow && !r) {
 			if ((song.qsteps[qbeat_round] >> 0) & 1) hits++;
-			printf("%d %d %d %d\r\n", rem, song.samps_per_qbeat - rem, *((unsigned int*)0x8400000c), *((unsigned int*)0x84000010));
 			hit_r = qbeat_round;
 		}
 
 		if (qbeat_last != qbeat) {
-			//printf("%d\r\n", hits);
 			qbeat_last = qbeat;
 		}
 
@@ -381,6 +396,11 @@ void main()
 			if ((datum >> 0) & 1)
 				draw_note(buf, 250, y, right_arrows[spot_in_beat]);
 		}
+		cons_drawchar_with_scale(buf, (int)'G', 400, 300, 0xffffffff, 0x000000, 3);
+		cons_drawchar_with_scale(buf, (int)'R', 424, 300, 0xffffffff, 0x000000, 3);
+		cons_drawchar_with_scale(buf, (int)'E', 448, 300, 0xffffffff, 0x000000, 3);
+		cons_drawchar_with_scale(buf, (int)'A', 472, 300, 0xffffffff, 0x000000, 3);
+		cons_drawchar_with_scale(buf, (int)'T', 496, 300, 0xffffffff, 0x000000, 3);
 
 		buf = dbuf_flip(&double_buffer);
 	}
