@@ -11,7 +11,7 @@ void sysace_init()
 int sysace_getcflock()
 {
 	volatile unsigned int *sace = SYSACE_BASE;
-	int timeout = 10000;
+	int timeout = 100000;
 	
 	sace[SYSACE_CONTROLREG_0] = SYSACE_CONTROLREG_0_LOCKREQ;
 	
