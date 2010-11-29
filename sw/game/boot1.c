@@ -5,23 +5,6 @@
 #include "accel.h"
 #include "malloc.h"
 
-#include "left_4.c"
-#include "down_4.c"
-#include "up_4.c"
-#include "right_4.c"
-#include "left_8.c"
-#include "down_8.c"
-#include "up_8.c"
-#include "right_8.c"
-#include "left_16.c"
-#include "down_16.c"
-#include "up_16.c"
-#include "right_16.c"
-#include "left_spot.c"
-#include "down_spot.c"
-#include "up_spot.c"
-#include "right_spot.c"
-
 #define MAX_QBEATS 50000
 #define SCREEN_WIDTH 640
 #define SCREEN_HEIGHT 480
@@ -115,8 +98,10 @@ unsigned int *dbuf_flip(struct dbuf *dbuf)
 	*frame_start = dbuf->bufs[dbuf->which];
 	unsigned int read_last = *frame_nread;
 	unsigned int read;
-	while ((read = *frame_nread) >= read_last) read_last = read;
+	while ((read = *frame_nread) >= read_last)
+		read_last = read;
 	dbuf->which = !dbuf->which;
+	
 	return dbuf->bufs[dbuf->which];
 }
 
@@ -124,29 +109,95 @@ unsigned int *dbuf_init(struct dbuf *dbuf)
 {
 	dbuf->bufs_orig[0] = malloc(SCREEN_WIDTH*SCREEN_HEIGHT*4 + 64);
 	dbuf->bufs_orig[1] = malloc(SCREEN_WIDTH*SCREEN_HEIGHT*4 + 64);
-	dbuf->bufs[0] = (unsigned int *) (((unsigned int) dbuf->bufs_orig[0] + 64) & ~63);
-	dbuf->bufs[1] = (unsigned int *) (((unsigned int) dbuf->bufs_orig[1] + 64) & ~63);
+	dbuf->bufs[0] = (unsigned int *) (((unsigned int) dbuf->bufs_orig[0] + 64) & ~63U);
+	dbuf->bufs[1] = (unsigned int *) (((unsigned int) dbuf->bufs_orig[1] + 64) & ~63U);
+	printf("dbuf: origs %08x %08x, bufs %08x %08x\r\n", dbuf->bufs_orig[0], dbuf->bufs_orig[1], dbuf->bufs[0], dbuf->bufs[1]);
 	dbuf->which = 0;
 	
 	return dbuf_flip(dbuf);
 }
 
+struct img_resource
+{
+	unsigned int w;
+	unsigned int h;
+	unsigned int pixels[];
+};
+
 #define SPRITE_DIM 64
 #define OTHER_ENDIANNESS(x) (((x>>24) & 0xff) | ((x >> 8) & 0xff00) | ((x << 8) & 0xff0000) | ((x << 24) & 0xff000000))
 #define DRAW_PIX(buf, img, x0, y0, y, x) if ((img)[SPRITE_DIM*(y)+(x)]&0xff000000) (buf)[SCREEN_WIDTH*(y0+y)+(x0+x)] = OTHER_ENDIANNESS((img)[SPRITE_DIM*(y)+(x)]);
 
-void draw_note(unsigned int *buf, unsigned int x0, unsigned int y0, unsigned int *image) {
+struct img_resource *img_load(struct fat16_handle *h, char *name)
+{
+	int rv;
+	struct fat16_file fd;
+	struct img_resource *r;
+	
+	printf("Loading image resource %s... ", name);
+	if (fat16_open_by_name(h, &fd, name) == -1)
+	{
+		printf("not found?\r\n");
+		return NULL;
+	} 
+	
+	r = malloc(fd.len);
+	if (!r)
+	{
+		printf("out of memory?\r\n");
+		return NULL;
+	}
+	
+	rv = fat16_read(&fd, (void *)r, fd.len);
+	if (rv != fd.len) {
+		printf("short read (%d)\r\n", rv);
+		free(r);
+		return NULL;
+	}
+
+	printf("%dx%d image\r\n", r->w, r->h);
+	
+	return r;
+}
+
+void draw_note(unsigned int *fb, unsigned int x0, unsigned int y0, struct img_resource *r) {
 	int x, y;
-	for (y = 0; y < SPRITE_DIM; y++) {
-		for (x = 0; x < SPRITE_DIM; x+=8) {
-			DRAW_PIX(buf, image, x0, y0, y, x+0);
-			DRAW_PIX(buf, image, x0, y0, y, x+1);
-			DRAW_PIX(buf, image, x0, y0, y, x+2);
-			DRAW_PIX(buf, image, x0, y0, y, x+3);
-			DRAW_PIX(buf, image, x0, y0, y, x+4);
-			DRAW_PIX(buf, image, x0, y0, y, x+5);
-			DRAW_PIX(buf, image, x0, y0, y, x+6);
-			DRAW_PIX(buf, image, x0, y0, y, x+7);
+	unsigned int *buf;
+	
+	buf = r->pixels;
+	for (y = 0; y < r->h; y++) {
+		for (x = 0; x < r->w; x+=8) {
+			if (*buf & 0x000000FF)
+				fb[SCREEN_WIDTH*(y0+y)+(x0+x+0)] = *buf;
+			buf++;
+			
+			if (*buf & 0x000000FF)
+				fb[SCREEN_WIDTH*(y0+y)+(x0+x+1)] = *buf;
+			buf++;
+			
+			if (*buf & 0x000000FF)
+				fb[SCREEN_WIDTH*(y0+y)+(x0+x+2)] = *buf;
+			buf++;
+			
+			if (*buf & 0x000000FF)
+				fb[SCREEN_WIDTH*(y0+y)+(x0+x+3)] = *buf;
+			buf++;
+			
+			if (*buf & 0x000000FF)
+				fb[SCREEN_WIDTH*(y0+y)+(x0+x+4)] = *buf;
+			buf++;
+			
+			if (*buf & 0x000000FF)
+				fb[SCREEN_WIDTH*(y0+y)+(x0+x+5)] = *buf;
+			buf++;
+			
+			if (*buf & 0x000000FF)
+				fb[SCREEN_WIDTH*(y0+y)+(x0+x+6)] = *buf;
+			buf++;
+			
+			if (*buf & 0x000000FF)
+				fb[SCREEN_WIDTH*(y0+y)+(x0+x+7)] = *buf;
+			buf++;
 		}
 	}
 }
@@ -222,10 +273,35 @@ void main()
 
 	buf = dbuf_init(&double_buffer);
 
-	int * left_arrows[4]  = {&(left_4_img.pixel_data), &(left_16_img.pixel_data), &(left_8_img.pixel_data), &(left_16_img.pixel_data)};
-	int * down_arrows[4]  = {&(down_4_img.pixel_data), &(down_16_img.pixel_data), &(down_8_img.pixel_data), &(down_16_img.pixel_data)};
-	int * up_arrows[4]  = {&(up_4_img.pixel_data), &(up_16_img.pixel_data), &(up_8_img.pixel_data), &(up_16_img.pixel_data)};
-	int * right_arrows[4]  = {&(right_4_img.pixel_data), &(right_16_img.pixel_data), &(right_8_img.pixel_data), &(right_16_img.pixel_data)};
+	struct img_resource *left_arrows[4];
+	struct img_resource *down_arrows[4];
+	struct img_resource *up_arrows[4];
+	struct img_resource *right_arrows[4];
+	
+	left_arrows[0] = img_load(&h, "LEFT_4  RES");
+	left_arrows[1] = img_load(&h, "LEFT_16 RES");
+	left_arrows[2] = img_load(&h, "LEFT_8  RES");
+	left_arrows[3] = left_arrows[1];
+	
+	right_arrows[0] = img_load(&h, "RIGHT_4 RES");
+	right_arrows[1] = img_load(&h, "RIGHT_16RES");
+	right_arrows[2] = img_load(&h, "RIGHT_8 RES");
+	right_arrows[3] = right_arrows[1];
+	
+	up_arrows[0] = img_load(&h, "UP_4    RES");
+	up_arrows[1] = img_load(&h, "UP_16   RES");
+	up_arrows[2] = img_load(&h, "UP_8    RES");
+	up_arrows[3] = up_arrows[1];
+	
+	down_arrows[0] = img_load(&h, "DOWN_4  RES");
+	down_arrows[1] = img_load(&h, "DOWN_16 RES");
+	down_arrows[2] = img_load(&h, "DOWN_8  RES");
+	down_arrows[3] = down_arrows[1];
+	
+	struct img_resource *left_spot = img_load(&h, "LEFTSPOTRES");
+	struct img_resource *right_spot = img_load(&h, "RIGHSPOTRES");
+	struct img_resource *up_spot = img_load(&h, "UP_SPOT RES");
+	struct img_resource *down_spot = img_load(&h, "DOWNSPOTRES");
 
 	while (1) {
 		signed int qbeat, rem, qbeat_round, meas_qbeat;
@@ -288,10 +364,10 @@ void main()
 
 		accel_fill(buf, 0x00000000, SCREEN_WIDTH*SCREEN_HEIGHT);
 
-		draw_note(buf,  25, 50, &(left_spot_img.pixel_data));
-		draw_note(buf, 100, 50, &(down_spot_img.pixel_data));
-		draw_note(buf, 175, 50, &(up_spot_img.pixel_data));
-		draw_note(buf, 250, 50, &(right_spot_img.pixel_data));
+		draw_note(buf,  25, 50, left_spot);
+		draw_note(buf, 100, 50, down_spot);
+		draw_note(buf, 175, 50, up_spot);
+		draw_note(buf, 250, 50, right_spot);
 		for (i = 7; i >= -1; i--) {
 			int y = 50 + 50 * i + 50 * (song.samps_per_qbeat - rem) / song.samps_per_qbeat;
 			int spot_in_beat = (qbeat + i) % 4;
