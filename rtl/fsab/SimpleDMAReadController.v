@@ -111,6 +111,10 @@ module SimpleDMAReadController(/*AUTOARG*/
         wire [FSAB_ADDR_HI:0] next_start_addr;
         wire [FSAB_ADDR_HI:0] next_len;
 
+	/* Curr Start Addr */
+	reg [FSAB_ADDR_HI:0] curr_start_addr_tclk;
+	wire [FSAB_ADDR_HI:0] curr_start_addr_cclk;
+
 	/* Total Bytes Delivered */
 	reg [FSAB_ADDR_HI:0] total_bytes_delivered_tclk = 0;
 	wire [FSAB_ADDR_HI:0] total_bytes_delivered_cclk;
@@ -204,6 +208,7 @@ module SimpleDMAReadController(/*AUTOARG*/
 			completed_read <= 0;
 			completed_read_s1 <= 0;
 			curr_fifo_length <= 0;
+			curr_start_addr_tclk <= DEFAULT_ADDR;
 			next_fsab_addr <= DEFAULT_ADDR;
 			triggered <= 0;
 			command_register <= DMA_STOP;
@@ -222,11 +227,13 @@ module SimpleDMAReadController(/*AUTOARG*/
 					DMA_TRIGGER_ONCE: begin
 						triggered <= 1;
 						next_fsab_addr <= next_start_addr;
+						curr_start_addr_tclk <= next_start_addr;
 						end_addr <= next_start_addr+next_len;
 					end
 					DMA_AUTOTRIGGER: begin
 						triggered <= 1;
 						next_fsab_addr <= next_start_addr;
+						curr_start_addr_tclk <= next_start_addr;
 						end_addr <= next_start_addr+next_len;
 					end
 					DMA_STOP: begin
@@ -382,6 +389,7 @@ module SimpleDMAReadController(/*AUTOARG*/
 
 	wire rd_done_strobe_FIFO_BYTES_READ;
 	wire rd_done_strobe_TOTAL_BYTES_DELIVERED;
+	wire rd_done_strobe_CURR_START_ADDR;
 	CSRAsyncRead #(.WIDTH        (FSAB_ADDR_HI+1))
 		CSR_FIFO_BYTES_READ (/* NOT AUTOINST */
 				     // Outputs
@@ -412,6 +420,21 @@ module SimpleDMAReadController(/*AUTOARG*/
 				     .rd_strobe_cclk	(rd_decode && (spamo_addr[DMA_SPAM_ADDR_HI:0] == TOTAL_BYTES_DELIVERED_REG_ADDR)),
 				     .rd_data_tclk	(total_bytes_delivered_tclk));
 
+	CSRAsyncRead #(.WIDTH        (FSAB_ADDR_HI+1))
+		CURR_START_ADDR (/* NOT AUTOINST */
+				     // Outputs
+				     .rd_data_cclk	(curr_start_addr_cclk),
+				     .rd_wait_cclk	(),
+				     .rd_done_strobe_cclk(rd_done_strobe_CURR_START_ADDR),
+				     .rd_strobe_tclk	(),
+				     // Inputs
+				     .cclk		(cclk),
+				     .tclk		(target_clk),
+				     .rst_b_cclk	(cclk_rst_b),
+				     .rst_b_tclk	(target_rst_b),
+				     .rd_strobe_cclk	(rd_decode && (spamo_addr[DMA_SPAM_ADDR_HI:0] == CURR_START_REG_ADDR)),
+				     .rd_data_tclk	(curr_start_addr_tclk));
+
 
 	always @ (*) begin
 		if (rd_done_strobe_FIFO_BYTES_READ) begin
@@ -420,12 +443,15 @@ module SimpleDMAReadController(/*AUTOARG*/
 		else if (rd_done_strobe_TOTAL_BYTES_DELIVERED) begin
 			dmac__spami_data = {{(SPAM_DATA_HI-FSAB_ADDR_HI){1'b0}}, total_bytes_delivered_cclk};
 		end
+		else if (rd_done_strobe_CURR_START_ADDR) begin
+			dmac__spami_data = {{(SPAM_DATA_HI-FSAB_ADDR_HI){1'b0}}, curr_start_addr_cclk};
+		end
 		else begin
 			dmac__spami_data = 0;
 		end
 	end
 
-	assign dmac__spami_busy_b = wr_done_strobe_COMMAND_REG | wr_done_strobe_NEXT_LEN_REG | wr_done_strobe_NEXT_START_REG | rd_done_strobe_FIFO_BYTES_READ | rd_done_strobe_TOTAL_BYTES_DELIVERED;
+	assign dmac__spami_busy_b = wr_done_strobe_COMMAND_REG | wr_done_strobe_NEXT_LEN_REG | wr_done_strobe_NEXT_START_REG | rd_done_strobe_FIFO_BYTES_READ | rd_done_strobe_TOTAL_BYTES_DELIVERED | rd_done_strobe_CURR_START_ADDR;
 
 
 	always @(posedge cclk) begin

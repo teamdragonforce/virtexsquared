@@ -13,6 +13,8 @@ static unsigned char chars[] = {
 #include "chars.inc"
 };
 
+int offset;
+
 struct stepfile {
 	unsigned int len_qbeats;
 	signed int samps_per_qbeat;
@@ -58,24 +60,43 @@ int load_steps(struct fat16_handle * h, struct stepfile * song)
 
 
 /*
- * Double buffering
+ * Triple buffering
  */
 struct dbuf {
-	unsigned int *bufs[2];
-	unsigned int *bufs_orig[2];
+	unsigned int *bufs[3];
+	unsigned int *bufs_orig[3];
 	int which;
 };
+
+unsigned int getnext_mod3(unsigned int x){
+	if (x == 0)
+		return 1;
+	if (x == 1)
+		return 2;
+	if (x == 2)
+		return 0;
+}
 
 unsigned int *dbuf_flip(struct dbuf *dbuf)
 {
 	volatile unsigned int *frame_start = 0x82000000;
 	volatile unsigned int *frame_nread = 0x8200000c;
+	volatile unsigned int *frame_currread = 0x82000014;
+	int* buffer_curr_reading = (int*)(*frame_currread);
 	*frame_start = dbuf->bufs[dbuf->which];
 	unsigned int read_last = *frame_nread;
 	unsigned int read;
-	while ((read = *frame_nread) >= read_last)
-		read_last = read;
-	dbuf->which = !dbuf->which;
+
+	/*printf("previous dbuf->which: %x ", dbuf->which);*/
+
+	unsigned int next_which = getnext_mod3(dbuf->which);
+
+	
+	if (dbuf->bufs[next_which] != buffer_curr_reading)
+		dbuf->which = next_which;
+	else
+		dbuf->which = getnext_mod3(next_which);
+	/*printf("next dbuf->which: %x \r\n", dbuf->which);*/
 	
 	return dbuf->bufs[dbuf->which];
 }
@@ -84,9 +105,14 @@ unsigned int *dbuf_init(struct dbuf *dbuf)
 {
 	dbuf->bufs_orig[0] = malloc(SCREEN_WIDTH*SCREEN_HEIGHT*4 + 64);
 	dbuf->bufs_orig[1] = malloc(SCREEN_WIDTH*SCREEN_HEIGHT*4 + 64);
+	dbuf->bufs_orig[2] = malloc(SCREEN_WIDTH*SCREEN_HEIGHT*4 + 64);
 	dbuf->bufs[0] = (unsigned int *) (((unsigned int) dbuf->bufs_orig[0] + 64) & ~63U);
 	dbuf->bufs[1] = (unsigned int *) (((unsigned int) dbuf->bufs_orig[1] + 64) & ~63U);
-	printf("dbuf: origs %08x %08x, bufs %08x %08x\r\n", dbuf->bufs_orig[0], dbuf->bufs_orig[1], dbuf->bufs[0], dbuf->bufs[1]);
+	dbuf->bufs[2] = (unsigned int *) (((unsigned int) dbuf->bufs_orig[2] + 64) & ~63U);
+	accel_fill(dbuf->bufs[0], 0x00000000, SCREEN_WIDTH*SCREEN_HEIGHT);
+	accel_fill(dbuf->bufs[1], 0x00000000, SCREEN_WIDTH*SCREEN_HEIGHT);
+	accel_fill(dbuf->bufs[2], 0x00000000, SCREEN_WIDTH*SCREEN_HEIGHT);
+	printf("dbuf: origs %08x %08x %08x, bufs %08x %08x %08x\r\n", dbuf->bufs_orig[0], dbuf->bufs_orig[1], dbuf->bufs_orig[2], dbuf->bufs[0], dbuf->bufs[1], dbuf->bufs[2]);
 	dbuf->which = 0;
 	
 	return dbuf_flip(dbuf);
@@ -212,9 +238,6 @@ void splat_loading()
 	if (!buf)
 	{
 		buf = dbuf_flip(dbuf);
-		accel_fill(buf, 0x00000000, SCREEN_WIDTH*SCREEN_HEIGHT);
-		buf = dbuf_flip(dbuf);
-		accel_fill(buf, 0x00000000, SCREEN_WIDTH*SCREEN_HEIGHT);
 	}
 	
 	printf(".");
@@ -315,6 +338,30 @@ int check_hit(){
 				case 'i': unow = !KH_IS_RELEASING(k); break;
 				case 'k': dnow = !KH_IS_RELEASING(k); break;
 				case 'l': rnow = !KH_IS_RELEASING(k); break;
+				case '7': 
+					if (!KH_IS_RELEASING(k)) {
+						offset -= 1000; 
+						printf("Offset: %d\r\n", offset);
+					}
+					break;
+				case '8': 
+					if (!KH_IS_RELEASING(k)) {
+						offset -= 100; 
+						printf("Offset: %d\r\n", offset);
+					}
+					break;
+				case '9': 
+					if (!KH_IS_RELEASING(k)) {
+						offset += 100; 
+						printf("Offset: %d\r\n", offset);
+					}
+					break;
+				case '0':
+					if (!KH_IS_RELEASING(k)) {
+						offset += 1000; 
+						printf("Offset: %d\r\n", offset);
+					}
+					break;
 			}
 		}
 	}
@@ -324,38 +371,38 @@ int check_hit(){
 			hit = 1;		
 		}
 		else if ((song.qsteps[qbeat_round-1] >> 3) & 1) {
-			hit = 1;		
+			hit = 2;		
 		}
 		else if ((song.qsteps[qbeat_round+1] >> 3) & 1) {
-			hit = 1;		
-		}
-		else {
-			hit = 0;
-		}
-	}
-	if (unow && !u) {
-		if ((song.qsteps[qbeat_round] >> 2) & 1) {
-			hit = 1;
-		}
-		else if ((song.qsteps[qbeat_round-1] >> 2) & 1) {
-			hit = 1;		
-		}
-		else if ((song.qsteps[qbeat_round+1] >> 2) & 1) {
-			hit = 1;		
+			hit = 2;		
 		}
 		else {
 			hit = 0;
 		}
 	}
 	if (dnow && !d) {
+		if ((song.qsteps[qbeat_round] >> 2) & 1) {
+			hit = 1;
+		}
+		else if ((song.qsteps[qbeat_round-1] >> 2) & 1) {
+			hit = 2;		
+		}
+		else if ((song.qsteps[qbeat_round+1] >> 2) & 1) {
+			hit = 2;		
+		}
+		else {
+			hit = 0;
+		}
+	}
+	if (unow && !u) {
 		if ((song.qsteps[qbeat_round] >> 1) & 1) {
 			hit = 1;
 		}
 		else if ((song.qsteps[qbeat_round-1] >> 1) & 1) {
-			hit = 1;		
+			hit = 2;		
 		}
 		else if ((song.qsteps[qbeat_round+1] >> 1) & 1) {
-			hit = 1;		
+			hit = 2;		
 		}
 		else {
 			hit = 0;
@@ -366,10 +413,10 @@ int check_hit(){
 			hit = 1;
 		}
 		else if ((song.qsteps[qbeat_round-1] >> 0) & 1) {
-			hit = 1;		
+			hit = 2;		
 		}
 		else if ((song.qsteps[qbeat_round+1] >> 0) & 1) {
-			hit = 1;		
+			hit = 2;		
 		}
 		else {
 			hit = 0;
@@ -448,6 +495,7 @@ void main()
 	dbuf = &double_buffer;
 	splat_loading();
 
+
 	rv = load_steps(&h, &song);
 	if (rv < 0) {
 		printf("Failure loading steps! (%d)\r\n", rv);
@@ -466,6 +514,7 @@ void main()
 
 	volatile unsigned int * scancodeaddr = 0x85000000;
 	unsigned int scancode;
+	volatile unsigned int* cycleaddr = 0x86000000;
 	kh_type k;
 	char new_char;
 
@@ -474,9 +523,12 @@ void main()
 	d = 0;
 	r = 0;
 
-	int hits = 0;
 	int hit = -1;
-
+	int last_hit = -1;
+	int prev_cycle = *cycleaddr;
+	int curr_cycle = *cycleaddr;
+	buf = dbuf_flip(dbuf);
+	offset = 5600;
 
 	while (1) {
 		signed int qbeat, rem, qbeat_round;
@@ -488,11 +540,9 @@ void main()
 		int rnow = r;
 		int samples_played;
 		
-		
-		samples_played = audio_samples_played();
-		qbeat = (samples_played-song.delay_samps-1600)/song.samps_per_qbeat;
-		rem = (samples_played-song.delay_samps-1600)%song.samps_per_qbeat;
-		qbeat_round = (samples_played-song.delay_samps-1600+song.samps_per_qbeat/2)/song.samps_per_qbeat;
+		curr_cycle = *cycleaddr;
+		/*printf("Cycles: %d\r\n", curr_cycle-prev_cycle);*/
+		prev_cycle = curr_cycle;
 
 		if (qbeat < 0)
 			continue;
@@ -510,6 +560,12 @@ void main()
 		bitblt(buf, 250, 50, right_spot);
 		if (hit == -1)
 			hit = check_hit();
+
+		samples_played = audio_samples_played()+offset;
+		qbeat = (samples_played-song.delay_samps-1600)/song.samps_per_qbeat;
+		rem = (samples_played-song.delay_samps-1600)%song.samps_per_qbeat;
+		qbeat_round = (samples_played-song.delay_samps-1600+song.samps_per_qbeat/2)/song.samps_per_qbeat;
+
 		for (i = 7; i >= -1; i--) {
 			int y = 50 + 50 * i + 50 * (song.samps_per_qbeat - rem) / song.samps_per_qbeat;
 			int spot_in_beat = (qbeat + i) % 4;
@@ -528,18 +584,27 @@ void main()
 				hit = check_hit();
 		}
 		if (hit == 0) {
-			cons_drawchar_with_scale_3(buf, (int)'M', 400, 300, 0xffffffff, 0x00000000);			
-			cons_drawchar_with_scale_3(buf, (int)'I', 424, 300, 0xffffffff, 0x00000000);
+			cons_drawchar_with_scale_3(buf, (int)'M', 100, 200, 0xffffffff, 0x00000000);			
+			cons_drawchar_with_scale_3(buf, (int)'I', 100+24*1, 200, 0xffffffff, 0x00000000);
 			hit = check_hit();
-			cons_drawchar_with_scale_3(buf, (int)'S', 448, 300, 0xffffffff, 0x00000000);			
-			cons_drawchar_with_scale_3(buf, (int)'S', 472, 300, 0xffffffff, 0x00000000);			
+			cons_drawchar_with_scale_3(buf, (int)'S', 100+24*2, 200, 0xffffffff, 0x00000000);			
+			cons_drawchar_with_scale_3(buf, (int)'S', 100+24*3, 200, 0xffffffff, 0x00000000);			
 		}
 		if (hit == 1) {
-			cons_drawchar_with_scale_3(buf, (int)'H', 400, 300, 0xffffffff, 0x00000000);
-			cons_drawchar_with_scale_3(buf, (int)'I', 424, 300, 0xffffffff, 0x00000000);	
+			cons_drawchar_with_scale_3(buf, (int)'G', 100, 200, 0xffffffff, 0x00000000);
+			cons_drawchar_with_scale_3(buf, (int)'R', 100+24*1, 200, 0xffffffff, 0x00000000);	
 			hit = check_hit();
-			cons_drawchar_with_scale_3(buf, (int)'T', 448, 300, 0xffffffff, 0x00000000);			
+			cons_drawchar_with_scale_3(buf, (int)'E', 100+24*2, 200, 0xffffffff, 0x00000000);			
+			cons_drawchar_with_scale_3(buf, (int)'A', 100+24*3, 200, 0xffffffff, 0x00000000);			
+			cons_drawchar_with_scale_3(buf, (int)'T', 100+24*4, 200, 0xffffffff, 0x00000000);			
 		}
+		if (hit == 2) {
+			cons_drawchar_with_scale_3(buf, (int)'G', 100, 200, 0xffffffff, 0x00000000);
+			cons_drawchar_with_scale_3(buf, (int)'O', 100+24*1, 200, 0xffffffff, 0x00000000);	
+			hit = check_hit();
+			cons_drawchar_with_scale_3(buf, (int)'O', 100+24*2, 200, 0xffffffff, 0x00000000);			
+			cons_drawchar_with_scale_3(buf, (int)'D', 100+24*3, 200, 0xffffffff, 0x00000000);
+		}	
 		
 		buf = dbuf_flip(&double_buffer);
 	}
