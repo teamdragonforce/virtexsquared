@@ -4,6 +4,7 @@
 #include "minilib.h"
 #include "accel.h"
 #include "malloc.h"
+#include "multibuf.h"
 
 #define MAX_QBEATS 50000
 #define SCREEN_WIDTH 640
@@ -58,65 +59,6 @@ int load_steps(struct fat16_handle * h, struct stepfile * song)
 	return 0;
 }
 
-
-/*
- * Triple buffering
- */
-struct dbuf {
-	unsigned int *bufs[3];
-	unsigned int *bufs_orig[3];
-	int which;
-};
-
-unsigned int getnext_mod3(unsigned int x){
-	if (x == 0)
-		return 1;
-	if (x == 1)
-		return 2;
-	if (x == 2)
-		return 0;
-}
-
-unsigned int *dbuf_flip(struct dbuf *dbuf)
-{
-	volatile unsigned int *frame_start = 0x82000000;
-	volatile unsigned int *frame_nread = 0x8200000c;
-	volatile unsigned int *frame_currread = 0x82000014;
-	int* buffer_curr_reading = (int*)(*frame_currread);
-	*frame_start = dbuf->bufs[dbuf->which];
-	unsigned int read_last = *frame_nread;
-	unsigned int read;
-
-	/*printf("previous dbuf->which: %x ", dbuf->which);*/
-
-	unsigned int next_which = getnext_mod3(dbuf->which);
-
-	
-	if (dbuf->bufs[next_which] != buffer_curr_reading)
-		dbuf->which = next_which;
-	else
-		dbuf->which = getnext_mod3(next_which);
-	/*printf("next dbuf->which: %x \r\n", dbuf->which);*/
-	
-	return dbuf->bufs[dbuf->which];
-}
-
-unsigned int *dbuf_init(struct dbuf *dbuf)
-{
-	dbuf->bufs_orig[0] = malloc(SCREEN_WIDTH*SCREEN_HEIGHT*4 + 64);
-	dbuf->bufs_orig[1] = malloc(SCREEN_WIDTH*SCREEN_HEIGHT*4 + 64);
-	dbuf->bufs_orig[2] = malloc(SCREEN_WIDTH*SCREEN_HEIGHT*4 + 64);
-	dbuf->bufs[0] = (unsigned int *) (((unsigned int) dbuf->bufs_orig[0] + 64) & ~63U);
-	dbuf->bufs[1] = (unsigned int *) (((unsigned int) dbuf->bufs_orig[1] + 64) & ~63U);
-	dbuf->bufs[2] = (unsigned int *) (((unsigned int) dbuf->bufs_orig[2] + 64) & ~63U);
-	accel_fill(dbuf->bufs[0], 0x00000000, SCREEN_WIDTH*SCREEN_HEIGHT);
-	accel_fill(dbuf->bufs[1], 0x00000000, SCREEN_WIDTH*SCREEN_HEIGHT);
-	accel_fill(dbuf->bufs[2], 0x00000000, SCREEN_WIDTH*SCREEN_HEIGHT);
-	printf("dbuf: origs %08x %08x %08x, bufs %08x %08x %08x\r\n", dbuf->bufs_orig[0], dbuf->bufs_orig[1], dbuf->bufs_orig[2], dbuf->bufs[0], dbuf->bufs[1], dbuf->bufs[2]);
-	dbuf->which = 0;
-	
-	return dbuf_flip(dbuf);
-}
 
 struct img_resource
 {
@@ -227,7 +169,7 @@ struct img_resource *down_arrows[4];
 struct img_resource *up_arrows[4];
 struct img_resource *right_arrows[4];
 
-struct dbuf *dbuf;
+multibuf_t *bufs;
 
 void splat_loading()
 {
@@ -237,7 +179,7 @@ void splat_loading()
 	
 	if (!buf)
 	{
-		buf = dbuf_flip(dbuf);
+		buf = multibuf_flip(bufs);
 	}
 	
 	printf(".");
@@ -260,7 +202,7 @@ void splat_loading()
 	cons_drawchar_with_scale_3(buf, (int)'.', 200+24*7, 300, gencol(c+80), 0x000000);
 	c += 10;
 
-	buf = dbuf_flip(dbuf);
+	buf = multibuf_flip(bufs);
 
 }
 
@@ -460,10 +402,10 @@ void main()
 	puts("OK");
 	
 	/* Set up graphics. */
-	struct dbuf double_buffer;
+	multibuf_t multibuf;
 	unsigned int *buf;
 
-	buf = dbuf_init(&double_buffer);
+	buf = multibuf_init(&multibuf, SCREEN_WIDTH, SCREEN_HEIGHT);
 	
 	left_arrows[0] = img_load(&h, "LEFT_4  RES");
 	left_arrows[1] = img_load(&h, "LEFT_16 RES");
@@ -492,7 +434,7 @@ void main()
 	
 	/* Load music. */
 	
-	dbuf = &double_buffer;
+	bufs = &multibuf;
 	splat_loading();
 
 
@@ -527,7 +469,7 @@ void main()
 	int last_hit = -1;
 	int prev_cycle = *cycleaddr;
 	int curr_cycle = *cycleaddr;
-	buf = dbuf_flip(dbuf);
+	buf = multibuf_flip(bufs);
 	offset = 5600;
 
 	while (1) {
@@ -606,7 +548,7 @@ void main()
 			cons_drawchar_with_scale_3(buf, (int)'D', 100+24*3, 200, 0xffffffff, 0x00000000);
 		}	
 		
-		buf = dbuf_flip(&double_buffer);
+		buf = multibuf_flip(&multibuf);
 	}
 }
 
