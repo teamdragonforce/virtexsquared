@@ -167,7 +167,7 @@ void bitblt(unsigned int *fb, unsigned int x0, unsigned int y0, struct img_resou
 	
 	if (((x0 + r->w) > 640) || ((y0 + r->h) > 480))
 	{
-		printf("BOUNDS CHECK!\r\n");
+		/*printf("BOUNDS CHECK!\r\n");*/
 		return;
 	}
 	
@@ -328,6 +328,7 @@ int check_hit(){
 	int hit = -1;
 	int samples_played = audio_samples_played();
 	signed int qbeat_round = (samples_played-song.delay_samps-1600+song.samps_per_qbeat/2)/song.samps_per_qbeat;
+	signed int rem = (samples_played-song.delay_samps-1600)%song.samps_per_qbeat;
 
 	while ((scancode = *scancodeaddr) != 0xffffffff) {
 		k = process_scancode(scancode);
@@ -368,13 +369,27 @@ int check_hit(){
 	
 	if (lnow && !l) {
 		if ((song.qsteps[qbeat_round] >> 3) & 1) {
-			hit = 1;		
+			hit = 1;
+			if (rem < song.samps_per_qbeat - rem)
+				printf("Off by %d\r\n", rem);
+			else 
+				printf("Off by -%d\r\n", song.samps_per_qbeat-rem);
 		}
 		else if ((song.qsteps[qbeat_round-1] >> 3) & 1) {
-			hit = 2;		
+			if (rem < song.samps_per_qbeat - rem) {
+				hit = 2;		
+				printf("Off by -%d\r\n", song.samps_per_qbeat-rem);
+			}
+			else
+				hit = 0;
 		}
 		else if ((song.qsteps[qbeat_round+1] >> 3) & 1) {
-			hit = 2;		
+			if (rem < song.samps_per_qbeat - rem)
+				hit = 0;
+			else { 
+				hit = 2;		
+				printf("Off by %d\r\n", rem);
+			}
 		}
 		else {
 			hit = 0;
@@ -383,12 +398,26 @@ int check_hit(){
 	if (dnow && !d) {
 		if ((song.qsteps[qbeat_round] >> 2) & 1) {
 			hit = 1;
+			if (rem < song.samps_per_qbeat - rem)
+				printf("Off by %d\r\n", rem);
+			else 
+				printf("Off by -%d\r\n", song.samps_per_qbeat-rem);
 		}
 		else if ((song.qsteps[qbeat_round-1] >> 2) & 1) {
-			hit = 2;		
+			if (rem < song.samps_per_qbeat - rem) {
+				hit = 2;		
+				printf("Off by -%d\r\n", song.samps_per_qbeat-rem);
+			}
+			else
+				hit = 0;
 		}
 		else if ((song.qsteps[qbeat_round+1] >> 2) & 1) {
-			hit = 2;		
+			if (rem < song.samps_per_qbeat - rem)
+				hit = 0;
+			else { 
+				hit = 2;		
+				printf("Off by %d\r\n", rem);
+			}
 		}
 		else {
 			hit = 0;
@@ -397,12 +426,26 @@ int check_hit(){
 	if (unow && !u) {
 		if ((song.qsteps[qbeat_round] >> 1) & 1) {
 			hit = 1;
+			if (rem < song.samps_per_qbeat - rem)
+				printf("Off by %d\r\n", rem);
+			else 
+				printf("Off by -%d\r\n", song.samps_per_qbeat-rem);
 		}
 		else if ((song.qsteps[qbeat_round-1] >> 1) & 1) {
-			hit = 2;		
+			if (rem < song.samps_per_qbeat - rem) {
+				hit = 2;		
+				printf("Off by -%d\r\n", song.samps_per_qbeat-rem);
+			}
+			else
+				hit = 0;
 		}
 		else if ((song.qsteps[qbeat_round+1] >> 1) & 1) {
-			hit = 2;		
+			if (rem < song.samps_per_qbeat - rem)
+				hit = 0;
+			else { 
+				hit = 2;		
+				printf("Off by %d\r\n", rem);
+			}
 		}
 		else {
 			hit = 0;
@@ -411,12 +454,26 @@ int check_hit(){
 	if (rnow && !r) {
 		if ((song.qsteps[qbeat_round] >> 0) & 1) {
 			hit = 1;
+			if (rem < song.samps_per_qbeat - rem)
+				printf("Off by %d\r\n", rem);
+			else 
+				printf("Off by -%d\r\n", song.samps_per_qbeat-rem);
 		}
 		else if ((song.qsteps[qbeat_round-1] >> 0) & 1) {
-			hit = 2;		
+			if (rem < song.samps_per_qbeat - rem) {
+				hit = 2;		
+				printf("Off by -%d\r\n", song.samps_per_qbeat-rem);
+			}
+			else
+				hit = 0;
 		}
 		else if ((song.qsteps[qbeat_round+1] >> 0) & 1) {
-			hit = 2;		
+			if (rem < song.samps_per_qbeat - rem)
+				hit = 0;
+			else { 
+				hit = 2;		
+				printf("Off by %d\r\n", rem);
+			}
 		}
 		else {
 			hit = 0;
@@ -583,6 +640,10 @@ void main()
 			if (hit == -1)
 				hit = check_hit();
 		}
+		if (hit == -1)
+			hit = last_hit;
+		else
+			last_hit = hit;
 		if (hit == 0) {
 			cons_drawchar_with_scale_3(buf, (int)'M', 100, 200, 0xffffffff, 0x00000000);			
 			cons_drawchar_with_scale_3(buf, (int)'I', 100+24*1, 200, 0xffffffff, 0x00000000);
