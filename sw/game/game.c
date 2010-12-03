@@ -58,6 +58,12 @@ static unsigned char chars[] = {
 
 int offset;
 
+struct menusong {
+	char name[32];
+	char artist[31];
+	char prefix[9];
+};
+
 struct stepfile {
 	unsigned int len_qbeats;
 	signed int samps_per_qbeat;
@@ -212,6 +218,15 @@ struct img_resource *up_arrows[4];
 struct img_resource *right_arrows[4];
 
 multibuf_t *bufs;
+
+void splat_text(unsigned int *buf, char* string, int x, int y, int fg, int bg)
+{
+	while (*string != '\0') {
+		cons_drawchar_with_scale_3(buf, (int)(*string), x, y, fg, bg);
+		string++;
+		x+= 24;
+	}
+}
 
 void splat_loading()
 {
@@ -481,12 +496,6 @@ void game(struct fat16_handle * h, char * prefix)
 
 	unsigned int *audio_mem_base;
 	
-	/* Set up graphics. */
-	multibuf_t multibuf;
-	unsigned int *buf;
-
-	buf = multibuf_init(&multibuf, SCREEN_WIDTH, SCREEN_HEIGHT);
-	
 	left_arrows[0] = img_load(h, "LEFT_4  RES");
 	left_arrows[1] = img_load(h, "LEFT_16 RES");
 	left_arrows[2] = img_load(h, "LEFT_8  RES");
@@ -514,7 +523,6 @@ void game(struct fat16_handle * h, char * prefix)
 	
 	/* Load music. */
 	
-	bufs = &multibuf;
 	splat_loading();
 
 	memcpy(fname, prefix, 8);
@@ -544,6 +552,8 @@ void game(struct fat16_handle * h, char * prefix)
 	volatile unsigned int* cycleaddr = 0x86000000;
 	kh_type k;
 	char new_char;
+
+	unsigned int * buf;
 
 	l = 0;
 	u = 0;
@@ -675,15 +685,46 @@ void game(struct fat16_handle * h, char * prefix)
 				break;
 		}
 		
-		buf = multibuf_flip(&multibuf);
+		buf = multibuf_flip(bufs);
 	}
 	printf("MARVELOUSES: %d, PERFECTS: %d, GREATS: %d, GOODS: %d, BOOS: %d, MISSES: %d\r\n", marvelouses, perfects, greats, goods, boos, misses);
+}
+
+int menu(struct menusong songs[], int nsongs)
+{
+	unsigned int *buf = multibuf_flip(bufs);
+	int n;
+	int song = 0;
+
+	while (1) {
+		for (n = 0; n < nsongs; n++) {
+			splat_text(buf, songs[n].name, 50, 100*n+50, 0xffffffff, 0x00000000);
+			splat_text(buf, songs[n].artist, 75, 100*n+75, 0xffffffff, 0x00000000);
+			splat_text(buf, songs[n].prefix, 75, 100*n+100, 0xffffffff, 0x00000000);
+		}
+		splat_text(buf, "*", 25, 100*song+50, 0xff000000, 0x00000000);
+		buf = multibuf_flip(bufs);
+	}
+	return song;
 }
 
 void main()
 {
 	int fat16_start;
 	struct fat16_handle h;
+
+	struct menusong songs[16];
+	int n;
+
+	int rv;
+	struct fat16_file fd;
+	
+	/* Set up graphics. */
+	multibuf_t multibuf;
+	unsigned int *buf;
+
+	buf = multibuf_init(&multibuf, SCREEN_WIDTH, SCREEN_HEIGHT);
+	bufs = &multibuf;
 
 	printf("Reading partition table... ");
 	fat16_start = fat16_find_partition();
@@ -702,8 +743,27 @@ void main()
 	}
 	puts("OK");
 
+	printf("Opening menu file... ");
+	if (fat16_open_by_name(&h, &fd, "MENU    TXT") == -1) {
+		printf("not found?\r\n");
+		return;
+	}
+	rv = fat16_read(&fd, songs, sizeof(songs));
+	if (rv < 0) {
+		printf("error reading initial song data (%d)\r\n", rv);
+		return;
+	}
+	printf("read %d bytes\r\n", rv);
+
+	int nsongs = rv / sizeof(struct menusong);
+	for (n = 0; n < nsongs; n++) {
+		songs[n].prefix[8] = '\0';
+	}
+
+	buf = multibuf_flip(bufs);
+
 	while (1) {
-		/* ... menu ... */
+		int s = menu(songs, nsongs);
 
 		game(&h, "HAPPY   ");
 	}
