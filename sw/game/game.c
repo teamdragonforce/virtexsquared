@@ -106,7 +106,8 @@ struct img_resource
 {
 	unsigned int w;
 	unsigned int h;
-	unsigned int pixels[];
+	unsigned int *pixels;
+	unsigned int *pixels_orig;
 };
 
 #define SPRITE_DIM 64
@@ -126,21 +127,32 @@ struct img_resource *img_load(struct fat16_handle *h, char *name)
 		return NULL;
 	} 
 	
-	r = malloc(fd.len);
+	r = malloc(sizeof(*r));
 	if (!r)
 	{
 		printf("out of memory?\r\n");
 		return NULL;
 	}
 	
-	rv = fat16_read(&fd, (void *)r, fd.len);
-	if (rv != fd.len) {
+	r->pixels_orig = malloc(fd.len + 64);
+	if (!r->pixels_orig)
+	{
+		printf("out of memory?\r\n");
+		return NULL;
+	}
+	
+	r->pixels = (unsigned int *)(((unsigned int)r->pixels_orig + 63) & ~63);
+
+	rv = fat16_read(&fd, (void *)r, 8);
+	
+	rv = fat16_read(&fd, (void *)r->pixels, fd.len - 8);
+	if (rv != fd.len - 8) {
 		printf("short read (%d)\r\n", rv);
 		free(r);
 		return NULL;
 	}
 
-	printf("%dx%d image\r\n", r->w, r->h);
+	printf("%dx%d image (pixels at %08x)\r\n", r->w, r->h, r->pixels);
 	
 	return r;
 }
@@ -154,6 +166,15 @@ void bitblt(unsigned int *fb, unsigned int x0, unsigned int y0, struct img_resou
 		/*printf("BOUNDS CHECK!\r\n");*/
 		return;
 	}
+	
+	if (((r->w & 63) == 0) && ((x0 & 15) == 0))
+	{
+		/* we can take the fast path! */
+		accel_blit(fb + y0 * 640 + x0, r->pixels, r->w, r->h);
+		return;
+	}
+	
+	printf("*** had to take the slow path (%d, %d)\r\n", r->w & 63, x0 & 15);
 	
 	buf = r->pixels;
 	for (y = 0; y < r->h; y++) {
@@ -579,12 +600,12 @@ void game(struct fat16_handle * h, char * prefix)
 
 		accel_fill(buf, 0x00000000, SCREEN_WIDTH*SCREEN_HEIGHT);
 
-		bitblt(buf,  25, 50, left_spot);
-		bitblt(buf, 100, 50, down_spot);
+		bitblt(buf,  16, 50, left_spot);
+		bitblt(buf,  96, 50, down_spot);
 		if (hit == NONE)
 			hit = check_hit();
-		bitblt(buf, 175, 50, up_spot);
-		bitblt(buf, 250, 50, right_spot);
+		bitblt(buf, 176, 50, up_spot);
+		bitblt(buf, 256, 50, right_spot);
 		if (hit == NONE)
 			hit = check_hit();
 
@@ -598,15 +619,15 @@ void game(struct fat16_handle * h, char * prefix)
 			int spot_in_beat = (qbeat + i) % 4;
 			datum = song.qsteps[qbeat+i];
 			if ((datum >> 3) & 1)
-				bitblt(buf, 25, y, left_arrows[spot_in_beat]);
+				bitblt(buf, 16, y, left_arrows[spot_in_beat]);
 			if ((datum >> 2) & 1)
-				bitblt(buf, 100, y, down_arrows[spot_in_beat]);
+				bitblt(buf, 96, y, down_arrows[spot_in_beat]);
 			if (hit == NONE)
 				hit = check_hit();
 			if ((datum >> 1) & 1)
-				bitblt(buf, 175, y, up_arrows[spot_in_beat]);
+				bitblt(buf, 176, y, up_arrows[spot_in_beat]);
 			if ((datum >> 0) & 1)
-				bitblt(buf, 250, y, right_arrows[spot_in_beat]);
+				bitblt(buf, 256, y, right_arrows[spot_in_beat]);
 			if (hit == NONE)
 				hit = check_hit();
 		}
