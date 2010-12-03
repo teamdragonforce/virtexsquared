@@ -228,9 +228,11 @@ void cons_drawchar_with_scale_3(unsigned int *buf, int c, int x, int y, int fg, 
 	
 	for (yy = 0; yy < 8; yy++) 
 		for (xx = 0; xx < 8; xx++) 
-			for (i = 0; i < 3; i++)
+			for (i = 0; i < 3; i++) {
 				for (j = 0; j < 3; j++)
 					buf[(yy*3+j) * SCREEN_WIDTH + (7 - (xx*3+i))] = ((chars[c*8 + yy] >> xx) & 1) ? fg : bg;
+				audio_samples_played();
+			}
 }
 
 struct img_resource *left_arrows[16];
@@ -245,7 +247,7 @@ void splat_text(unsigned int *buf, char* string, int x, int y, int fg, int bg)
 	while (*string != '\0') {
 		cons_drawchar_with_scale_3(buf, (int)(*string), x, y, fg, bg);
 		string++;
-		x+= 24;
+		x += 24;
 	}
 }
 
@@ -583,6 +585,7 @@ void game(struct fat16_handle * h, char * prefix)
 
 	memcpy(fname, prefix, 8);
 	memcpy(fname+8, "FM ", 4);
+	printf("%s\r\n", fname);
 
 	rv = load_steps(h, &song, fname);
 	if (rv < 0) {
@@ -608,8 +611,6 @@ void game(struct fat16_handle * h, char * prefix)
 	volatile unsigned int* cycleaddr = 0x86000000;
 	kh_type k;
 	char new_char;
-
-	unsigned int * buf;
 
 	l = 0;
 	u = 0;
@@ -748,7 +749,37 @@ void game(struct fat16_handle * h, char * prefix)
 		
 		buf = multibuf_flip(bufs);
 	}
+
+	/* show score */
+	
 	printf("MARVELOUSES: %d, PERFECTS: %d, GREATS: %d, GOODS: %d, BOOS: %d, MISSES: %d\r\n", marvelouses, perfects, greats, goods, boos, misses);
+
+	char str_buf[40];
+	int score_x = 175;
+	accel_fill(buf, 0x00000000, SCREEN_WIDTH*SCREEN_HEIGHT);
+	snprintf(str_buf, 40, "MARVELOUS    %4d", marvelouses);
+	splat_text(buf, str_buf, score_x, 100, 0xffffffff, 0x00000000);
+	snprintf(str_buf, 40, "PERFECT      %4d", perfects);
+	splat_text(buf, str_buf, score_x, 150, 0xffffffff, 0x00000000);
+	snprintf(str_buf, 40, "GREAT        %4d", greats);
+	splat_text(buf, str_buf, score_x, 200, 0xffffffff, 0x00000000);
+	snprintf(str_buf, 40, "GOOD         %4d", goods);
+	splat_text(buf, str_buf, score_x, 250, 0xffffffff, 0x00000000);
+	snprintf(str_buf, 40, "BOO          %4d", boos);
+	splat_text(buf, str_buf, score_x, 300, 0xffffffff, 0x00000000);
+	snprintf(str_buf, 40, "MISS         %4d", misses);
+	splat_text(buf, str_buf, score_x, 350, 0xffffffff, 0x00000000);
+	buf = multibuf_flip(bufs);
+
+	while (1) {
+		if ((scancode = *scancodeaddr) != 0xffffffff) {
+			k = process_scancode(scancode);
+			if (KH_HAS_CHAR(k) && !KH_IS_RELEASING(k)) {
+				new_char = KH_GET_CHAR(k);
+				if (new_char == '\n') break;
+			}
+		}
+	}
 }
 
 int menu(struct menusong songs[], int nsongs)
@@ -756,16 +787,64 @@ int menu(struct menusong songs[], int nsongs)
 	unsigned int *buf = multibuf_flip(bufs);
 	int n;
 	int song = 0;
+	volatile unsigned int* scancodeaddr = 0x85000000;
+	unsigned int scancode;
+	kh_type k;
+	char new_char;
+
+	int bg = 0x00000000;
+	int c = 0;
+
+	int powerby_x = 50;
+	int powerby_y = 450;
 
 	while (1) {
+		accel_fill(buf, bg, SCREEN_WIDTH*SCREEN_HEIGHT);
+		*buf = 0x00ff0000;
+		splat_text(buf, "FailMania!", 210, 40, 0xffffffff, bg);
 		for (n = 0; n < nsongs; n++) {
-			splat_text(buf, songs[n].name, 50, 100*n+50, 0xffffffff, 0x00000000);
-			splat_text(buf, songs[n].artist, 75, 100*n+75, 0xffffffff, 0x00000000);
-			splat_text(buf, songs[n].prefix, 75, 100*n+100, 0xffffffff, 0x00000000);
+			splat_text(buf, songs[n].name, 70, 75*n+90, 0xffffffff, bg);
+			splat_text(buf, songs[n].artist, 95, 75*n+115, 0xffffffff, bg);
 		}
-		splat_text(buf, "*", 25, 100*song+50, 0xff000000, 0x00000000);
-		buf = multibuf_flip(bufs);
+		splat_text(buf, "*", 35, 75*song+90, 0xff000000, 0x00000000);
+		splat_text(buf, "powered by", powerby_x, powerby_y, 0xffffffff, bg);
+
+		cons_drawchar_with_scale_3(buf, (int)'V', powerby_x+24*11+24*0, powerby_y, gencol(c+10), 0x000000);
+		cons_drawchar_with_scale_3(buf, (int)'i', powerby_x+24*11+24*1, powerby_y, gencol(c+20), 0x000000);
+		cons_drawchar_with_scale_3(buf, (int)'r', powerby_x+24*11+24*2, powerby_y, gencol(c+30), 0x000000);
+		cons_drawchar_with_scale_3(buf, (int)'t', powerby_x+24*11+24*3, powerby_y, gencol(c+40), 0x000000);
+		cons_drawchar_with_scale_3(buf, (int)'e', powerby_x+24*11+24*4, powerby_y, gencol(c+50), 0x000000);
+		cons_drawchar_with_scale_3(buf, (int)'x', powerby_x+24*11+24*5, powerby_y, gencol(c+60), 0x000000);
+		cons_drawchar_with_scale_3(buf, (int)'S', powerby_x+24*11+24*6, powerby_y, gencol(c+70), 0x000000);
+		cons_drawchar_with_scale_3(buf, (int)'q', powerby_x+24*11+24*7, powerby_y, gencol(c+80), 0x000000);
+		cons_drawchar_with_scale_3(buf, (int)'u', powerby_x+24*11+24*8, powerby_y, gencol(c+90), 0x000000);
+		cons_drawchar_with_scale_3(buf, (int)'a', powerby_x+24*11+24*9, powerby_y, gencol(c+100), 0x000000);
+		cons_drawchar_with_scale_3(buf, (int)'r', powerby_x+24*11+24*10, powerby_y, gencol(c+110), 0x000000);
+		cons_drawchar_with_scale_3(buf, (int)'e', powerby_x+24*11+24*11, powerby_y, gencol(c+120), 0x000000);
+		cons_drawchar_with_scale_3(buf, (int)'d', powerby_x+24*11+24*12, powerby_y, gencol(c+130), 0x000000);
+		c += 10;
+
+		buf = multibuf_flip(bufs); /* buf is now the real relevant framebuffer */
+
+		while ((scancode = *scancodeaddr) != 0xffffffff) {
+			k = process_scancode(scancode);
+			if (KH_HAS_CHAR(k) && !KH_IS_RELEASING(k)) {
+				new_char = KH_GET_CHAR(k);
+				switch (new_char) {
+					case 'i': song--; break;
+					case 'k': song++; break;
+					case '\n': goto done;
+				}
+				if (song < 0) song += nsongs;
+				if (song >= nsongs) song -= nsongs;
+			}
+			break;
+		}
 	}
+done:
+	/* blank the screen to clean up after ourselves */
+	accel_fill(buf, 0x00000000, SCREEN_WIDTH*SCREEN_HEIGHT);
+
 	return song;
 }
 
@@ -825,8 +904,9 @@ void main()
 
 	while (1) {
 		int s = menu(songs, nsongs);
+		printf("got menu selection: %d\r\n", s);
 
-		game(&h, "HAPPY   ");
+		game(&h, songs[s].prefix);
 	}
 }
 
