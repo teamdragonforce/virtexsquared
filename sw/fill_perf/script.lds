@@ -8,7 +8,7 @@ ENTRY(_start)
 SECTIONS
 {
   /* Read-only sections, merged into text segment: */
-  PROVIDE (__executable_start = 0x500000); . = 0x500000;
+  PROVIDE (__executable_start = 0x100000); . = 0x100000;
 
   .init : { crt0.o }
 
@@ -49,9 +49,4 @@ SECTIONS
   _end = .;
   _bss_end__ = . ; __bss_end__ = . ; __end__ = . ;
   PROVIDE (end = .);
-    .stack :
-  {
-    _stack = .;
-    *(.stack)
-  }
 }
