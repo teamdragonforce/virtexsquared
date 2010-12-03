@@ -27,7 +27,6 @@ int goods;
 int boos;
 int misses;
 
-
 #define AUDIO_SAMPLE_RATE 48000
 
 /* Bit offset of each arrows in the qstep byte */
@@ -123,11 +122,6 @@ void cons_drawchar_with_scale_3(unsigned int *buf, int c, int x, int y, int fg, 
 			}
 }
 
-struct img_resource *left_arrows[16];
-struct img_resource *down_arrows[16];
-struct img_resource *up_arrows[16];
-struct img_resource *right_arrows[16];
-
 multibuf_t *bufs;
 
 void splat_text(unsigned int *buf, char* string, int x, int y, int fg, int bg)
@@ -170,7 +164,7 @@ void splat_loading()
 
 }
 
-unsigned int *load_audio(struct fat16_handle *h, int *length, char *filename)
+unsigned int *load_audio(struct fat16_handle *h, int *length, char *filename, void **buf)
 {
 	int rv;
 	int len, tlen;
@@ -190,6 +184,8 @@ unsigned int *load_audio(struct fat16_handle *h, int *length, char *filename)
 		printf("malloc(%d) failed!\n", fd.len + 64);
 		return NULL;
 	}
+	if (buf)
+		*buf = p;
 	
 	p = (unsigned int *)(((unsigned int)p + 64) & ~63);
 	
@@ -392,27 +388,28 @@ void frobulate(char *j, int i)
 	j[4] = i + '0';
 }
 
-void game(struct fat16_handle * h, char * prefix)
+int resources_loaded = 0;
+
+struct img_resource *left_arrows[16];
+struct img_resource *down_arrows[16];
+struct img_resource *up_arrows[16];
+struct img_resource *right_arrows[16];
+
+struct img_resource *left_spot[2];
+struct img_resource *right_spot[2];
+struct img_resource *up_spot[2];
+struct img_resource *down_spot[2];
+
+struct img_resource *fantastic, *perfect, *great, *good, *boo, *miss;
+
+void res_load(struct fat16_handle *h)
 {
-	marvelouses = 0;
-	perfects = 0;
-	greats = 0;
-	goods = 0;
-	boos = 0;
-	misses = 0;
 	int i, j;
-	int length;
-	int rv;
-	volatile int* cycles = 0x86000000;
-	char fname[12];
-
-	unsigned int *audio_mem_base;
 	
-	/* Set up graphics. */
-	multibuf_t multibuf;
-	unsigned int *buf;
-
-	buf = multibuf_init(&multibuf, SCREEN_WIDTH, SCREEN_HEIGHT);
+	if (resources_loaded)
+		return;
+	
+	resources_loaded = 1;
 	
 	for (i = 0; i < 4; i++)
 	{
@@ -449,10 +446,6 @@ void game(struct fat16_handle * h, char * prefix)
 		down_arrows[3+i*4] = down_arrows[1];
 	}
 	
-	struct img_resource *left_spot[2];
-	struct img_resource *right_spot[2];
-	struct img_resource *up_spot[2];
-	struct img_resource *down_spot[2];
 	
 	left_spot[0] = img_load(h, "LEFTSPOTRES");
 	left_spot[1] = img_load(h, "LEFTFLASRES");
@@ -463,12 +456,33 @@ void game(struct fat16_handle * h, char * prefix)
 	down_spot[0] = img_load(h, "DOWNSPOTRES");
 	down_spot[1] = img_load(h, "DOWNFLASRES");
 	
-	struct img_resource *fantastic = img_load(h, "GRFANTASRES");
-	struct img_resource *perfect =   img_load(h, "GRPERFECRES");
-	struct img_resource *great =     img_load(h, "GRGREAT RES");
-	struct img_resource *good =      img_load(h, "GRGOOD  RES");
-	struct img_resource *boo =       img_load(h, "GRBOO   RES");
-	struct img_resource *miss =      img_load(h, "GRMISS  RES");
+	fantastic = img_load(h, "GRFANTASRES");
+	perfect =   img_load(h, "GRPERFECRES");
+	great =     img_load(h, "GRGREAT RES");
+	good =      img_load(h, "GRGOOD  RES");
+	boo =       img_load(h, "GRBOO   RES");
+	miss =      img_load(h, "GRMISS  RES");
+}
+
+void game(struct fat16_handle * h, char * prefix)
+{
+	marvelouses = 0;
+	perfects = 0;
+	greats = 0;
+	goods = 0;
+	boos = 0;
+	misses = 0;
+	int i, j;
+	int length;
+	int rv;
+	volatile int* cycles = 0x86000000;
+	char fname[12];
+	void *orig;
+
+	unsigned int *audio_mem_base;
+	
+	/* Set up graphics. */
+	unsigned int *buf;
 	
 	/* Load music. */
 	
@@ -486,7 +500,7 @@ void game(struct fat16_handle * h, char * prefix)
 
 	memcpy(fname+8, "RAW", 4);
 
-	audio_mem_base = load_audio(h, &length, fname);
+	audio_mem_base = load_audio(h, &length, fname, &orig);
 	if (!audio_mem_base) {
 		printf("Failure loading audio! (%d)\r\n", rv);
 		return;
@@ -635,6 +649,8 @@ void game(struct fat16_handle * h, char * prefix)
 			}
 		}
 	}
+	
+	free(orig);
 }
 
 int menu(struct menusong songs[], int nsongs)
@@ -652,6 +668,7 @@ int menu(struct menusong songs[], int nsongs)
 
 	int powerby_x = 50;
 	int powerby_y = 450;
+
 
 	while (1) {
 		accel_fill(buf, bg, SCREEN_WIDTH*SCREEN_HEIGHT);
@@ -749,6 +766,8 @@ void main()
 		return;
 	}
 	printf("read %d bytes\r\n", rv);
+	
+	res_load(&h);
 
 	int nsongs = rv / sizeof(struct menusong);
 	for (n = 0; n < nsongs; n++) {
