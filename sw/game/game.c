@@ -379,12 +379,11 @@ int check_hit_dir(int dir, int pressed){
 				return BOO;
 			}
 		}
-		misses++;
-		return MISS;
 	}
 	int boo_qbeat_offset = (qbeats+SAMPLE_OFFSET_BOO)/song.samps_per_qbeat-qbeat_round;
 	if ((song.qsteps[qbeat_round-(boo_qbeat_offset+1)] >> LEFT_POS) & 1) {
 		song.qsteps[qbeat_round-(boo_qbeat_offset+1)] &= ~(1 << LEFT_POS);
+		misses++;
 		return MISS;
 	}
 	return NONE;
