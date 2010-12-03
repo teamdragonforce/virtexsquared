@@ -43,22 +43,104 @@ unsigned int getp(int t)
 	return (color_r(t) << 24) | (color_g(t) << 16) | (color_b(t) << 8);
 }
 
+struct img_resource
+{
+	unsigned int w;
+	unsigned int h;
+	unsigned int *pixels;
+};
+
+struct img_resource *img_load(struct fat16_handle *h, char *name)
+{
+	int rv;
+	struct fat16_file fd;
+	struct img_resource *r;
+	
+	printf("Loading image resource %s... ", name);
+	if (fat16_open_by_name(h, &fd, name) == -1)
+	{
+		printf("not found?\r\n");
+		return NULL;
+	} 
+	
+	r = malloc(sizeof(*r));
+	if (!r)
+	{
+		printf("out of memory?\r\n");
+		return NULL;
+	}
+	
+	r->pixels = malloc(fd.len + 64);
+	if (!r->pixels)
+	{
+		printf("out of memory?\r\n");
+		return NULL;
+	}
+	
+	r->pixels = (unsigned int *)(((unsigned int)r->pixels + 63) & ~63);
+
+	rv = fat16_read(&fd, (void *)r, 8);
+	
+	rv = fat16_read(&fd, (void *)r->pixels, fd.len - 8);
+	if (rv != fd.len - 8) {
+		printf("short read (%d)\r\n", rv);
+		free(r);
+		return NULL;
+	}
+
+	printf("%dx%d image (pixels at %08x)\r\n", r->w, r->h, r->pixels);
+	
+	return r;
+}
+
+
 void main()
 {
 	int i = 0;
+	int x;
+	struct img_resource *r;
 	
 	volatile unsigned int *num_clock_cycles = 0x86000000;
 	unsigned int **frame_start = 0x82000000;
 	unsigned int *start = 0x00600000;
 	
+	int fat16_start;
+	struct fat16_handle h;
+
+	printf("Reading partition table... ");
+	fat16_start = fat16_find_partition();
+	if (fat16_start < 0)
+	{
+		puts("no FAT16 partition found!");
+		return;
+	}
+	printf("found starting at sector %d.\r\n", fat16_start);
+	
+	printf("Opening FAT16 partition... ");
+	if (fat16_open(&h, fat16_start) < 0)
+	{
+		puts("FAT16 boot sector read failed!");
+		return;
+	}
+	puts("OK");
+
+	
 	*frame_start = start;
+	r = img_load(&h, "LEFT_4  RES");
 	
 	printf("in main...\r\n");
+	x = 0;
+	accel_fill(start, 0x80808080, 640*480);
 	while (1)
 	{
+		int y;
 		if ((i % 64) == 0)
 			printf("iters: %d, i %% 100 = %d, clock cycles: %d\r\n", i, ((unsigned int)i) % 100U, *num_clock_cycles);
-		accel_fill(start, getp(i), 640*480);
+		for (y = 0; y < 448; y += 64)
+			accel_blit(start + y * 640 + x, r->pixels, r->w, r->h);
+		x += 16;
+		if (x == 512)
+			x = 0;	
 		i++;
 	}
 }

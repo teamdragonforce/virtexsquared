@@ -59,7 +59,7 @@ module AccelBlit(/*AUTOARG*/
 	input      [SPAM_ADDR_HI:0] spamo_addr;
 	input      [SPAM_DATA_HI:0] spamo_data;
 
-	output                      accel_blit__spami_busy_b;
+	output reg                  accel_blit__spami_busy_b;
 	output reg [SPAM_DATA_HI:0] accel_blit__spami_data;
 	
 	`include "clog2.vh"
@@ -221,10 +221,10 @@ module AccelBlit(/*AUTOARG*/
 				accel_blit__fsabo_addr <= wraddr_cur;
 				accel_blit__fsabo_len <= trans_words;
 				accel_blit__fsabo_data <= rddata[trans_words_rem - 1];
-				accel_blit__fsabo_mask <= {{4{rddata[trans_words_rem - 1][32]}},
-				                           {4{rddata[trans_words_rem - 1][0]}}};
+				accel_blit__fsabo_mask <= {{4{rddata[trans_words_rem - 1][0]}},
+				                           {4{rddata[trans_words_rem - 1][32]}}};
 				$display("ACCELBLIT: write: %x words, wraddr_cur %x, data %x, mask %x", trans_words, wraddr_cur, rddata[trans_words_rem - 1],
-					{{4{rddata[trans_words_rem - 1][32]}},{4{rddata[trans_words_rem - 1][0]}}});
+					{{4{rddata[trans_words_rem - 1][0]}},{4{rddata[trans_words_rem - 1][32]}}});
 			end else begin
 				accel_blit__fsabo_valid <= 0;
 				accel_blit__fsabo_mode <= {(FSAB_REQ_HI+1){1'bx}};
@@ -374,14 +374,21 @@ module AccelBlit(/*AUTOARG*/
 				     .rd_strobe_cclk	(rd_decode && (spamo_addr[4:0] == 5'b10100)),
 				     .rd_data_tclk	(wrdone[30:0]));
 
-	assign accel_blit__spami_busy_b = wr_done_strobe_RDADDR |
-	                                  wr_done_strobe_RDLEN |
-	                                  wr_done_strobe_WRADDR |
-	                                  wr_done_strobe_WRROWL |
-	                                  wr_done_strobe_WRROWS |
-	                                  wr_done_strobe_WRDONE |
-	                                  rd_done_strobe_WRDONE;
-	assign accel_blit__spami_data = {32{rd_done_strobe_WRDONE}} & {1'b0, rd_data_WRDONE};
+	always @(posedge cclk or negedge cclk_rst_b) begin
+		if (!cclk_rst_b) begin
+			accel_blit__spami_busy_b <= 0;
+			accel_blit__spami_data <= 0;
+		end else begin 
+			accel_blit__spami_busy_b <= wr_done_strobe_RDADDR |
+			                            wr_done_strobe_RDLEN |
+			                            wr_done_strobe_WRADDR |
+			                            wr_done_strobe_WRROWL |
+			                            wr_done_strobe_WRROWS |
+			                            wr_done_strobe_WRDONE |
+			                            rd_done_strobe_WRDONE;
+			accel_blit__spami_data <= {32{rd_done_strobe_WRDONE}} & {1'b0, rd_data_WRDONE};
+		end
+	end
 endmodule
 
 // Local Variables:
