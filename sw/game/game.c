@@ -66,13 +66,13 @@ struct stepfile {
 };
 
 
-int load_steps(struct fat16_handle * h, struct stepfile * song)
+int load_steps(struct fat16_handle * h, struct stepfile * song, char * filename)
 {
 	int rv;
 	struct fat16_file fd;
 	
-	printf("Opening STEPS.FM... ");
-	if (fat16_open_by_name(h, &fd, "STEPS   FM ") == -1)
+	printf("Opening %s...", filename);
+	if (fat16_open_by_name(h, &fd, filename) == -1)
 	{
 		printf("not found?\r\n");
 		return -1;
@@ -248,15 +248,15 @@ void splat_loading()
 
 }
 
-unsigned int *load_audio(struct fat16_handle *h, int *length)
+unsigned int *load_audio(struct fat16_handle *h, int *length, char *filename)
 {
 	int rv;
 	int len, tlen;
 	struct fat16_file fd;
 	unsigned int *p;
 	
-	printf("Opening AUDIO.RAW... ");
-	if (fat16_open_by_name(h, &fd, "AUDIO   RAW") == -1)
+	printf("Opening %s... ", filename);
+	if (fat16_open_by_name(h, &fd, filename) == -1)
 	{
 		printf("not found?\r\n");
 		return NULL;
@@ -381,8 +381,8 @@ int check_hit_dir(int dir, int pressed){
 		}
 	}
 	int boo_qbeat_offset = (qbeats+SAMPLE_OFFSET_BOO)/song.samps_per_qbeat-qbeat_round;
-	if ((song.qsteps[qbeat_round-(boo_qbeat_offset+1)] >> LEFT_POS) & 1) {
-		song.qsteps[qbeat_round-(boo_qbeat_offset+1)] &= ~(1 << LEFT_POS);
+	if ((song.qsteps[qbeat_round-(boo_qbeat_offset+1)] >> dir) & 1) {
+		song.qsteps[qbeat_round-(boo_qbeat_offset+1)] &= ~(1 << dir);
 		misses++;
 		return MISS;
 	}
@@ -459,7 +459,7 @@ int check_hit(){
 
 }
 
-void main()
+void game(struct fat16_handle * h, char * prefix)
 {
 	marvelouses = 0;
 	perfects = 0;
@@ -471,28 +471,9 @@ void main()
 	int length;
 	int rv;
 	volatile int* cycles = 0x86000000;
+	char fname[12];
 
 	unsigned int *audio_mem_base;
-
-	int fat16_start;
-	struct fat16_handle h;
-
-	printf("Reading partition table... ");
-	fat16_start = fat16_find_partition();
-	if (fat16_start < 0)
-	{
-		puts("no FAT16 partition found!");
-		return;
-	}
-	printf("found starting at sector %d.\r\n", fat16_start);
-	
-	printf("Opening FAT16 partition... ");
-	if (fat16_open(&h, fat16_start) < 0)
-	{
-		puts("FAT16 boot sector read failed!");
-		return;
-	}
-	puts("OK");
 	
 	/* Set up graphics. */
 	multibuf_t multibuf;
@@ -500,44 +481,48 @@ void main()
 
 	buf = multibuf_init(&multibuf, SCREEN_WIDTH, SCREEN_HEIGHT);
 	
-	left_arrows[0] = img_load(&h, "LEFT_4  RES");
-	left_arrows[1] = img_load(&h, "LEFT_16 RES");
-	left_arrows[2] = img_load(&h, "LEFT_8  RES");
+	left_arrows[0] = img_load(h, "LEFT_4  RES");
+	left_arrows[1] = img_load(h, "LEFT_16 RES");
+	left_arrows[2] = img_load(h, "LEFT_8  RES");
 	left_arrows[3] = left_arrows[1];
 	
-	right_arrows[0] = img_load(&h, "RIGHT_4 RES");
-	right_arrows[1] = img_load(&h, "RIGHT_16RES");
-	right_arrows[2] = img_load(&h, "RIGHT_8 RES");
+	right_arrows[0] = img_load(h, "RIGHT_4 RES");
+	right_arrows[1] = img_load(h, "RIGHT_16RES");
+	right_arrows[2] = img_load(h, "RIGHT_8 RES");
 	right_arrows[3] = right_arrows[1];
 	
-	up_arrows[0] = img_load(&h, "UP_4    RES");
-	up_arrows[1] = img_load(&h, "UP_16   RES");
-	up_arrows[2] = img_load(&h, "UP_8    RES");
+	up_arrows[0] = img_load(h, "UP_4    RES");
+	up_arrows[1] = img_load(h, "UP_16   RES");
+	up_arrows[2] = img_load(h, "UP_8    RES");
 	up_arrows[3] = up_arrows[1];
 	
-	down_arrows[0] = img_load(&h, "DOWN_4  RES");
-	down_arrows[1] = img_load(&h, "DOWN_16 RES");
-	down_arrows[2] = img_load(&h, "DOWN_8  RES");
+	down_arrows[0] = img_load(h, "DOWN_4  RES");
+	down_arrows[1] = img_load(h, "DOWN_16 RES");
+	down_arrows[2] = img_load(h, "DOWN_8  RES");
 	down_arrows[3] = down_arrows[1];
 	
-	struct img_resource *left_spot = img_load(&h, "LEFTSPOTRES");
-	struct img_resource *right_spot = img_load(&h, "RIGHSPOTRES");
-	struct img_resource *up_spot = img_load(&h, "UP_SPOT RES");
-	struct img_resource *down_spot = img_load(&h, "DOWNSPOTRES");
+	struct img_resource *left_spot = img_load(h, "LEFTSPOTRES");
+	struct img_resource *right_spot = img_load(h, "RIGHSPOTRES");
+	struct img_resource *up_spot = img_load(h, "UP_SPOT RES");
+	struct img_resource *down_spot = img_load(h, "DOWNSPOTRES");
 	
 	/* Load music. */
 	
 	bufs = &multibuf;
 	splat_loading();
 
+	memcpy_shit(fname, prefix, 8);
+	memcpy(fname+8, "FM ", 4);
 
-	rv = load_steps(&h, &song);
+	rv = load_steps(h, &song, fname);
 	if (rv < 0) {
 		printf("Failure loading steps! (%d)\r\n", rv);
 		return;
 	}
 
-	audio_mem_base = load_audio(&h, &length);
+	memcpy(fname+8, "RAW", 4);
+
+	audio_mem_base = load_audio(h, &length, fname);
 	if (!audio_mem_base) {
 		printf("Failure loading audio! (%d)\r\n", rv);
 		return;
@@ -687,5 +672,34 @@ void main()
 		buf = multibuf_flip(&multibuf);
 	}
 	printf("MARVELOUSES: %d, PERFECTS: %d, GREATS: %d, GOODS: %d, BOOS: %d, MISSES: %d\r\n", marvelouses, perfects, greats, goods, boos, misses);
+}
+
+void main()
+{
+	int fat16_start;
+	struct fat16_handle h;
+
+	printf("Reading partition table... ");
+	fat16_start = fat16_find_partition();
+	if (fat16_start < 0)
+	{
+		puts("no FAT16 partition found!");
+		return;
+	}
+	printf("found starting at sector %d.\r\n", fat16_start);
+	
+	printf("Opening FAT16 partition... ");
+	if (fat16_open(&h, fat16_start) < 0)
+	{
+		puts("FAT16 boot sector read failed!");
+		return;
+	}
+	puts("OK");
+
+	while (1) {
+		/* ... menu ... */
+
+		game(&h, "HAPPY   ");
+	}
 }
 
