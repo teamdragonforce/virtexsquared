@@ -589,7 +589,26 @@ void systemace_boot()
 	((void (*)())0x00400000)();
 }
 
+void blit()
+{
+	puts("blitter test\r\n");
+	volatile unsigned int *blitter = 0x87100000;
+	
+	blitter[2 /* write start addr */] = 0x100000;
+	blitter[3 /* write row length */] = 2;
+	blitter[4 /* write row stride */] = 0x1000;
+	blitter[5 /* pacotes eaten */] = 0;
+	
+	blitter[0 /* read start addr */] = 0;
+	blitter[1 /* length, in 64b packets */] = 8;
+	
+	while (blitter[5] != 8)
+		puthex(blitter[5]);
+	puts("done!\r\n");
+}
+
 struct tests tlist[] = {
+	{"blit", blit},
 	/*{"screen", show_on_screen},*/
 	{"color_bars", show_smpte_color_bars},
 	{"make_chars", make_chars},
