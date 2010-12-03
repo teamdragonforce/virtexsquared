@@ -312,12 +312,13 @@ int check_hit_dir(int dir, int pressed){
 		i = 0;
                 qbeat_offset = (qbeats+SAMPLE_OFFSET_MARVELOUS)/song.samps_per_qbeat-qbeat_round;
 		for (; i <= qbeat_offset; i++) {
-			if ((song.qsteps[qbeat_round-i] >> dir) & 1) {
+			if ((qbeat_round-i >= 0) && (song.qsteps[qbeat_round-i] >> dir) & 1) {
 				song.qsteps[qbeat_round-i] &= ~(1 << dir);
 				marvelouses++;
 				return MARVELOUS;
 			}
-			else if ((song.qsteps[qbeat_round+i] >> dir) & 1) {
+			else if ((qbeat_round+i < song.len_qbeats) && 
+				 (song.qsteps[qbeat_round+i] >> dir) & 1) {
 				song.qsteps[qbeat_round+i] &= ~(1 << dir);
 				marvelouses++;
 				return MARVELOUS;
@@ -326,12 +327,13 @@ int check_hit_dir(int dir, int pressed){
                 i = qbeat_offset+1;
 		qbeat_offset = (qbeats+SAMPLE_OFFSET_PERFECT)/song.samps_per_qbeat-qbeat_round;
 		for (; i <= qbeat_offset; i++) {
-			if ((song.qsteps[qbeat_round-i] >> dir) & 1) {
+			if ((qbeat_round-i >= 0) && (song.qsteps[qbeat_round-i] >> dir) & 1) {
 				song.qsteps[qbeat_round-i] &= ~(1 << dir);
 				perfects++;
 				return PERFECT;
 			}
-			else if ((song.qsteps[qbeat_round+i] >> dir) & 1) {
+			else if ((qbeat_round+i < song.len_qbeats) && 
+				 (song.qsteps[qbeat_round+i] >> dir) & 1) {
 				song.qsteps[qbeat_round+i] &= ~(1 << dir);
 				perfects++;
 				return PERFECT;
@@ -340,12 +342,13 @@ int check_hit_dir(int dir, int pressed){
                 i = qbeat_offset+1;
 		qbeat_offset = (qbeats+SAMPLE_OFFSET_GREAT)/song.samps_per_qbeat-qbeat_round;
 		for (; i <= qbeat_offset; i++) {
-			if ((song.qsteps[qbeat_round-i] >> dir) & 1) {
+			if ((qbeat_round-i >= 0) && (song.qsteps[qbeat_round-i] >> dir) & 1) {
 				song.qsteps[qbeat_round-i] &= ~(1 << dir);
 				greats++;
 				return GREAT;
 			}
-			else if ((song.qsteps[qbeat_round+i] >> dir) & 1) {
+			else if ((qbeat_round+i < song.len_qbeats) && 
+				 (song.qsteps[qbeat_round+i] >> dir) & 1) {
 				song.qsteps[qbeat_round+i] &= ~(1 << dir);
 				greats++;
 				return GREAT;
@@ -354,12 +357,13 @@ int check_hit_dir(int dir, int pressed){
                 i = qbeat_offset+1;
 		qbeat_offset = (qbeats+SAMPLE_OFFSET_GOOD)/song.samps_per_qbeat-qbeat_round;
 		for (; i <= qbeat_offset; i++) {
-			if ((song.qsteps[qbeat_round-i] >> dir) & 1) {
+			if ((qbeat_round-i >= 0) && (song.qsteps[qbeat_round-i] >> dir) & 1) {
 				song.qsteps[qbeat_round-i] &= ~(1 << dir);
 				goods++;
 				return GOOD;
 			}
-			else if ((song.qsteps[qbeat_round+i] >> dir) & 1) {
+			else if ((qbeat_round+i < song.len_qbeats) && 
+				 (song.qsteps[qbeat_round+i] >> dir) & 1) {
 				song.qsteps[qbeat_round+i] &= ~(1 << dir);
 				goods++;
 				return GOOD;
@@ -368,12 +372,13 @@ int check_hit_dir(int dir, int pressed){
                 i = qbeat_offset+1;
 		qbeat_offset = (qbeats+SAMPLE_OFFSET_BOO)/song.samps_per_qbeat-qbeat_round;
 		for (; i <= qbeat_offset; i++) {
-			if ((song.qsteps[qbeat_round-i] >> dir) & 1) {
+			if ((qbeat_round-i >= 0) && (song.qsteps[qbeat_round-i] >> dir) & 1) {
 				song.qsteps[qbeat_round-i] &= ~(1 << dir);
 				boos++;
 				return BOO;
 			}
-			else if ((song.qsteps[qbeat_round+i] >> dir) & 1) {
+			else if ((qbeat_round+i < song.len_qbeats) && 
+				 (song.qsteps[qbeat_round+i] >> dir) & 1) {
 				song.qsteps[qbeat_round+i] &= ~(1 << dir);
 				boos++;
 				return BOO;
@@ -381,7 +386,8 @@ int check_hit_dir(int dir, int pressed){
 		}
 	}
 	int boo_qbeat_offset = (qbeats+SAMPLE_OFFSET_BOO)/song.samps_per_qbeat-qbeat_round;
-	if ((song.qsteps[qbeat_round-(boo_qbeat_offset+1)] >> dir) & 1) {
+	if ((qbeat_round-(boo_qbeat_offset+1) >= 0) && 
+	    (song.qsteps[qbeat_round-(boo_qbeat_offset+1)] >> dir) & 1) {
 		song.qsteps[qbeat_round-(boo_qbeat_offset+1)] &= ~(1 << dir);
 		misses++;
 		return MISS;
@@ -511,7 +517,7 @@ void game(struct fat16_handle * h, char * prefix)
 	bufs = &multibuf;
 	splat_loading();
 
-	memcpy_shit(fname, prefix, 8);
+	memcpy(fname, prefix, 8);
 	memcpy(fname+8, "FM ", 4);
 
 	rv = load_steps(h, &song, fname);
