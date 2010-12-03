@@ -1,5 +1,5 @@
 CFLAGS=-mno-thumb-interwork -march=armv4 -O3 -g -I../lib 
-OBJS=game.o gencol.o \
+OBJS=game.o gencol.o imgres.o \
 	../lib/sysace.o ../lib/serial.o ../lib/doprnt.o ../lib/minilib.o \
 	../lib/sprintf.o ../lib/keyhelp.o ../lib/console.o ../lib/fat16.o \
 	../lib/audio.o ../lib/accel.o ../lib/qalloc.o ../lib/malloc.o \
