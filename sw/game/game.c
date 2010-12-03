@@ -264,13 +264,7 @@ void splat_loading()
 	
 	printf(".");
 	
-//	for (i = 0; i < 4; i++)
-//	{
-//		bitblt(buf,  25, 50+50*i, left_arrows[i]);
-//		bitblt(buf, 100, 50+50*i, down_arrows[i]);
-//		bitblt(buf, 175, 50+50*i, up_arrows[i]);
-//		bitblt(buf, 250, 50+50*i, right_arrows[i]);
-//	}
+	accel_fill(buf, 0x00000000, SCREEN_WIDTH*SCREEN_HEIGHT);
 
 	cons_drawchar_with_scale_3(buf, (int)'L', 200+24*0, 300, gencol(c+10), 0x000000);
 	cons_drawchar_with_scale_3(buf, (int)'o', 200+24*1, 300, gencol(c+20), 0x000000);
@@ -280,6 +274,8 @@ void splat_loading()
 	cons_drawchar_with_scale_3(buf, (int)'n', 200+24*5, 300, gencol(c+60), 0x000000);
 	cons_drawchar_with_scale_3(buf, (int)'g', 200+24*6, 300, gencol(c+70), 0x000000);
 	cons_drawchar_with_scale_3(buf, (int)'.', 200+24*7, 300, gencol(c+80), 0x000000);
+	cons_drawchar_with_scale_3(buf, (int)'.', 200+24*8, 300, gencol(c+90), 0x000000);
+	cons_drawchar_with_scale_3(buf, (int)'.', 200+24*9, 300, gencol(c+100), 0x000000);
 	c += 10;
 
 	buf = multibuf_flip(bufs);
