@@ -92,3 +92,10 @@ int audio_samples_played()
 	return *dma_nread/AUDIO_BYTES_PER_SAMP;
 }
 
+int is_audio_done(int len)
+{
+	return (*dma_nread == (len & ~0xFF));
+}
+
+
+

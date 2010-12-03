@@ -10,6 +10,48 @@
 #define SCREEN_WIDTH 640
 #define SCREEN_HEIGHT 480
 
+/* SCORES (higher number = worse result)*/
+#define MARVELOUS 1
+#define PERFECT 2
+#define GREAT 3
+#define GOOD 4
+#define BOO 5
+#define MISS 6
+#define NONE 0
+
+int marvelouses;
+int perfects;
+int greats;
+int goods;
+int boos;
+int misses;
+
+
+#define AUDIO_SAMPLE_RATE 48000
+
+/* Bit offset of each arrows in the qstep byte */
+#define LEFT_POS 3
+#define DOWN_POS 2
+#define UP_POS 1
+#define RIGHT_POS 0
+
+#define LEFT_KEY 'j'
+#define DOWN_KEY 'k'
+#define UP_KEY 'i'
+#define RIGHT_KEY 'l' 
+
+/* Sample Offset */
+#define SAMPLE_OFFSET_MARVELOUS ((int)(AUDIO_SAMPLE_RATE*0.0225))
+#define SAMPLE_OFFSET_PERFECT ((int)(AUDIO_SAMPLE_RATE*0.045))
+#define SAMPLE_OFFSET_GREAT ((int)(AUDIO_SAMPLE_RATE*0.09))
+#define SAMPLE_OFFSET_GOOD ((int)(AUDIO_SAMPLE_RATE*0.135))
+#define SAMPLE_OFFSET_BOO ((int)(AUDIO_SAMPLE_RATE*0.18))
+
+/* Some magical offset values that seem to improve video synchronization */
+#define SAMPLE_TO_VIDEO_OFFSET 5600
+
+#define MAX(x,y) ((x) > (y)) ? (x) : (y)
+
 static unsigned char chars[] = {
 #include "chars.inc"
 };
@@ -258,6 +300,97 @@ static struct stepfile song;
 /* left up down right for the game */
 int l, u, d, r;
 
+int check_hit_dir(int dir, int pressed){
+	/* get rid of the bits that were already hit such that all the bits that are left
+           are now misses */
+	int i;
+        int qbeat_offset = 0;
+	int samples_played = audio_samples_played();
+        signed int qbeats = samples_played-song.delay_samps-1600+song.samps_per_qbeat/2;
+	signed int qbeat_round = qbeats/song.samps_per_qbeat;
+	if (pressed) {
+		i = 0;
+                qbeat_offset = (qbeats+SAMPLE_OFFSET_MARVELOUS)/song.samps_per_qbeat-qbeat_round;
+		for (; i <= qbeat_offset; i++) {
+			if ((song.qsteps[qbeat_round-i] >> dir) & 1) {
+				song.qsteps[qbeat_round-i] &= ~(1 << dir);
+				marvelouses++;
+				return MARVELOUS;
+			}
+			else if ((song.qsteps[qbeat_round+i] >> dir) & 1) {
+				song.qsteps[qbeat_round+i] &= ~(1 << dir);
+				marvelouses++;
+				return MARVELOUS;
+			}
+		}
+                i = qbeat_offset+1;
+		qbeat_offset = (qbeats+SAMPLE_OFFSET_PERFECT)/song.samps_per_qbeat-qbeat_round;
+		for (; i <= qbeat_offset; i++) {
+			if ((song.qsteps[qbeat_round-i] >> dir) & 1) {
+				song.qsteps[qbeat_round-i] &= ~(1 << dir);
+				perfects++;
+				return PERFECT;
+			}
+			else if ((song.qsteps[qbeat_round+i] >> dir) & 1) {
+				song.qsteps[qbeat_round+i] &= ~(1 << dir);
+				perfects++;
+				return PERFECT;
+			}
+		}
+                i = qbeat_offset+1;
+		qbeat_offset = (qbeats+SAMPLE_OFFSET_GREAT)/song.samps_per_qbeat-qbeat_round;
+		for (; i <= qbeat_offset; i++) {
+			if ((song.qsteps[qbeat_round-i] >> dir) & 1) {
+				song.qsteps[qbeat_round-i] &= ~(1 << dir);
+				greats++;
+				return GREAT;
+			}
+			else if ((song.qsteps[qbeat_round+i] >> dir) & 1) {
+				song.qsteps[qbeat_round+i] &= ~(1 << dir);
+				greats++;
+				return GREAT;
+			}
+		}
+                i = qbeat_offset+1;
+		qbeat_offset = (qbeats+SAMPLE_OFFSET_GOOD)/song.samps_per_qbeat-qbeat_round;
+		for (; i <= qbeat_offset; i++) {
+			if ((song.qsteps[qbeat_round-i] >> dir) & 1) {
+				song.qsteps[qbeat_round-i] &= ~(1 << dir);
+				goods++;
+				return GOOD;
+			}
+			else if ((song.qsteps[qbeat_round+i] >> dir) & 1) {
+				song.qsteps[qbeat_round+i] &= ~(1 << dir);
+				goods++;
+				return GOOD;
+			}
+		}
+                i = qbeat_offset+1;
+		qbeat_offset = (qbeats+SAMPLE_OFFSET_BOO)/song.samps_per_qbeat-qbeat_round;
+		for (; i <= qbeat_offset; i++) {
+			if ((song.qsteps[qbeat_round-i] >> dir) & 1) {
+				song.qsteps[qbeat_round-i] &= ~(1 << dir);
+				boos++;
+				return BOO;
+			}
+			else if ((song.qsteps[qbeat_round+i] >> dir) & 1) {
+				song.qsteps[qbeat_round+i] &= ~(1 << dir);
+				boos++;
+				return BOO;
+			}
+		}
+		misses++;
+		return MISS;
+	}
+	int boo_qbeat_offset = (qbeats+SAMPLE_OFFSET_BOO)/song.samps_per_qbeat-qbeat_round;
+	if ((song.qsteps[qbeat_round-(boo_qbeat_offset+1)] >> LEFT_POS) & 1) {
+		song.qsteps[qbeat_round-(boo_qbeat_offset+1)] &= ~(1 << LEFT_POS);
+		return MISS;
+	}
+	return NONE;
+
+}
+
 int check_hit(){
 	volatile unsigned int* scancodeaddr = 0x85000000;
 	unsigned int scancode;
@@ -267,20 +400,25 @@ int check_hit(){
 	int rnow = r;
 	kh_type k;
 	char new_char;
-	int hit = -1;
-	int samples_played = audio_samples_played();
-	signed int qbeat_round = (samples_played-song.delay_samps-1600+song.samps_per_qbeat/2)/song.samps_per_qbeat;
-	signed int rem = (samples_played-song.delay_samps-1600)%song.samps_per_qbeat;
+	int hit = NONE;
+	
+
+	int i;
+
+	int hit_l = NONE;
+	int hit_u = NONE;
+	int hit_d = NONE;
+	int hit_r = NONE;
 
 	while ((scancode = *scancodeaddr) != 0xffffffff) {
 		k = process_scancode(scancode);
 		if (KH_HAS_CHAR(k)) {
 			new_char = KH_GET_CHAR(k);
 			switch (new_char) {
-				case 'j': lnow = !KH_IS_RELEASING(k); break;
-				case 'i': unow = !KH_IS_RELEASING(k); break;
-				case 'k': dnow = !KH_IS_RELEASING(k); break;
-				case 'l': rnow = !KH_IS_RELEASING(k); break;
+				case LEFT_KEY: lnow = !KH_IS_RELEASING(k); break;
+				case DOWN_KEY: dnow = !KH_IS_RELEASING(k); break;
+				case UP_KEY: unow = !KH_IS_RELEASING(k); break;
+				case RIGHT_KEY: rnow = !KH_IS_RELEASING(k); break;
 				case '7': 
 					if (!KH_IS_RELEASING(k)) {
 						offset -= 1000; 
@@ -308,129 +446,28 @@ int check_hit(){
 			}
 		}
 	}
+
+	hit_l = check_hit_dir(LEFT_POS, lnow && !l);
+	hit_d = check_hit_dir(DOWN_POS, dnow && !d);
+	hit_u = check_hit_dir(UP_POS, unow && !u);
+	hit_r = check_hit_dir(RIGHT_POS, rnow && !r);
 	
-	if (lnow && !l) {
-		if ((song.qsteps[qbeat_round] >> 3) & 1) {
-			hit = 1;
-			if (rem < song.samps_per_qbeat - rem)
-				printf("Off by %d\r\n", rem);
-			else 
-				printf("Off by -%d\r\n", song.samps_per_qbeat-rem);
-		}
-		else if ((song.qsteps[qbeat_round-1] >> 3) & 1) {
-			if (rem < song.samps_per_qbeat - rem) {
-				hit = 2;		
-				printf("Off by -%d\r\n", song.samps_per_qbeat-rem);
-			}
-			else
-				hit = 0;
-		}
-		else if ((song.qsteps[qbeat_round+1] >> 3) & 1) {
-			if (rem < song.samps_per_qbeat - rem)
-				hit = 0;
-			else { 
-				hit = 2;		
-				printf("Off by %d\r\n", rem);
-			}
-		}
-		else {
-			hit = 0;
-		}
-	}
-	if (dnow && !d) {
-		if ((song.qsteps[qbeat_round] >> 2) & 1) {
-			hit = 1;
-			if (rem < song.samps_per_qbeat - rem)
-				printf("Off by %d\r\n", rem);
-			else 
-				printf("Off by -%d\r\n", song.samps_per_qbeat-rem);
-		}
-		else if ((song.qsteps[qbeat_round-1] >> 2) & 1) {
-			if (rem < song.samps_per_qbeat - rem) {
-				hit = 2;		
-				printf("Off by -%d\r\n", song.samps_per_qbeat-rem);
-			}
-			else
-				hit = 0;
-		}
-		else if ((song.qsteps[qbeat_round+1] >> 2) & 1) {
-			if (rem < song.samps_per_qbeat - rem)
-				hit = 0;
-			else { 
-				hit = 2;		
-				printf("Off by %d\r\n", rem);
-			}
-		}
-		else {
-			hit = 0;
-		}
-	}
-	if (unow && !u) {
-		if ((song.qsteps[qbeat_round] >> 1) & 1) {
-			hit = 1;
-			if (rem < song.samps_per_qbeat - rem)
-				printf("Off by %d\r\n", rem);
-			else 
-				printf("Off by -%d\r\n", song.samps_per_qbeat-rem);
-		}
-		else if ((song.qsteps[qbeat_round-1] >> 1) & 1) {
-			if (rem < song.samps_per_qbeat - rem) {
-				hit = 2;		
-				printf("Off by -%d\r\n", song.samps_per_qbeat-rem);
-			}
-			else
-				hit = 0;
-		}
-		else if ((song.qsteps[qbeat_round+1] >> 1) & 1) {
-			if (rem < song.samps_per_qbeat - rem)
-				hit = 0;
-			else { 
-				hit = 2;		
-				printf("Off by %d\r\n", rem);
-			}
-		}
-		else {
-			hit = 0;
-		}
-	}
-	if (rnow && !r) {
-		if ((song.qsteps[qbeat_round] >> 0) & 1) {
-			hit = 1;
-			if (rem < song.samps_per_qbeat - rem)
-				printf("Off by %d\r\n", rem);
-			else 
-				printf("Off by -%d\r\n", song.samps_per_qbeat-rem);
-		}
-		else if ((song.qsteps[qbeat_round-1] >> 0) & 1) {
-			if (rem < song.samps_per_qbeat - rem) {
-				hit = 2;		
-				printf("Off by -%d\r\n", song.samps_per_qbeat-rem);
-			}
-			else
-				hit = 0;
-		}
-		else if ((song.qsteps[qbeat_round+1] >> 0) & 1) {
-			if (rem < song.samps_per_qbeat - rem)
-				hit = 0;
-			else { 
-				hit = 2;		
-				printf("Off by %d\r\n", rem);
-			}
-		}
-		else {
-			hit = 0;
-		}
-	}
 	l = lnow;
 	u = unow;
 	d = dnow;
 	r = rnow;
-	return hit;
+	return MAX(MAX(MAX(hit_l, hit_d), hit_u), hit_r);
 
 }
 
 void main()
 {
+	marvelouses = 0;
+	perfects = 0;
+	greats = 0;
+	goods = 0;
+	boos = 0;
+	misses = 0;
 	int i, j;
 	int length;
 	int rv;
@@ -507,6 +544,7 @@ void main()
 		return;
 	}
 
+
 	printf("qbeats: %d; samps_per_qbeat: %d; playing...\r\n", song.len_qbeats, song.samps_per_qbeat);
 
 	audio_play(audio_mem_base, length, AUDIO_MODE_ONCE);
@@ -522,14 +560,14 @@ void main()
 	d = 0;
 	r = 0;
 
-	int hit = -1;
-	int last_hit = -1;
+	int hit = NONE;
+	int last_hit = NONE;
 	int prev_cycle = *cycleaddr;
 	int curr_cycle = *cycleaddr;
 	buf = multibuf_flip(bufs);
-	offset = 5600;
+	offset = SAMPLE_TO_VIDEO_OFFSET;
 
-	while (1) {
+	while (!is_audio_done(length)) {
 		signed int qbeat, rem, qbeat_round;
 		char datum;
 		int i;
@@ -546,18 +584,18 @@ void main()
 		if (qbeat < 0)
 			continue;
 
-		if (hit == -1)	
+		if (hit == NONE)	
 			hit = check_hit(qbeat_round, rem);
 
 		accel_fill(buf, 0x00000000, SCREEN_WIDTH*SCREEN_HEIGHT);
 
 		bitblt(buf,  25, 50, left_spot);
 		bitblt(buf, 100, 50, down_spot);
-		if (hit == -1)
+		if (hit == NONE)
 			hit = check_hit();
 		bitblt(buf, 175, 50, up_spot);
 		bitblt(buf, 250, 50, right_spot);
-		if (hit == -1)
+		if (hit == NONE)
 			hit = check_hit();
 
 		samples_played = audio_samples_played()+offset;
@@ -573,43 +611,82 @@ void main()
 				bitblt(buf, 25, y, left_arrows[spot_in_beat]);
 			if ((datum >> 2) & 1)
 				bitblt(buf, 100, y, down_arrows[spot_in_beat]);
-			if (hit == -1)
+			if (hit == NONE)
 				hit = check_hit();
 			if ((datum >> 1) & 1)
 				bitblt(buf, 175, y, up_arrows[spot_in_beat]);
 			if ((datum >> 0) & 1)
 				bitblt(buf, 250, y, right_arrows[spot_in_beat]);
-			if (hit == -1)
+			if (hit == NONE)
 				hit = check_hit();
 		}
-		if (hit == -1)
+		if (hit == NONE)
 			hit = last_hit;
 		else
 			last_hit = hit;
-		if (hit == 0) {
-			cons_drawchar_with_scale_3(buf, (int)'M', 100, 200, 0xffffffff, 0x00000000);			
-			cons_drawchar_with_scale_3(buf, (int)'I', 100+24*1, 200, 0xffffffff, 0x00000000);
-			hit = check_hit();
-			cons_drawchar_with_scale_3(buf, (int)'S', 100+24*2, 200, 0xffffffff, 0x00000000);			
-			cons_drawchar_with_scale_3(buf, (int)'S', 100+24*3, 200, 0xffffffff, 0x00000000);			
+		switch (hit) {
+			case MARVELOUS:
+				cons_drawchar_with_scale_3(buf, (int)'M', 100, 200, 0xffffffff, 0x00000000);
+				cons_drawchar_with_scale_3(buf, (int)'A', 100+24*1, 200, 0xffffffff, 0x00000000);	
+				hit = check_hit();
+				cons_drawchar_with_scale_3(buf, (int)'R', 100+24*2, 200, 0xffffffff, 0x00000000);			
+				cons_drawchar_with_scale_3(buf, (int)'V', 100+24*3, 200, 0xffffffff, 0x00000000);		
+				if (hit == NONE)	
+					hit = check_hit();
+				cons_drawchar_with_scale_3(buf, (int)'E', 100+24*4, 200, 0xffffffff, 0x00000000);			
+				cons_drawchar_with_scale_3(buf, (int)'L', 100+24*5, 200, 0xffffffff, 0x00000000);			
+				if (hit == NONE)	
+					hit = check_hit();
+				cons_drawchar_with_scale_3(buf, (int)'O', 100+24*6, 200, 0xffffffff, 0x00000000);			
+				cons_drawchar_with_scale_3(buf, (int)'U', 100+24*7, 200, 0xffffffff, 0x00000000);			
+				cons_drawchar_with_scale_3(buf, (int)'S', 100+24*8, 200, 0xffffffff, 0x00000000);			
+				break;
+			case PERFECT:	
+				cons_drawchar_with_scale_3(buf, (int)'P', 100, 200, 0xffffffff, 0x00000000);
+				cons_drawchar_with_scale_3(buf, (int)'E', 100+24*1, 200, 0xffffffff, 0x00000000);	
+				hit = check_hit();
+				cons_drawchar_with_scale_3(buf, (int)'R', 100+24*2, 200, 0xffffffff, 0x00000000);			
+				cons_drawchar_with_scale_3(buf, (int)'F', 100+24*3, 200, 0xffffffff, 0x00000000);		
+				if (hit == NONE)	
+					hit = check_hit();
+				cons_drawchar_with_scale_3(buf, (int)'E', 100+24*4, 200, 0xffffffff, 0x00000000);			
+				cons_drawchar_with_scale_3(buf, (int)'C', 100+24*5, 200, 0xffffffff, 0x00000000);			
+				cons_drawchar_with_scale_3(buf, (int)'T', 100+24*6, 200, 0xffffffff, 0x00000000);			
+				break;
+			case GREAT:
+				cons_drawchar_with_scale_3(buf, (int)'G', 100, 200, 0xffffffff, 0x00000000);
+				cons_drawchar_with_scale_3(buf, (int)'R', 100+24*1, 200, 0xffffffff, 0x00000000);	
+				hit = check_hit();
+				cons_drawchar_with_scale_3(buf, (int)'E', 100+24*2, 200, 0xffffffff, 0x00000000);			
+				cons_drawchar_with_scale_3(buf, (int)'A', 100+24*3, 200, 0xffffffff, 0x00000000);
+				cons_drawchar_with_scale_3(buf, (int)'T', 100+24*4, 200, 0xffffffff, 0x00000000);
+				break;
+			case GOOD:
+				cons_drawchar_with_scale_3(buf, (int)'G', 100, 200, 0xffffffff, 0x00000000);
+				cons_drawchar_with_scale_3(buf, (int)'O', 100+24*1, 200, 0xffffffff, 0x00000000);	
+				hit = check_hit();
+				cons_drawchar_with_scale_3(buf, (int)'O', 100+24*2, 200, 0xffffffff, 0x00000000);			
+				cons_drawchar_with_scale_3(buf, (int)'D', 100+24*3, 200, 0xffffffff, 0x00000000);
+				break;
+			case BOO:
+				cons_drawchar_with_scale_3(buf, (int)'B', 100, 200, 0xffffffff, 0x00000000);
+				cons_drawchar_with_scale_3(buf, (int)'O', 100+24*1, 200, 0xffffffff, 0x00000000);	
+				hit = check_hit();
+				cons_drawchar_with_scale_3(buf, (int)'O', 100+24*2, 200, 0xffffffff, 0x00000000);			
+				break;
+			case MISS: 
+				cons_drawchar_with_scale_3(buf, (int)'M', 100, 200, 0xffffffff, 0x00000000);			
+				cons_drawchar_with_scale_3(buf, (int)'I', 100+24*1, 200, 0xffffffff, 0x00000000);
+				hit = check_hit();
+				cons_drawchar_with_scale_3(buf, (int)'S', 100+24*2, 200, 0xffffffff, 0x00000000);			
+				cons_drawchar_with_scale_3(buf, (int)'S', 100+24*3, 200, 0xffffffff, 0x00000000);
+				break;
+			default:
+				break;
 		}
-		if (hit == 1) {
-			cons_drawchar_with_scale_3(buf, (int)'G', 100, 200, 0xffffffff, 0x00000000);
-			cons_drawchar_with_scale_3(buf, (int)'R', 100+24*1, 200, 0xffffffff, 0x00000000);	
-			hit = check_hit();
-			cons_drawchar_with_scale_3(buf, (int)'E', 100+24*2, 200, 0xffffffff, 0x00000000);			
-			cons_drawchar_with_scale_3(buf, (int)'A', 100+24*3, 200, 0xffffffff, 0x00000000);			
-			cons_drawchar_with_scale_3(buf, (int)'T', 100+24*4, 200, 0xffffffff, 0x00000000);			
-		}
-		if (hit == 2) {
-			cons_drawchar_with_scale_3(buf, (int)'G', 100, 200, 0xffffffff, 0x00000000);
-			cons_drawchar_with_scale_3(buf, (int)'O', 100+24*1, 200, 0xffffffff, 0x00000000);	
-			hit = check_hit();
-			cons_drawchar_with_scale_3(buf, (int)'O', 100+24*2, 200, 0xffffffff, 0x00000000);			
-			cons_drawchar_with_scale_3(buf, (int)'D', 100+24*3, 200, 0xffffffff, 0x00000000);
-		}	
 		
 		buf = multibuf_flip(&multibuf);
 	}
+	printf("MARVELOUSES: %d, PERFECTS: %d, GREATS: %d, GOODS: %d, BOOS: %d, MISSES: %d\r\n", marvelouses, perfects, greats, goods, boos, misses);
 }
 
