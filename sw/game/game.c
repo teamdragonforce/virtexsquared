@@ -48,7 +48,7 @@ int misses;
 #define SAMPLE_OFFSET_BOO ((int)(AUDIO_SAMPLE_RATE*0.18))
 
 /* Some magical offset values that seem to improve video synchronization */
-#define SAMPLE_TO_VIDEO_OFFSET 5800
+#define SAMPLE_TO_VIDEO_OFFSET 5950
 
 #define MAX(x,y) ((x) > (y)) ? (x) : (y)
 
@@ -338,10 +338,10 @@ int check_hit(){
 		if (KH_HAS_CHAR(k)) {
 			new_char = KH_GET_CHAR(k);
 			switch (new_char) {
-				case LEFT_KEY: lnow = !KH_IS_RELEASING(k); break;
-				case DOWN_KEY: dnow = !KH_IS_RELEASING(k); break;
-				case UP_KEY: unow = !KH_IS_RELEASING(k); break;
-				case RIGHT_KEY: rnow = !KH_IS_RELEASING(k); break;
+				case 'z': case LEFT_KEY: lnow = !KH_IS_RELEASING(k); break;
+				case 'x': case DOWN_KEY: dnow = !KH_IS_RELEASING(k); break;
+				case 'm': case UP_KEY: unow = !KH_IS_RELEASING(k); break;
+				case ',': case RIGHT_KEY: rnow = !KH_IS_RELEASING(k); break;
 				case '7': 
 					if (!KH_IS_RELEASING(k)) {
 						offset -= 1000; 
