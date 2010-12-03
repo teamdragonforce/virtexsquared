@@ -235,7 +235,7 @@ module Framebuffer(/*AUTOARG*/
 	wire wee;
 	/* iic_init AUTO_TEMPLATE(
 	  	.Clk(fbclk),
-	  	.Reset_n(1'b1),
+	  	.Reset_n(fbclk_rst_b),
 	  	.Pixel_clk_greater_than_65Mhz(1'b0),
 	  	.SDA(dvi_sda),
 	  	.SCL(dvi_scl),
@@ -251,7 +251,7 @@ module Framebuffer(/*AUTOARG*/
 		       .SCL		(dvi_scl),		 // Templated
 		       // Inputs
 		       .Clk		(fbclk),		 // Templated
-		       .Reset_n		(1'b1),			 // Templated
+		       .Reset_n		(fbclk_rst_b),		 // Templated
 		       .Pixel_clk_greater_than_65Mhz(1'b0));	 // Templated
 
 	always @(*) begin
