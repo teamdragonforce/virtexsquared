@@ -575,6 +575,13 @@ void game(struct fat16_handle * h, char * prefix)
 	down_spot[0] = img_load(h, "DOWNSPOTRES");
 	down_spot[1] = img_load(h, "DOWNFLASRES");
 	
+	struct img_resource *fantastic = img_load(h, "GRFANTASRES");
+	struct img_resource *perfect =   img_load(h, "GRPERFECRES");
+	struct img_resource *great =     img_load(h, "GRGREAT RES");
+	struct img_resource *good =      img_load(h, "GRGOOD  RES");
+	struct img_resource *boo =       img_load(h, "GRBOO   RES");
+	struct img_resource *miss =      img_load(h, "GRMISS  RES");
+	
 	/* Load music. */
 	
 	splat_loading();
@@ -682,66 +689,30 @@ void game(struct fat16_handle * h, char * prefix)
 			hit = last_hit;
 		else
 			last_hit = hit;
+
 		switch (hit) {
 			case MARVELOUS:
-				cons_drawchar_with_scale_3(buf, (int)'M', 100, 200, 0xffffffff, 0x00000000);
-				cons_drawchar_with_scale_3(buf, (int)'A', 100+24*1, 200, 0xffffffff, 0x00000000);	
-				hit = check_hit();
-				cons_drawchar_with_scale_3(buf, (int)'R', 100+24*2, 200, 0xffffffff, 0x00000000);			
-				cons_drawchar_with_scale_3(buf, (int)'V', 100+24*3, 200, 0xffffffff, 0x00000000);		
-				if (hit == NONE)	
-					hit = check_hit();
-				cons_drawchar_with_scale_3(buf, (int)'E', 100+24*4, 200, 0xffffffff, 0x00000000);			
-				cons_drawchar_with_scale_3(buf, (int)'L', 100+24*5, 200, 0xffffffff, 0x00000000);			
-				if (hit == NONE)	
-					hit = check_hit();
-				cons_drawchar_with_scale_3(buf, (int)'O', 100+24*6, 200, 0xffffffff, 0x00000000);			
-				cons_drawchar_with_scale_3(buf, (int)'U', 100+24*7, 200, 0xffffffff, 0x00000000);			
-				cons_drawchar_with_scale_3(buf, (int)'S', 100+24*8, 200, 0xffffffff, 0x00000000);			
+				bitblt(buf, 32, 200, fantastic);
 				break;
 			case PERFECT:	
-				cons_drawchar_with_scale_3(buf, (int)'P', 100, 200, 0xffffffff, 0x00000000);
-				cons_drawchar_with_scale_3(buf, (int)'E', 100+24*1, 200, 0xffffffff, 0x00000000);	
-				hit = check_hit();
-				cons_drawchar_with_scale_3(buf, (int)'R', 100+24*2, 200, 0xffffffff, 0x00000000);			
-				cons_drawchar_with_scale_3(buf, (int)'F', 100+24*3, 200, 0xffffffff, 0x00000000);		
-				if (hit == NONE)	
-					hit = check_hit();
-				cons_drawchar_with_scale_3(buf, (int)'E', 100+24*4, 200, 0xffffffff, 0x00000000);			
-				cons_drawchar_with_scale_3(buf, (int)'C', 100+24*5, 200, 0xffffffff, 0x00000000);			
-				cons_drawchar_with_scale_3(buf, (int)'T', 100+24*6, 200, 0xffffffff, 0x00000000);			
+				bitblt(buf, 32, 200, perfect);
 				break;
 			case GREAT:
-				cons_drawchar_with_scale_3(buf, (int)'G', 100, 200, 0xffffffff, 0x00000000);
-				cons_drawchar_with_scale_3(buf, (int)'R', 100+24*1, 200, 0xffffffff, 0x00000000);	
-				hit = check_hit();
-				cons_drawchar_with_scale_3(buf, (int)'E', 100+24*2, 200, 0xffffffff, 0x00000000);			
-				cons_drawchar_with_scale_3(buf, (int)'A', 100+24*3, 200, 0xffffffff, 0x00000000);
-				cons_drawchar_with_scale_3(buf, (int)'T', 100+24*4, 200, 0xffffffff, 0x00000000);
+				bitblt(buf, 32, 200, great);
 				break;
 			case GOOD:
-				cons_drawchar_with_scale_3(buf, (int)'G', 100, 200, 0xffffffff, 0x00000000);
-				cons_drawchar_with_scale_3(buf, (int)'O', 100+24*1, 200, 0xffffffff, 0x00000000);	
-				hit = check_hit();
-				cons_drawchar_with_scale_3(buf, (int)'O', 100+24*2, 200, 0xffffffff, 0x00000000);			
-				cons_drawchar_with_scale_3(buf, (int)'D', 100+24*3, 200, 0xffffffff, 0x00000000);
+				bitblt(buf, 32, 200, good);
 				break;
 			case BOO:
-				cons_drawchar_with_scale_3(buf, (int)'B', 100, 200, 0xffffffff, 0x00000000);
-				cons_drawchar_with_scale_3(buf, (int)'O', 100+24*1, 200, 0xffffffff, 0x00000000);	
-				hit = check_hit();
-				cons_drawchar_with_scale_3(buf, (int)'O', 100+24*2, 200, 0xffffffff, 0x00000000);			
+				bitblt(buf, 32, 200, boo);
 				break;
 			case MISS: 
-				cons_drawchar_with_scale_3(buf, (int)'M', 100, 200, 0xffffffff, 0x00000000);			
-				cons_drawchar_with_scale_3(buf, (int)'I', 100+24*1, 200, 0xffffffff, 0x00000000);
-				hit = check_hit();
-				cons_drawchar_with_scale_3(buf, (int)'S', 100+24*2, 200, 0xffffffff, 0x00000000);			
-				cons_drawchar_with_scale_3(buf, (int)'S', 100+24*3, 200, 0xffffffff, 0x00000000);
+				bitblt(buf, 32, 200, miss);
 				break;
 			default:
 				break;
 		}
+		hit = check_hit();
 		
 		buf = multibuf_flip(bufs);
 	}
