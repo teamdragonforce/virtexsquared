@@ -48,7 +48,7 @@ int misses;
 #define SAMPLE_OFFSET_BOO ((int)(AUDIO_SAMPLE_RATE*0.18))
 
 /* Some magical offset values that seem to improve video synchronization */
-#define SAMPLE_TO_VIDEO_OFFSET 5600
+#define SAMPLE_TO_VIDEO_OFFSET 5800
 
 #define MAX(x,y) ((x) > (y)) ? (x) : (y)
 
@@ -112,7 +112,8 @@ struct img_resource
 {
 	unsigned int w;
 	unsigned int h;
-	unsigned int pixels[];
+	unsigned int *pixels;
+	unsigned int *pixels_orig;
 };
 
 #define SPRITE_DIM 64
@@ -132,21 +133,32 @@ struct img_resource *img_load(struct fat16_handle *h, char *name)
 		return NULL;
 	} 
 	
-	r = malloc(fd.len);
+	r = malloc(sizeof(*r));
 	if (!r)
 	{
 		printf("out of memory?\r\n");
 		return NULL;
 	}
 	
-	rv = fat16_read(&fd, (void *)r, fd.len);
-	if (rv != fd.len) {
+	r->pixels_orig = malloc(fd.len + 64);
+	if (!r->pixels_orig)
+	{
+		printf("out of memory?\r\n");
+		return NULL;
+	}
+	
+	r->pixels = (unsigned int *)(((unsigned int)r->pixels_orig + 63) & ~63);
+
+	rv = fat16_read(&fd, (void *)r, 8);
+	
+	rv = fat16_read(&fd, (void *)r->pixels, fd.len - 8);
+	if (rv != fd.len - 8) {
 		printf("short read (%d)\r\n", rv);
 		free(r);
 		return NULL;
 	}
 
-	printf("%dx%d image\r\n", r->w, r->h);
+	printf("%dx%d image (pixels at %08x)\r\n", r->w, r->h, r->pixels);
 	
 	return r;
 }
@@ -160,6 +172,15 @@ void bitblt(unsigned int *fb, unsigned int x0, unsigned int y0, struct img_resou
 		/*printf("BOUNDS CHECK!\r\n");*/
 		return;
 	}
+	
+	if (((r->w & 63) == 0) && ((x0 & 15) == 0))
+	{
+		/* we can take the fast path! */
+		accel_blit(fb + y0 * 640 + x0, r->pixels, r->w, r->h);
+		return;
+	}
+	
+	printf("*** had to take the slow path (%d, %d)\r\n", r->w & 63, x0 & 15);
 	
 	buf = r->pixels;
 	for (y = 0; y < r->h; y++) {
@@ -212,10 +233,10 @@ void cons_drawchar_with_scale_3(unsigned int *buf, int c, int x, int y, int fg, 
 					buf[(yy*3+j) * SCREEN_WIDTH + (7 - (xx*3+i))] = ((chars[c*8 + yy] >> xx) & 1) ? fg : bg;
 }
 
-struct img_resource *left_arrows[4];
-struct img_resource *down_arrows[4];
-struct img_resource *up_arrows[4];
-struct img_resource *right_arrows[4];
+struct img_resource *left_arrows[16];
+struct img_resource *down_arrows[16];
+struct img_resource *up_arrows[16];
+struct img_resource *right_arrows[16];
 
 multibuf_t *bufs;
 
@@ -480,6 +501,11 @@ int check_hit(){
 
 }
 
+void frobulate(char *j, int i)
+{
+	j[4] = i + '0';
+}
+
 void game(struct fat16_handle * h, char * prefix)
 {
 	marvelouses = 0;
@@ -496,30 +522,60 @@ void game(struct fat16_handle * h, char * prefix)
 
 	unsigned int *audio_mem_base;
 	
-	left_arrows[0] = img_load(h, "LEFT_4  RES");
-	left_arrows[1] = img_load(h, "LEFT_16 RES");
-	left_arrows[2] = img_load(h, "LEFT_8  RES");
-	left_arrows[3] = left_arrows[1];
+	/* Set up graphics. */
+	multibuf_t multibuf;
+	unsigned int *buf;
+
+	buf = multibuf_init(&multibuf, SCREEN_WIDTH, SCREEN_HEIGHT);
 	
-	right_arrows[0] = img_load(h, "RIGHT_4 RES");
-	right_arrows[1] = img_load(h, "RIGHT_16RES");
-	right_arrows[2] = img_load(h, "RIGHT_8 RES");
-	right_arrows[3] = right_arrows[1];
+	for (i = 0; i < 4; i++)
+	{
+		char *_names[16] = { "LEFT_4  RES", "LEFT_16 RES", "LEFT_8  RES", "LEFT_4  RES",
+		                    "RIGH_4  RES", "RIGH_16 RES", "RIGH_8  RES", "RIGH_4  RES",
+		                    "UPUP_4  RES", "UPUP_16 RES", "UPUP_8  RES", "UPUP_4  RES",
+		                    "DOWN_4  RES", "DOWN_16 RES", "DOWN_8  RES", "DOWN_4  RES" };
+		char names[16][12];
+		
+		for (j = 0; j < 16; j++)
+		{
+			strcpy(names[j], _names[j]);
+			frobulate(names[j], i);
+		}
+		
+		left_arrows[0+i*4] = img_load(h, names[0]);
+		left_arrows[1+i*4] = img_load(h, names[1]);
+		left_arrows[2+i*4] = img_load(h, names[2]);
+		left_arrows[3+i*4] = left_arrows[1];
+		
+		right_arrows[0+i*4] = img_load(h, names[4]);
+		right_arrows[1+i*4] = img_load(h, names[5]);
+		right_arrows[2+i*4] = img_load(h, names[6]);
+		right_arrows[3+i*4] = right_arrows[1];
+		
+		up_arrows[0+i*4] = img_load(h, names[8]);
+		up_arrows[1+i*4] = img_load(h, names[9]);
+		up_arrows[2+i*4] = img_load(h, names[10]);
+		up_arrows[3+i*4] = up_arrows[1];
+		
+		down_arrows[0+i*4] = img_load(h, names[12]);
+		down_arrows[1+i*4] = img_load(h, names[13]);
+		down_arrows[2+i*4] = img_load(h, names[14]);
+		down_arrows[3+i*4] = down_arrows[1];
+	}
 	
-	up_arrows[0] = img_load(h, "UP_4    RES");
-	up_arrows[1] = img_load(h, "UP_16   RES");
-	up_arrows[2] = img_load(h, "UP_8    RES");
-	up_arrows[3] = up_arrows[1];
+	struct img_resource *left_spot[2];
+	struct img_resource *right_spot[2];
+	struct img_resource *up_spot[2];
+	struct img_resource *down_spot[2];
 	
-	down_arrows[0] = img_load(h, "DOWN_4  RES");
-	down_arrows[1] = img_load(h, "DOWN_16 RES");
-	down_arrows[2] = img_load(h, "DOWN_8  RES");
-	down_arrows[3] = down_arrows[1];
-	
-	struct img_resource *left_spot = img_load(h, "LEFTSPOTRES");
-	struct img_resource *right_spot = img_load(h, "RIGHSPOTRES");
-	struct img_resource *up_spot = img_load(h, "UP_SPOT RES");
-	struct img_resource *down_spot = img_load(h, "DOWNSPOTRES");
+	left_spot[0] = img_load(h, "LEFTSPOTRES");
+	left_spot[1] = img_load(h, "LEFTFLASRES");
+	right_spot[0] = img_load(h, "RIGHSPOTRES");
+	right_spot[1] = img_load(h, "RIGHFLASRES");
+	up_spot[0] = img_load(h, "UPUPSPOTRES");
+	up_spot[1] = img_load(h, "UPUPFLASRES");
+	down_spot[0] = img_load(h, "DOWNSPOTRES");
+	down_spot[1] = img_load(h, "DOWNFLASRES");
 	
 	/* Load music. */
 	
@@ -576,6 +632,7 @@ void game(struct fat16_handle * h, char * prefix)
 		int dnow = d;
 		int rnow = r;
 		int samples_played;
+		int s;
 		
 		curr_cycle = *cycleaddr;
 		/*printf("Cycles: %d\r\n", curr_cycle-prev_cycle);*/
@@ -588,35 +645,39 @@ void game(struct fat16_handle * h, char * prefix)
 			hit = check_hit(qbeat_round, rem);
 
 		accel_fill(buf, 0x00000000, SCREEN_WIDTH*SCREEN_HEIGHT);
-
-		bitblt(buf,  25, 50, left_spot);
-		bitblt(buf, 100, 50, down_spot);
-		if (hit == NONE)
-			hit = check_hit();
-		bitblt(buf, 175, 50, up_spot);
-		bitblt(buf, 250, 50, right_spot);
-		if (hit == NONE)
-			hit = check_hit();
-
+		
 		samples_played = audio_samples_played()+offset;
 		qbeat = (samples_played-song.delay_samps-1600)/song.samps_per_qbeat;
 		rem = (samples_played-song.delay_samps-1600)%song.samps_per_qbeat;
 		qbeat_round = (samples_played-song.delay_samps-1600+song.samps_per_qbeat/2)/song.samps_per_qbeat;
 
+		s = (qbeat & 3) == 0;
+
+		bitblt(buf,  16, 50, left_spot[s]);
+		bitblt(buf,  96, 50, down_spot[s]);
+		if (hit == NONE)
+			hit = check_hit();
+		bitblt(buf, 176, 50, up_spot[s]);
+		bitblt(buf, 256, 50, right_spot[s]);
+		if (hit == NONE)
+			hit = check_hit();
+
+
 		for (i = 7; i >= -1; i--) {
 			int y = 50 + 50 * i + 50 * (song.samps_per_qbeat - rem) / song.samps_per_qbeat;
 			int spot_in_beat = (qbeat + i) % 4;
+			int shimmer = ((y >> 5) & 3) * 4;
 			datum = song.qsteps[qbeat+i];
 			if ((datum >> 3) & 1)
-				bitblt(buf, 25, y, left_arrows[spot_in_beat]);
+				bitblt(buf, 16, y, left_arrows[spot_in_beat+shimmer]);
 			if ((datum >> 2) & 1)
-				bitblt(buf, 100, y, down_arrows[spot_in_beat]);
+				bitblt(buf, 96, y, down_arrows[spot_in_beat+shimmer]);
 			if (hit == NONE)
 				hit = check_hit();
 			if ((datum >> 1) & 1)
-				bitblt(buf, 175, y, up_arrows[spot_in_beat]);
+				bitblt(buf, 176, y, up_arrows[spot_in_beat+shimmer]);
 			if ((datum >> 0) & 1)
-				bitblt(buf, 250, y, right_arrows[spot_in_beat]);
+				bitblt(buf, 256, y, right_arrows[spot_in_beat+shimmer]);
 			if (hit == NONE)
 				hit = check_hit();
 		}
