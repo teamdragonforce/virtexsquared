@@ -140,6 +140,8 @@ module AccelBlit(/*AUTOARG*/
 	
 	wire fsabi_decode = fsabi_valid && fsabi_did == FSAB_DID && fsabi_subdid == FSAB_SUBDID;
 	
+	wire [63:0] fuck_xilinx = rddata[trans_words_rem - 1];
+	
 	always @(posedge fsabi_clk or negedge fsabi_rst_b) begin
 		if (!fsabi_rst_b) begin
 			rdaddr <= DEFAULT_RDADDR;
@@ -220,11 +222,11 @@ module AccelBlit(/*AUTOARG*/
 				accel_blit__fsabo_subdid <= FSAB_SUBDID;
 				accel_blit__fsabo_addr <= wraddr_cur;
 				accel_blit__fsabo_len <= trans_words;
-				accel_blit__fsabo_data <= rddata[trans_words_rem - 1];
-				accel_blit__fsabo_mask <= {{4{rddata[trans_words_rem - 1][0]}},
-				                           {4{rddata[trans_words_rem - 1][32]}}};
+				accel_blit__fsabo_data <= fuck_xilinx;
+				accel_blit__fsabo_mask <= {{4{fuck_xilinx[32]}},
+				                           {4{fuck_xilinx[0]}}};
 				$display("ACCELBLIT: write: %x words, wraddr_cur %x, data %x, mask %x", trans_words, wraddr_cur, rddata[trans_words_rem - 1],
-					{{4{rddata[trans_words_rem - 1][0]}},{4{rddata[trans_words_rem - 1][32]}}});
+					{{4{rddata[trans_words_rem - 1][32]}},{4{rddata[trans_words_rem - 1][0]}}});
 			end else begin
 				accel_blit__fsabo_valid <= 0;
 				accel_blit__fsabo_mode <= {(FSAB_REQ_HI+1){1'bx}};
