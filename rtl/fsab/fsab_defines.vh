@@ -18,6 +18,7 @@ parameter FSAB_SUBDID_AUDIO = 4'h0;
 
 parameter FSAB_DID_ACCEL = 4'h3;
 parameter FSAB_SUBDID_ACCEL_CLEAR = 4'h0;
+parameter FSAB_SUBDID_ACCEL_BLIT = 4'h1;
 
 parameter FSAB_ADDR_HI = 30;
 parameter FSAB_ADDR_LO = 3;
