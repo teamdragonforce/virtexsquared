@@ -36,6 +36,7 @@ def elab(stepdata):
 			down = is_step(measure[2])
 			right = is_step(measure[3])
 			note = (left << 3) | (up << 2) | (down << 1) | right
+			note = note | (note << 4)
 			notes.append(note)
 			for i in range(notetype - 1):
 				notes.append(0)
