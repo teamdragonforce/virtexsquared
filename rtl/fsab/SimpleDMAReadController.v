@@ -1,16 +1,4 @@
 
-/* I'm thinking somewhere in the lines of:
-spamo_addr to config mapping: 
-	0000 = next_start_addr (Write only)
-	(change the start reading location of the next trigger by changing the value here)
-   	0100 = next_len (Write only)
-   	(change the length read of the next trigger by changing the value here)
-   	1000 = command register (Write_only)
-   	1100 = fifo_bytes_read (Read_only) 
-	(number of bytes that the fifo read)
-/
-*/
-
 /* Read 64 bytes at a time through the FSAB bus */
 
 module SimpleDMAReadController(/*AUTOARG*/
@@ -80,7 +68,7 @@ module SimpleDMAReadController(/*AUTOARG*/
 	
 	parameter SPAM_DID = 4'hx;
 	parameter SPAM_ADDRPFX = 24'h000000;
-	parameter SPAM_ADDRMASK = 24'h000000;
+	parameter SPAM_ADDRMASK = 24'hFFFFE0;
 
 	parameter DEFAULT_ADDR = 31'h00000000;
 	parameter DEFAULT_LEN = 31'h00000000;
